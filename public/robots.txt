@@ -1,0 +1,48 @@
+# PropPulse OS Robots.txt
+# Prohibit search engine bots and AI webcrawlers from accessing private CRM surfaces
+
+User-agent: *
+# Allow public landing, authentication, and public CMA valuation pages
+Allow: /login
+Allow: /signup
+Allow: /forgot-password
+Allow: /cma/
+Allow: /assets/
+
+# Prohibit all private operational dashboards, contacts, and API endpoints
+Disallow: /dashboard
+Disallow: /dashboard/*
+Disallow: /inbox
+Disallow: /inbox/*
+Disallow: /dialer
+Disallow: /dialer/*
+Disallow: /contacts
+Disallow: /contacts/*
+Disallow: /pipeline
+Disallow: /pipeline/*
+Disallow: /data-health
+Disallow: /data-health/*
+Disallow: /smart-lists
+Disallow: /smart-lists/*
+Disallow: /lead-ingestion
+Disallow: /lead-ingestion/*
+Disallow: /settings
+Disallow: /settings/*
+Disallow: /api/
+Disallow: /api/*
+
+# Explicitly block AI training webcrawlers from entire domain
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: CCBot
+Disallow: /

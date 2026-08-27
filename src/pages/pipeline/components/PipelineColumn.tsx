@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import type { PipelineStage, Deal } from '@/types'
 import { DealCard } from './DealCard'
+import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 interface PipelineColumnProps {
@@ -26,6 +27,7 @@ export function PipelineColumn({ stage, deals, onSelectDeal }: PipelineColumnPro
   }, [stage.id])
 
   const totalValue = deals.reduce((s, d) => s + d.dealValue, 0)
+  const weightedValue = Math.round((totalValue * stage.probability) / 100)
 
   return (
     <div
@@ -36,23 +38,42 @@ export function PipelineColumn({ stage, deals, onSelectDeal }: PipelineColumnPro
       )}
     >
       {/* Column header */}
-      <div className="flex items-center justify-between border-b border-border/70 px-4 py-3.5 bg-muted/20 rounded-t-2xl">
-        <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded-full shadow-xs" style={{ backgroundColor: stage.color }} />
-          <h3 className="text-sm font-bold text-foreground">{stage.name}</h3>
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-muted/80 px-1.5 text-[11px] font-bold text-muted-foreground">
-            {deals.length}
+      <div className="border-b border-border/70 p-3.5 bg-muted/20 rounded-t-2xl space-y-1.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-3 w-3 rounded-full shadow-xs shrink-0" style={{ backgroundColor: stage.color }} />
+            <h3 className="text-sm font-bold text-foreground truncate">{stage.name}</h3>
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-muted/80 px-1.5 text-[11px] font-bold text-muted-foreground">
+              {deals.length}
+            </span>
+          </div>
+          <Badge
+            variant="outline"
+            className="text-[10px] px-1.5 py-0 font-mono"
+            style={{
+              borderColor: `${stage.color}40`,
+              backgroundColor: `${stage.color}10`,
+              color: stage.color,
+            }}
+          >
+            {stage.probability}%
+          </Badge>
+        </div>
+
+        <div className="flex items-center justify-between text-[11px] font-mono">
+          <span className="text-muted-foreground">
+            Total: <strong className="text-foreground">${(totalValue / 1000).toFixed(0)}K</strong>
+          </span>
+          <span className="text-primary font-semibold">
+            Forecast: ${(weightedValue / 1000).toFixed(0)}K
           </span>
         </div>
-        <span className="text-xs font-bold text-primary font-mono">
-          ${(totalValue / 1000).toFixed(0)}K
-        </span>
       </div>
 
       {/* Cards */}
       <div className="flex-1 space-y-2.5 overflow-y-auto p-3 max-h-[64vh]">
         {deals.length === 0 ? (
-          <div className="flex h-24 items-center justify-center rounded-xl border border-dashed border-border/70 text-xs text-muted-foreground">
+          <div className="flex h-24 items-center justify-center rounded-xl border border-dashed border-border/70 text-xs text-muted-foreground select-none">
             Drop deals here
           </div>
         ) : (

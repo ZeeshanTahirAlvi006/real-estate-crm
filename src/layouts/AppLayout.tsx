@@ -4,6 +4,7 @@ import { TopBar } from '@/components/topbar/TopBar'
 import { ParallelDialerModal } from '@/components/dialer/ParallelDialerModal'
 import { MiniDialerBar } from '@/components/dialer/MiniDialerBar'
 import { HelpGuideFloatingButton } from '@/components/help/HelpGuideFloatingButton'
+import { FeatureMaintenanceOverlay } from '@/components/shared/FeatureMaintenanceOverlay'
 import { useAppSelector } from '@/store/hooks'
 import { cn } from '@/lib/utils'
 
@@ -20,8 +21,9 @@ export function AppLayout() {
         )}
       >
         <TopBar />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 relative">
           <Outlet />
+          <FeatureMaintenanceOverlay />
         </main>
       </div>
 

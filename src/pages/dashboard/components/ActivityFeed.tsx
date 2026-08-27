@@ -1,36 +1,104 @@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-
-const activities = [
-  { id: 1, user: 'Sarah Wilson', action: 'moved deal to', target: 'Showing', emoji: '📋', time: '5 min ago', color: 'bg-amber-500/15' },
-  { id: 2, user: 'System', action: 'new lead from', target: 'Zillow', emoji: '🔵', time: '12 min ago', color: 'bg-blue-500/15' },
-  { id: 3, user: 'Mike Johnson', action: 'logged a call with', target: 'Robert Martinez', emoji: '📞', time: '25 min ago', color: 'bg-emerald-500/15' },
-  { id: 4, user: 'Lisa Chen', action: 'sent email to', target: 'Maria Garcia', emoji: '✉️', time: '1h ago', color: 'bg-purple-500/15' },
-  { id: 5, user: 'Tom Brady', action: 'closed deal at', target: '4100 Pine St — $475K', emoji: '🎉', time: '2h ago', color: 'bg-green-500/15' },
-  { id: 6, user: 'System', action: 'detected', target: '8 duplicate records', emoji: '⚠️', time: '3h ago', color: 'bg-amber-500/15' },
-  { id: 7, user: 'Sarah Wilson', action: 'added note to', target: 'James Thompson', emoji: '📝', time: '4h ago', color: 'bg-indigo-500/15' },
-  { id: 8, user: 'System', action: 'new lead from', target: 'Meta Ads', emoji: '🔵', time: '5h ago', color: 'bg-blue-500/15' },
-]
+import { useGetAuditLogsQuery } from '@/store/api/auditApi'
+import { useGetContactsQuery } from '@/store/api/contactsApi'
+import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export function ActivityFeed() {
+  const user = useAppSelector((state) => state.auth.user)
+  const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN
+
+  // Super Admin queries system audit logs; other roles query active contacts
+  const { data: auditData, isLoading: auditLoading } = useGetAuditLogsQuery({ limit: 10 }, { skip: !isSuperAdmin })
+  const { data: contactsData, isLoading: contactsLoading } = useGetContactsQuery({ limit: 10 }, { skip: isSuperAdmin })
+
+  const isLoading = isSuperAdmin ? auditLoading : contactsLoading
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[...Array(4)].map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full rounded-lg" />
+        ))}
+      </div>
+    )
+  }
+
+  const getActionEmoji = (action: string) => {
+    if (action.includes('AUTH_LOGIN')) return '🔐'
+    if (action.includes('AUTH_REGISTER')) return '🏢'
+    if (action.includes('CONTACT_CREATE')) return '👤'
+    if (action.includes('CONTACT_ADD_NOTE')) return '📝'
+    if (action.includes('CONTACT_UPDATE')) return '✏️'
+    if (action.includes('USER_INVITE')) return '✉️'
+    if (action.includes('FEATURE_FLAG')) return '⚡'
+    return '📋'
+  }
+
+  if (isSuperAdmin) {
+    const logs = auditData?.logs || []
+    return (
+      <ScrollArea className="h-64">
+        <div className="space-y-1">
+          {logs.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">No recent system audit records.</p>
+          ) : (
+            logs.map((log) => (
+              <div key={log.id} className="flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50">
+                <Avatar className="mt-0.5 h-8 w-8 shrink-0">
+                  <AvatarFallback className="bg-primary/10 text-xs">
+                    {getActionEmoji(log.action)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs">
+                    <span className="font-semibold text-foreground">{log.userEmail || 'System'}</span>{' '}
+                    <span className="text-muted-foreground">performed</span>{' '}
+                    <span className="font-mono text-primary text-[11px] font-medium">{log.action}</span>
+                    {log.details?.name && <span className="ml-1 text-foreground">({log.details.name})</span>}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/60 font-mono">
+                    {new Date(log.createdAt).toLocaleTimeString()} · IP: {log.ipAddress}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </ScrollArea>
+    )
+  }
+
+  // Brokerage Owner / Team Lead / Agent Feed (Contact Interactions Stream)
+  const contacts = contactsData?.contacts || []
   return (
     <ScrollArea className="h-64">
       <div className="space-y-1">
-        {activities.map(a => (
-          <div key={a.id} className="flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50">
-            <Avatar className="mt-0.5 h-8 w-8 shrink-0">
-              <AvatarFallback className={`${a.color} text-xs`}>{a.emoji}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm">
-                <span className="font-medium">{a.user}</span>{' '}
-                <span className="text-muted-foreground">{a.action}</span>{' '}
-                <span className="font-medium">{a.target}</span>
-              </p>
-              <p className="text-xs text-muted-foreground/60">{a.time}</p>
+        {contacts.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-8">No contact activities recorded yet.</p>
+        ) : (
+          contacts.slice(0, 8).map((c) => (
+            <div key={c.id} className="flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50">
+              <Avatar className="mt-0.5 h-8 w-8 shrink-0">
+                <AvatarFallback className="bg-emerald-500/10 text-emerald-600 text-xs font-semibold">
+                  {c.firstName?.[0]}{c.lastName?.[0]}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs">
+                  <span className="font-semibold text-foreground">{c.firstName} {c.lastName}</span>{' '}
+                  <span className="text-muted-foreground">· Source:</span>{' '}
+                  <span className="text-primary font-medium">{c.leadSource}</span>
+                </p>
+                <p className="text-[10px] text-muted-foreground/70 truncate">
+                  {c.notes || `Assigned to ${c.assignedAgentName || 'Agent'} · Score: ${c.leadScore}/100`}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </ScrollArea>
   )

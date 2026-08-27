@@ -12,6 +12,7 @@ export interface UserResponseDto {
   avatarUrl?: string
   timezone?: string
   isActive: boolean
+  mustChangePassword: boolean
   createdAt: string
   lastActiveAt?: string
 }

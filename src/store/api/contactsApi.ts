@@ -1,19 +1,39 @@
 import { baseApi } from './baseApi'
 import type { Contact, ActivityItem } from '@/types'
 
+interface ApiResponse<T> {
+  success: boolean
+  data: T
+  message?: string
+  pagination?: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+
 // Contacts API — endpoints connected to real backend
 export const contactsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getContacts: builder.query<{ contacts: Contact[]; total: number }, { search?: string; page?: number; limit?: number; source?: string; status?: string; sortBy?: string; sortOrder?: string }>({
+    getContacts: builder.query<
+      { contacts: Contact[]; total: number },
+      { search?: string; page?: number; limit?: number; source?: string; status?: string; sortBy?: string; sortOrder?: string }
+    >({
       query: (params) => ({
         url: '/contacts',
         params,
+      }),
+      transformResponse: (response: ApiResponse<Contact[]>) => ({
+        contacts: response.data || [],
+        total: response.pagination?.total ?? (response.data?.length || 0),
       }),
       providesTags: ['Contacts'],
     }),
 
     getContactById: builder.query<Contact, string>({
       query: (id) => `/contacts/${id}`,
+      transformResponse: (response: ApiResponse<Contact>) => response.data,
       providesTags: (_result, _error, id) => [{ type: 'ContactDetail', id }],
     }),
 
@@ -23,6 +43,7 @@ export const contactsApi = baseApi.injectEndpoints({
         method: 'POST',
         body: data,
       }),
+      transformResponse: (response: ApiResponse<Contact>) => response.data,
       invalidatesTags: ['Contacts'],
     }),
 
@@ -32,6 +53,7 @@ export const contactsApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: data,
       }),
+      transformResponse: (response: ApiResponse<Contact>) => response.data,
       invalidatesTags: (_result, _error, { id }) => ['Contacts', { type: 'ContactDetail', id }],
     }),
 
@@ -40,11 +62,15 @@ export const contactsApi = baseApi.injectEndpoints({
         url: `/contacts/${id}`,
         method: 'DELETE',
       }),
+      transformResponse: (response: ApiResponse<null>) => ({
+        success: response.success,
+      }),
       invalidatesTags: ['Contacts'],
     }),
 
     getContactActivity: builder.query<ActivityItem[], string>({
       query: (contactId) => `/contacts/${contactId}/activities`,
+      transformResponse: (response: ApiResponse<ActivityItem[]>) => response.data || [],
     }),
   }),
 })

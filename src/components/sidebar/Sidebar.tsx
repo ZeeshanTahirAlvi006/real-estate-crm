@@ -17,6 +17,7 @@ import {
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { toggleSidebar } from '@/store/slices/uiSlice'
 import { logout } from '@/store/slices/authSlice'
+import { useGetFeatureFlagsQuery } from '@/store/api/featureFlagsApi'
 import { useNavigate } from 'react-router-dom'
 import { SidebarNavItem } from './SidebarNavItem'
 import { cn } from '@/lib/utils'
@@ -25,23 +26,32 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ROLE_LABELS } from '@/constants/roles'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-const mainNavItems = [
-  { to: '/dashboard', icon: <HomeIcon className="h-5 w-5" />, label: 'Dashboard' },
-  { to: '/inbox', icon: <ChatBubbleLeftRightIcon className="h-5 w-5" />, label: 'Inbox' },
-  { to: '/dialer', icon: <PhoneIcon className="h-5 w-5" />, label: 'Parallel Dialer' },
-  { to: '/contacts', icon: <UserGroupIcon className="h-5 w-5" />, label: 'Contacts' },
-  { to: '/pipeline', icon: <RectangleStackIcon className="h-5 w-5" />, label: 'Pipeline' },
-  { to: '/smart-lists', icon: <FunnelIcon className="h-5 w-5" />, label: 'Smart Lists' },
+interface NavItemDef {
+  to: string
+  icon: React.ReactNode
+  label: string
+  badge?: string
+  badgeVariant?: 'live' | 'upcoming' | 'maintenance'
+  featureKey?: string
+}
+
+const mainNavItems: NavItemDef[] = [
+  { to: '/dashboard', icon: <HomeIcon className="h-5 w-5" />, label: 'Dashboard', badge: 'Live', badgeVariant: 'live' },
+  { to: '/contacts', icon: <UserGroupIcon className="h-5 w-5" />, label: 'Contacts', badge: 'Live', badgeVariant: 'live' },
+  { to: '/pipeline', icon: <RectangleStackIcon className="h-5 w-5" />, label: 'Pipeline', badge: 'Live', badgeVariant: 'live', featureKey: 'deals_pipeline' },
+  { to: '/dialer', icon: <PhoneIcon className="h-5 w-5" />, label: 'Parallel Dialer', badge: 'Live', badgeVariant: 'live', featureKey: 'dialer' },
+  { to: '/inbox', icon: <ChatBubbleLeftRightIcon className="h-5 w-5" />, label: 'Inbox', badge: 'Sprint 12', featureKey: 'ai_chatbot' },
+  { to: '/smart-lists', icon: <FunnelIcon className="h-5 w-5" />, label: 'Smart Lists', badge: 'Sprint 10' },
 ]
 
-const aiNavItems = [
-  { to: '/ai-isa', icon: <SparklesIcon className="h-5 w-5" />, label: 'AI ISA Engine' },
-  { to: '/data-health', icon: <ShieldCheckIcon className="h-5 w-5" />, label: 'Data Health' },
+const aiNavItems: NavItemDef[] = [
+  { to: '/lead-ingestion', icon: <SignalIcon className="h-5 w-5" />, label: 'Lead Ingestion', badge: 'Live', badgeVariant: 'live', featureKey: 'lead_ingestion' },
+  { to: '/data-health', icon: <ShieldCheckIcon className="h-5 w-5" />, label: 'Data Health', badge: 'Live', badgeVariant: 'live', featureKey: 'data_health' },
+  { to: '/ai-isa', icon: <SparklesIcon className="h-5 w-5" />, label: 'AI ISA Engine', badge: 'Sprint 8', featureKey: 'ai_isa' },
 ]
 
-const configNavItems = [
-  { to: '/lead-ingestion', icon: <SignalIcon className="h-5 w-5" />, label: 'Lead Ingestion' },
-  { to: '/settings', icon: <Cog6ToothIcon className="h-5 w-5" />, label: 'Settings' },
+const configNavItems: NavItemDef[] = [
+  { to: '/settings', icon: <Cog6ToothIcon className="h-5 w-5" />, label: 'Settings', badge: 'Live', badgeVariant: 'live' },
 ]
 
 export function Sidebar() {
@@ -49,6 +59,25 @@ export function Sidebar() {
   const navigate = useNavigate()
   const collapsed = useAppSelector((state) => state.ui.sidebarCollapsed)
   const user = useAppSelector((state) => state.auth.user)
+
+  // Real-time feature flags status for dynamic maintenance badges
+  const { data: flags } = useGetFeatureFlagsQuery(undefined, {
+    pollingInterval: 8000,
+  })
+
+  const resolveNavItem = (item: NavItemDef) => {
+    if (item.featureKey && flags) {
+      const flag = flags.find((f) => f.key === item.featureKey)
+      if (flag && !flag.isEnabled) {
+        return {
+          ...item,
+          badge: 'Maint',
+          badgeVariant: 'maintenance' as const,
+        }
+      }
+    }
+    return item
+  }
 
   const handleLogout = () => {
     dispatch(logout())
@@ -63,16 +92,16 @@ export function Sidebar() {
     <aside
       className={cn(
         'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300',
-        collapsed ? 'w-[68px]' : 'w-[260px]'
+        collapsed ? 'w-17' : 'w-65'
       )}
     >
       {/* Logo */}
       <div className={cn('flex h-16 items-center border-b border-sidebar-border px-4', collapsed && 'justify-center px-2')}>
         {collapsed ? (
-          <span className="text-xl font-bold bg-gradient-to-r from-primary to-chart-2 bg-clip-text text-transparent">P</span>
+          <span className="text-xl font-bold bg-linear-to-r from-primary to-chart-2 bg-clip-text text-transparent">P</span>
         ) : (
           <h1 className="text-lg font-bold tracking-tight">
-            <span className="bg-gradient-to-r from-primary via-chart-3 to-chart-2 bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-primary via-chart-3 to-chart-2 bg-clip-text text-transparent">
               PropPulse
             </span>
             <span className="ml-1 text-muted-foreground font-light text-sm">OS</span>
@@ -88,7 +117,7 @@ export function Sidebar() {
           </p>
         )}
         {mainNavItems.map((item) => (
-          <SidebarNavItem key={item.to} {...item} collapsed={collapsed} />
+          <SidebarNavItem key={item.to} {...resolveNavItem(item)} collapsed={collapsed} />
         ))}
 
         <Separator className="my-4" />
@@ -99,7 +128,7 @@ export function Sidebar() {
           </p>
         )}
         {aiNavItems.map((item) => (
-          <SidebarNavItem key={item.to} {...item} collapsed={collapsed} />
+          <SidebarNavItem key={item.to} {...resolveNavItem(item)} collapsed={collapsed} />
         ))}
 
         <Separator className="my-4" />
@@ -110,7 +139,7 @@ export function Sidebar() {
           </p>
         )}
         {configNavItems.map((item) => (
-          <SidebarNavItem key={item.to} {...item} collapsed={collapsed} />
+          <SidebarNavItem key={item.to} {...resolveNavItem(item)} collapsed={collapsed} />
         ))}
       </nav>
 

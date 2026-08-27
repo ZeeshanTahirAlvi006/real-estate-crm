@@ -1,6 +1,16 @@
 import { z } from 'zod'
 import { USER_ROLES } from '../../utils/constants.js'
 
+// Strong Password Complexity Validator
+export const passwordValidator = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(128, 'Password cannot exceed 128 characters')
+  .regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?])/,
+    'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
+  )
+
 // Register / Sign-up Validation Schema
 export const registerSchema = z
   .object({
@@ -20,14 +30,7 @@ export const registerSchema = z
       .toLowerCase()
       .email('Please provide a valid email address')
       .max(100, 'Email cannot exceed 100 characters'),
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .max(128, 'Password cannot exceed 128 characters')
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-      ),
+    password: passwordValidator,
     brokerageName: z
       .string()
       .trim()
@@ -69,13 +72,17 @@ export const forgotPasswordSchema = z
 export const resetPasswordSchema = z
   .object({
     token: z.string().min(1, 'Reset token is required'),
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .max(128, 'Password cannot exceed 128 characters')
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-      ),
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: passwordValidator,
   })
   .strict()
+
+// Change Password Validation Schema
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: passwordValidator,
+  })
+  .strict()
+
+

@@ -5,6 +5,7 @@ import {
   logoutUser,
   requestPasswordReset,
   resetUserPassword,
+  changeUserPassword,
   formatUserResponse,
 } from './auth.service.js'
 import { setAuthCookies, clearAuthCookies } from '../../utils/cookieHelper.js'
@@ -12,10 +13,17 @@ import { sendSuccess } from '../../utils/apiResponse.js'
 import { HTTP_STATUS } from '../../utils/constants.js'
 import { Brokerage } from '../../models/Brokerage.js'
 
+// Helper to extract IP and user-agent
+const getClientMeta = (req: Request) => ({
+  clientIp: req.ip || req.socket.remoteAddress || '127.0.0.1',
+  userAgent: req.headers['user-agent'] || 'browser',
+})
+
 // POST /api/auth/register
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const result = await registerUser(req.body)
+    const { clientIp, userAgent } = getClientMeta(req)
+    const result = await registerUser(req.body, clientIp, userAgent)
     setAuthCookies(res, result.accessToken, result.refreshToken)
     sendSuccess(res, result.user, 'Registration successful', HTTP_STATUS.CREATED)
   } catch (error) {
@@ -26,8 +34,8 @@ export const register = async (req: Request, res: Response, next: NextFunction):
 // POST /api/auth/login
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const clientIp = req.ip || req.socket.remoteAddress || '127.0.0.1'
-    const result = await loginUser(req.body, clientIp)
+    const { clientIp, userAgent } = getClientMeta(req)
+    const result = await loginUser(req.body, clientIp, userAgent)
     setAuthCookies(res, result.accessToken, result.refreshToken)
     sendSuccess(res, result.user, 'Authentication successful', HTTP_STATUS.OK)
   } catch (error) {
@@ -38,8 +46,9 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 // POST /api/auth/logout
 export const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const { clientIp, userAgent } = getClientMeta(req)
     if (req.user) {
-      await logoutUser(req.user)
+      await logoutUser(req.user, clientIp, userAgent)
     }
     clearAuthCookies(res)
     sendSuccess(res, null, 'Logged out successfully', HTTP_STATUS.OK)
@@ -65,7 +74,8 @@ export const getMe = async (req: Request, res: Response, next: NextFunction): Pr
 // POST /api/auth/forgot-password
 export const forgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const message = await requestPasswordReset(req.body)
+    const { clientIp, userAgent } = getClientMeta(req)
+    const message = await requestPasswordReset(req.body, clientIp, userAgent)
     sendSuccess(res, null, message, HTTP_STATUS.OK)
   } catch (error) {
     next(error)
@@ -75,9 +85,25 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
 // POST /api/auth/reset-password
 export const resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    await resetUserPassword(req.body)
+    const { clientIp, userAgent } = getClientMeta(req)
+    await resetUserPassword(req.body, clientIp, userAgent)
     sendSuccess(res, null, 'Password reset successful. You may now log in.', HTTP_STATUS.OK)
   } catch (error) {
     next(error)
   }
 }
+
+// POST /api/auth/change-password
+export const changePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user) {
+      return
+    }
+    const { clientIp, userAgent } = getClientMeta(req)
+    await changeUserPassword(req.user, req.body, clientIp, userAgent)
+    sendSuccess(res, null, 'Password changed successfully.', HTTP_STATUS.OK)
+  } catch (error) {
+    next(error)
+  }
+}
+

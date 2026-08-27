@@ -53,7 +53,13 @@ export function ContactsPage() {
       await createContact(formData).unwrap()
       toast.success('Contact created successfully')
       setShowCreate(false)
-    } catch { toast.error('Failed to create contact') }
+    } catch (err: any) {
+      if (err?.status === 409) {
+        toast.error('Contact exists: A contact with matching information already exists')
+      } else {
+        toast.error('Failed to create contact')
+      }
+    }
   }
 
   const handleDelete = async () => {

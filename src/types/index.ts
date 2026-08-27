@@ -49,30 +49,143 @@ export type ActivityType = 'call' | 'email' | 'sms' | 'note' | 'stage_change' | 
 export interface LeadSource {
   id: string
   name: string
-  type: string
-  logoUrl?: string
+  type: LeadSourceType
+  captureKey: string
+  webhookSecret?: string
   isActive: boolean
   leadCount: number
-  lastReceivedAt?: string
-  config?: Record<string, string>
+  config?: {
+    fieldMapping?: Record<string, string>
+  }
+  brokerageId?: string
+  createdBy?: string
+  createdAt: string
+  updatedAt?: string
 }
 
+export type LeadSourceType =
+  | 'zillow'
+  | 'realtor'
+  | 'meta_ads'
+  | 'google_ads'
+  | 'website'
+  | 'webhook'
+  | 'manual'
+
 // ── Routing Rule ─────────────────────────────────────
+export interface AgentWeight {
+  agentId: string
+  percentage: number
+}
+
+export interface ZipCodeMapping {
+  zipCodes: string[]
+  agentId: string
+}
+
+export interface ScheduleWindow {
+  dayOfWeek: number[]
+  startHour: number
+  endHour: number
+}
+
+export interface AgentSchedule {
+  agentId: string
+  timezone: string
+  windows: ScheduleWindow[]
+}
+
 export interface RoutingRule {
   id: string
   name: string
   type: RoutingRuleType
-  assignedAgentIds: string[]
-  assignedAgentNames?: string[]
-  priority: number
   isActive: boolean
-  zipCodes?: string[]
+  priority: number
+  brokerageId?: string
+  createdBy?: string
+  assignedAgentIds?: string[]
+  assignedAgentNames?: string[]
+  lastAssignedIndex?: number
+  agentWeights?: AgentWeight[]
+  zipCodeMappings?: ZipCodeMapping[]
+  schedules?: AgentSchedule[]
   escalationTimeoutSeconds?: number
-  weights?: Record<string, number>
   createdAt: string
+  updatedAt?: string
 }
 
 export type RoutingRuleType = 'round_robin' | 'weighted' | 'zip_code' | 'time_of_day'
+
+// ── Scoring Config ───────────────────────────────────
+export interface SourceWeight {
+  sourceType: string
+  points: number
+}
+
+export interface KeywordWeight {
+  keyword: string
+  points: number
+}
+
+export interface PriceTierWeight {
+  minPrice: number
+  maxPrice: number
+  points: number
+}
+
+export interface MessageLengthBonus {
+  minLength: number
+  points: number
+}
+
+export interface ScoringConfig {
+  id: string
+  brokerageId: string
+  sourceWeights: SourceWeight[]
+  keywordWeights: KeywordWeight[]
+  priceTierWeights: PriceTierWeight[]
+  financingBonus: number
+  messageLengthBonus: MessageLengthBonus
+  baseScore: number
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Lead Ingestion / Simulator ───────────────────────
+export interface IngestLeadPayload {
+  firstName?: string
+  lastName?: string
+  name?: string
+  email?: string
+  phone?: string
+  message?: string
+  propertyAddress?: string
+  propertyPrice?: number
+  zipCode?: string
+  source?: string
+  [key: string]: unknown
+}
+
+export interface IngestLeadResult {
+  contactId: string
+  isNew: boolean
+  routed?: boolean
+  leadScore?: number
+  assignedAgentId?: string
+  assignedAgentName?: string
+}
+
+export interface CaptureLeadPayload {
+  captureKey: string
+  firstName: string
+  lastName: string
+  email?: string
+  phone?: string
+  message?: string
+  propertyAddress?: string
+  propertyPrice?: number
+  zipCode?: string
+}
 
 // ── Webhook ──────────────────────────────────────────
 export interface Webhook {
@@ -89,7 +202,11 @@ export interface Webhook {
 export interface Pipeline {
   id: string
   name: string
+  brokerageId: string
+  isDefault: boolean
   stages: PipelineStage[]
+  createdAt: string
+  updatedAt: string
 }
 
 export interface PipelineStage {
@@ -97,12 +214,15 @@ export interface PipelineStage {
   name: string
   color: string
   order: number
+  probability: number
   dealCount: number
   totalValue: number
+  weightedValue: number
 }
 
 export interface Deal {
   id: string
+  pipelineId: string
   contactId: string
   contactName: string
   propertyAddress: string
@@ -113,12 +233,29 @@ export interface Deal {
   assignedAgentName?: string
   priority: DealPriority
   daysInStage: number
+  stageEnteredAt?: string
   notes?: string
   createdAt: string
   updatedAt: string
 }
 
 export type DealPriority = 'low' | 'medium' | 'high' | 'urgent'
+
+// Kanban response types
+export interface KanbanStage extends PipelineStage {
+  deals: Deal[]
+}
+
+export interface KanbanResponse {
+  pipelineId: string
+  pipelineName: string
+  stages: KanbanStage[]
+  summary: {
+    totalDeals: number
+    totalValue: number
+    weightedForecast: number
+  }
+}
 
 // ── Data Health ──────────────────────────────────────
 export interface DataHealthScore {
@@ -144,6 +281,7 @@ export interface DuplicatePair {
   matchScore: number
   matchFields: string[]
   status: 'pending' | 'merged' | 'dismissed'
+  createdAt?: string
 }
 
 // ── Smart List ───────────────────────────────────────

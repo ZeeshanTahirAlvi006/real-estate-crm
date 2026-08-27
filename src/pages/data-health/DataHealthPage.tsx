@@ -1,186 +1,315 @@
-import { toast } from 'sonner'
-import {
-  ShieldCheckIcon,
-  DocumentDuplicateIcon,
-  PhoneXMarkIcon,
-  EnvelopeIcon,
-  ArrowPathIcon,
-} from '@heroicons/react/24/outline'
-import { PageHeader } from '@/components/shared/PageHeader'
-import { StatCard } from '@/components/shared/StatCard'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import { useState } from 'react'
 import {
   useGetDataHealthQuery,
   useGetDuplicatesQuery,
   useTriggerDeduplicationMutation,
-  useTriggerPhoneVerificationMutation,
   useTriggerEmailValidationMutation,
+  useTriggerPhoneVerificationMutation,
+  useTriggerFullScanMutation,
 } from '@/store/api/dataHealthApi'
 import { HealthScoreGauge } from './components/HealthScoreGauge'
 import { DuplicatesList } from './components/DuplicatesList'
 import { DataQualityChart } from './components/DataQualityChart'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  ShieldCheckIcon,
+  SparklesIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  DocumentDuplicateIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
+  InformationCircleIcon,
+} from '@heroicons/react/24/outline'
+import { toast } from 'sonner'
 
 export function DataHealthPage() {
-  const { data: health, isLoading } = useGetDataHealthQuery()
-  const { data: duplicates } = useGetDuplicatesQuery()
-  const [triggerDedup, { isLoading: scanningDedup }] = useTriggerDeduplicationMutation()
-  const [triggerPhone, { isLoading: verifyingPhones }] = useTriggerPhoneVerificationMutation()
-  const [triggerEmail, { isLoading: validatingEmails }] = useTriggerEmailValidationMutation()
+  const { data: healthScore, isLoading: loadingHealth } = useGetDataHealthQuery()
+  const { data: duplicates = [], isLoading: loadingDuplicates } = useGetDuplicatesQuery()
 
-  const handleScanDuplicates = async () => {
+  const [triggerDeduplication, { isLoading: scanningDuplicates }] = useTriggerDeduplicationMutation()
+  const [triggerEmailValidation, { isLoading: scanningEmails }] = useTriggerEmailValidationMutation()
+  const [triggerPhoneVerification, { isLoading: scanningPhones }] = useTriggerPhoneVerificationMutation()
+  const [triggerFullScan, { isLoading: scanningAll }] = useTriggerFullScanMutation()
+
+  const [lastScanMessage, setLastScanMessage] = useState<string | null>(null)
+
+  const handleFullScan = async () => {
     try {
-      const res = await triggerDedup().unwrap()
-      toast.success(`Deduplication scan completed! Found ${res.found} potential duplicates.`)
+      await triggerFullScan().unwrap()
+      toast.success('Comprehensive database health scan completed!')
+      setLastScanMessage('All contacts scanned across duplicate identities, MX deliverability, and phone formatting.')
     } catch {
-      toast.error('Failed to run deduplication scan')
+      toast.error('Failed to complete full scan')
     }
   }
 
-  const handleVerifyPhones = async () => {
+  const handleDuplicateScan = async () => {
     try {
-      const res = await triggerPhone().unwrap()
-      toast.success(`Carrier verification complete! Verified ${res.verified} numbers.`)
+      const res = await triggerDeduplication().unwrap()
+      toast.success(res.message)
+      setLastScanMessage(res.message)
     } catch {
-      toast.error('Failed to verify phone numbers')
+      toast.error('Failed to run duplicate scan')
     }
   }
 
-  const handleValidateEmails = async () => {
+  const handleEmailScan = async () => {
     try {
-      const res = await triggerEmail().unwrap()
-      toast.success(`MX deliverability check complete! Cleaned ${res.validated} invalid addresses.`)
+      const res = await triggerEmailValidation().unwrap()
+      toast.success(res.message)
+      setLastScanMessage(res.message)
     } catch {
-      toast.error('Failed to validate emails')
+      toast.error('Failed to run email verification')
     }
   }
 
-  if (isLoading || !health) {
+  const handlePhoneScan = async () => {
+    try {
+      const res = await triggerPhoneVerification().unwrap()
+      toast.success(res.message)
+      setLastScanMessage(res.message)
+    } catch {
+      toast.error('Failed to run phone verification')
+    }
+  }
+
+  if (loadingHealth || loadingDuplicates) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Skeleton className="h-64 rounded-2xl" />
+          <Skeleton className="h-64 md:col-span-2 rounded-2xl" />
+        </div>
+        <Skeleton className="h-96 w-full rounded-2xl" />
       </div>
     )
   }
 
+  const score = healthScore?.overallScore ?? 100
+  const grade = healthScore?.grade ?? 'A'
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Self-Healing Data Engine"
-        description="Continuous background deduplication, carrier validation, and database cleanliness score"
-        actions={
-          <Button onClick={handleScanDuplicates} disabled={scanningDedup}>
-            <ArrowPathIcon className={`mr-2 h-4 w-4 ${scanningDedup ? 'animate-spin' : ''}`} />
-            {scanningDedup ? 'Scanning DB...' : 'Run Full Auto-Clean'}
+      {/* Top Header & On-Demand Actions Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-card border border-border/80 shadow-xs">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-primary/10 text-primary">
+              <ShieldCheckIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Data Health & Deduplication Scanner</h1>
+              <p className="text-xs text-muted-foreground">
+                Jaro-Winkler fuzzy contact deduplication, DNS MX deliverability checks, and phone validation.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Scan Triggers */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleDuplicateScan}
+            disabled={scanningDuplicates || scanningAll}
+            className="h-9 text-xs font-semibold gap-1.5 shadow-xs"
+          >
+            {scanningDuplicates ? (
+              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <DocumentDuplicateIcon className="w-3.5 h-3.5 text-amber-500" />
+            )}
+            <span>Scan Duplicates</span>
           </Button>
-        }
-      />
 
-      {/* Hero row: Score Gauge + KPI Cards */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Large Score Gauge */}
-        <Card className="lg:col-span-1 flex flex-col items-center justify-center p-6 text-center">
-          <HealthScoreGauge score={health.overallScore} grade={health.grade} />
-          <p className="mt-3 text-xs text-muted-foreground">
-            Last scan: {new Date(health.lastScanAt).toLocaleString()}
-          </p>
-        </Card>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleEmailScan}
+            disabled={scanningEmails || scanningAll}
+            className="h-9 text-xs font-semibold gap-1.5 shadow-xs"
+          >
+            {scanningEmails ? (
+              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <EnvelopeIcon className="w-3.5 h-3.5 text-blue-500" />
+            )}
+            <span>Validate Emails</span>
+          </Button>
 
-        {/* 4 Stat Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-2">
-          <StatCard
-            title="Duplicate Records"
-            value={health.duplicatesFound}
-            icon={<DocumentDuplicateIcon className="h-5 w-5" />}
-            trend={{ value: 15, isPositive: true }}
-          />
-          <StatCard
-            title="Unverified Phone Numbers"
-            value={health.unverifiedPhones}
-            icon={<PhoneXMarkIcon className="h-5 w-5" />}
-          />
-          <StatCard
-            title="Invalid Emails"
-            value={health.invalidEmails}
-            icon={<EnvelopeIcon className="h-5 w-5" />}
-          />
-          <StatCard
-            title="Missing Profile Data"
-            value={health.missingFields}
-            icon={<ShieldCheckIcon className="h-5 w-5" />}
-          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handlePhoneScan}
+            disabled={scanningPhones || scanningAll}
+            className="h-9 text-xs font-semibold gap-1.5 shadow-xs"
+          >
+            {scanningPhones ? (
+              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <PhoneIcon className="w-3.5 h-3.5 text-emerald-500" />
+            )}
+            <span>Check Phones</span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={handleFullScan}
+            disabled={scanningAll}
+            className="h-9 text-xs font-bold gap-1.5 shadow-md bg-primary hover:bg-primary/90"
+          >
+            {scanningAll ? (
+              <>
+                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                Scanning Database...
+              </>
+            ) : (
+              <>
+                <SparklesIcon className="w-4 h-4" />
+                Run Full Scan
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
-      {/* Action triggers row */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Autonomous Healing Routines</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-lg border border-border p-4 flex flex-col justify-between">
-            <div>
-              <h4 className="font-semibold text-sm">Fuzzy Match Deduplication</h4>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Matches first/last names, inverted phone numbers, and alias email handles.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={handleScanDuplicates}
-              disabled={scanningDedup}
-            >
-              {scanningDedup ? 'Scanning...' : 'Scan Duplicates'}
-            </Button>
-          </div>
+      {lastScanMessage && (
+        <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 text-xs flex items-center gap-2 animate-in fade-in">
+          <InformationCircleIcon className="w-4 h-4 shrink-0" />
+          <span>{lastScanMessage}</span>
+        </div>
+      )}
 
-          <div className="rounded-lg border border-border p-4 flex flex-col justify-between">
-            <div>
-              <h4 className="font-semibold text-sm">Twilio / Telesign Carrier Lookup</h4>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Identifies Landlines vs Mobile vs VOIP to prevent SMS deliverability fines.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={handleVerifyPhones}
-              disabled={verifyingPhones}
-            >
-              {verifyingPhones ? 'Verifying...' : 'Verify Phone Numbers'}
-            </Button>
+      {/* Main Score & Metrics Breakdown Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Radial Health Score Gauge */}
+        <Card className="border-border/80 shadow-xs flex flex-col justify-between">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold flex items-center justify-between">
+              <span>Database Cleanliness Score</span>
+              <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                Real-Time Health
+              </Badge>
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Algorithmic quality rating across duplicates, emails, phones, and completeness.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="py-4">
+            <HealthScoreGauge score={score} grade={grade} />
+          </CardContent>
+          <div className="p-3 border-t border-border/70 bg-muted/20 text-center rounded-b-2xl">
+            <span className="text-[11px] text-muted-foreground font-semibold">
+              {score >= 90
+                ? '🌟 Excellent health — your contact data is pristine!'
+                : score >= 75
+                ? '⚡ Good health — a few duplicate candidates to resolve.'
+                : '⚠️ Action recommended — review duplicate and invalid contact records.'}
+            </span>
           </div>
+        </Card>
 
-          <div className="rounded-lg border border-border p-4 flex flex-col justify-between">
-            <div>
-              <h4 className="font-semibold text-sm">MX & SMTP Ping Validation</h4>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Scans recipient domains for active MX routing records to maintain 99%+ deliverability.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={handleValidateEmails}
-              disabled={validatingEmails}
-            >
-              {validatingEmails ? 'Validating...' : 'Validate Inboxes'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        {/* 4 Health Dimension Metric Cards */}
+        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Duplicates */}
+          <Card className="border-border/80 shadow-xs">
+            <CardContent className="p-4 flex items-start justify-between">
+              <div className="space-y-1">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                  Duplicate Candidates
+                </span>
+                <span className="text-2xl font-black text-foreground font-mono">
+                  {healthScore?.duplicatesFound ?? duplicates.length}
+                </span>
+                <p className="text-[11px] text-muted-foreground">
+                  Contacts with matching phone, email, or &gt;85% name similarity.
+                </p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 shrink-0">
+                <DocumentDuplicateIcon className="w-5 h-5" />
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Duplicate Candidates List + Quality Trend Chart */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <DuplicatesList duplicates={duplicates || []} />
-        <DataQualityChart trend={health.trend || []} />
+          {/* Invalid Emails */}
+          <Card className="border-border/80 shadow-xs">
+            <CardContent className="p-4 flex items-start justify-between">
+              <div className="space-y-1">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                  Invalid / Undeliverable Emails
+                </span>
+                <span className="text-2xl font-black text-foreground font-mono">
+                  {healthScore?.invalidEmails ?? 0}
+                </span>
+                <p className="text-[11px] text-muted-foreground">
+                  Emails with invalid format or unresolvable DNS MX records.
+                </p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-500 shrink-0">
+                <EnvelopeIcon className="w-5 h-5" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Unverified Phones */}
+          <Card className="border-border/80 shadow-xs">
+            <CardContent className="p-4 flex items-start justify-between">
+              <div className="space-y-1">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                  Unformatted Phone Numbers
+                </span>
+                <span className="text-2xl font-black text-foreground font-mono">
+                  {healthScore?.unverifiedPhones ?? 0}
+                </span>
+                <p className="text-[11px] text-muted-foreground">
+                  Phone numbers not conforming to 10-digit / E.164 standards.
+                </p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 shrink-0">
+                <PhoneIcon className="w-5 h-5" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Incomplete Profiles */}
+          <Card className="border-border/80 shadow-xs">
+            <CardContent className="p-4 flex items-start justify-between">
+              <div className="space-y-1">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                  Incomplete Profiles
+                </span>
+                <span className="text-2xl font-black text-foreground font-mono">
+                  {healthScore?.missingFields ?? 0}
+                </span>
+                <p className="text-[11px] text-muted-foreground">
+                  Contacts missing address, tag classifications, or lead details.
+                </p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-500 shrink-0">
+                <ExclamationTriangleIcon className="w-5 h-5" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
+      {/* Historical Quality Trendline */}
+      {healthScore?.trend && healthScore.trend.length > 0 && (
+        <DataQualityChart trend={healthScore.trend} />
+      )}
+
+      {/* Duplicate Candidates List & Interactive Merging */}
+      <DuplicatesList
+        duplicates={duplicates}
+        onTriggerScan={handleDuplicateScan}
+        isScanning={scanningDuplicates || scanningAll}
+      />
     </div>
   )
 }

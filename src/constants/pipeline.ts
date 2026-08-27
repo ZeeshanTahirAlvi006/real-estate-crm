@@ -1,13 +1,13 @@
 import type { PipelineStage } from '@/types'
 
-export const DEFAULT_PIPELINE_STAGES: Omit<PipelineStage, 'dealCount' | 'totalValue'>[] = [
-  { id: 'new_lead', name: 'New Lead', color: '#6366f1', order: 0 },
-  { id: 'contacted', name: 'Contacted', color: '#8b5cf6', order: 1 },
-  { id: 'qualified', name: 'Qualified', color: '#06b6d4', order: 2 },
-  { id: 'showing', name: 'Showing', color: '#f59e0b', order: 3 },
-  { id: 'under_contract', name: 'Under Contract', color: '#10b981', order: 4 },
-  { id: 'closed_won', name: 'Closed Won', color: '#22c55e', order: 5 },
-  { id: 'closed_lost', name: 'Closed Lost', color: '#ef4444', order: 6 },
+export const DEFAULT_PIPELINE_STAGES: Omit<PipelineStage, 'dealCount' | 'totalValue' | 'weightedValue'>[] = [
+  { id: 'new_lead', name: 'New Lead', color: '#6366f1', order: 0, probability: 10 },
+  { id: 'contacted', name: 'Contacted', color: '#8b5cf6', order: 1, probability: 20 },
+  { id: 'qualified', name: 'Qualified', color: '#06b6d4', order: 2, probability: 40 },
+  { id: 'showing', name: 'Showing', color: '#f59e0b', order: 3, probability: 60 },
+  { id: 'under_contract', name: 'Under Contract', color: '#10b981', order: 4, probability: 80 },
+  { id: 'closed_won', name: 'Closed Won', color: '#22c55e', order: 5, probability: 100 },
+  { id: 'closed_lost', name: 'Closed Lost', color: '#ef4444', order: 6, probability: 0 },
 ]
 
 export const STAGE_COLORS: Record<string, string> = {

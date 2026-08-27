@@ -1,25 +1,118 @@
 import { baseApi } from './baseApi'
-import type { LeadSource, RoutingRule, Webhook } from '@/types'
+import type {
+  LeadSource,
+  RoutingRule,
+  ScoringConfig,
+  IngestLeadPayload,
+  CaptureLeadPayload,
+  Contact,
+} from '@/types'
 
-// Leads API — endpoints connected to real backend
+interface ApiResponse<T> {
+  success: boolean
+  data: T
+  message?: string
+  meta?: {
+    total?: number
+    page?: number
+    limit?: number
+    totalPages?: number
+  }
+}
+
+export interface IngestWebhookParams {
+  sourceId: string
+  payload: IngestLeadPayload
+  signature?: string
+}
+
 export const leadsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getLeadSources: builder.query<LeadSource[], void>({
-      query: () => '/lead-sources',
+    // ── Lead Sources ──────────────────────────────────────────
+    getLeadSources: builder.query<
+      { leadSources: LeadSource[]; total: number },
+      { search?: string; type?: string; isActive?: string; page?: number; limit?: number } | void
+    >({
+      query: (params) => ({
+        url: '/lead-sources',
+        params: params || {},
+      }),
+      transformResponse: (response: ApiResponse<LeadSource[]>) => ({
+        leadSources: response.data || [],
+        total: response.meta?.total ?? (response.data?.length || 0),
+      }),
       providesTags: ['LeadSources'],
     }),
 
-    toggleLeadSource: builder.mutation<LeadSource, string>({
-      query: (id) => ({
-        url: `/lead-sources/${id}/toggle`,
+    getLeadSourceById: builder.query<LeadSource, { id: string; includeSecret?: boolean }>({
+      query: ({ id, includeSecret }) => ({
+        url: `/lead-sources/${id}`,
+        params: includeSecret ? { includeSecret: 'true' } : undefined,
+      }),
+      transformResponse: (response: ApiResponse<LeadSource>) => response.data,
+      providesTags: (_result, _error, { id }) => [{ type: 'LeadSources', id }],
+    }),
+
+    createLeadSource: builder.mutation<LeadSource, Partial<LeadSource>>({
+      query: (data) => ({
+        url: '/lead-sources',
+        method: 'POST',
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<LeadSource>) => response.data,
+      invalidatesTags: ['LeadSources'],
+    }),
+
+    updateLeadSource: builder.mutation<LeadSource, { id: string; data: Partial<LeadSource> }>({
+      query: ({ id, data }) => ({
+        url: `/lead-sources/${id}`,
         method: 'PATCH',
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<LeadSource>) => response.data,
+      invalidatesTags: (_result, _error, { id }) => ['LeadSources', { type: 'LeadSources', id }],
+    }),
+
+    deleteLeadSource: builder.mutation<{ success: boolean }, string>({
+      query: (id) => ({
+        url: `/lead-sources/${id}`,
+        method: 'DELETE',
+      }),
+      transformResponse: (response: ApiResponse<null>) => ({
+        success: response.success,
       }),
       invalidatesTags: ['LeadSources'],
     }),
 
-    getRoutingRules: builder.query<RoutingRule[], void>({
-      query: () => '/routing-rules',
+    rotateWebhookSecret: builder.mutation<{ webhookSecret: string }, string>({
+      query: (id) => ({
+        url: `/lead-sources/${id}/rotate-secret`,
+        method: 'POST',
+      }),
+      transformResponse: (response: ApiResponse<{ webhookSecret: string }>) => response.data,
+      invalidatesTags: (_result, _error, id) => ['LeadSources', { type: 'LeadSources', id }],
+    }),
+
+    // ── Routing Rules ─────────────────────────────────────────
+    getRoutingRules: builder.query<
+      { routingRules: RoutingRule[]; total: number },
+      { type?: string; isActive?: string; page?: number; limit?: number } | void
+    >({
+      query: (params) => ({
+        url: '/routing-rules',
+        params: params || {},
+      }),
+      transformResponse: (response: ApiResponse<RoutingRule[]>) => ({
+        routingRules: response.data || [],
+        total: response.meta?.total ?? (response.data?.length || 0),
+      }),
       providesTags: ['RoutingRules'],
+    }),
+
+    getRoutingRuleById: builder.query<RoutingRule, string>({
+      query: (id) => `/routing-rules/${id}`,
+      transformResponse: (response: ApiResponse<RoutingRule>) => response.data,
+      providesTags: (_result, _error, id) => [{ type: 'RoutingRules', id }],
     }),
 
     createRoutingRule: builder.mutation<RoutingRule, Partial<RoutingRule>>({
@@ -28,6 +121,7 @@ export const leadsApi = baseApi.injectEndpoints({
         method: 'POST',
         body: data,
       }),
+      transformResponse: (response: ApiResponse<RoutingRule>) => response.data,
       invalidatesTags: ['RoutingRules'],
     }),
 
@@ -37,7 +131,8 @@ export const leadsApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: data,
       }),
-      invalidatesTags: ['RoutingRules'],
+      transformResponse: (response: ApiResponse<RoutingRule>) => response.data,
+      invalidatesTags: (_result, _error, { id }) => ['RoutingRules', { type: 'RoutingRules', id }],
     }),
 
     deleteRoutingRule: builder.mutation<{ success: boolean }, string>({
@@ -45,32 +140,117 @@ export const leadsApi = baseApi.injectEndpoints({
         url: `/routing-rules/${id}`,
         method: 'DELETE',
       }),
+      transformResponse: (response: ApiResponse<null>) => ({
+        success: response.success,
+      }),
       invalidatesTags: ['RoutingRules'],
     }),
 
-    getWebhooks: builder.query<Webhook[], void>({
-      query: () => '/webhooks',
-      providesTags: ['Webhooks'],
+    // ── Scoring Config ────────────────────────────────────────
+    getScoringConfig: builder.query<ScoringConfig, void>({
+      query: () => '/scoring-config',
+      transformResponse: (response: ApiResponse<ScoringConfig>) => response.data,
+      providesTags: ['ScoringConfig'],
     }),
 
-    createWebhook: builder.mutation<Webhook, Partial<Webhook>>({
+    updateScoringConfig: builder.mutation<ScoringConfig, Partial<ScoringConfig>>({
       query: (data) => ({
-        url: '/webhooks',
+        url: '/scoring-config',
+        method: 'PUT',
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<ScoringConfig>) => response.data,
+      invalidatesTags: ['ScoringConfig'],
+    }),
+
+    // ── Ingestion & Testing Endpoints ─────────────────────────
+    ingestManualLead: builder.mutation<
+      Contact,
+      {
+        firstName: string
+        lastName: string
+        email?: string
+        phone?: string
+        message?: string
+        propertyAddress?: string
+        propertyPrice?: number
+        zipCode?: string
+        leadSource?: string
+        tags?: string[]
+        assignedAgentId?: string
+      }
+    >({
+      query: (data) => ({
+        url: '/leads/manual',
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Webhooks'],
+      transformResponse: (response: ApiResponse<Contact>) => response.data,
+      invalidatesTags: ['Contacts', 'Leads', 'LeadSources'],
+    }),
+
+    ingestWebhookLead: builder.mutation<
+      { contactId: string; isNew: boolean; routed: boolean },
+      IngestWebhookParams
+    >({
+      query: ({ sourceId, payload, signature }) => {
+        const headers: Record<string, string> = {}
+        if (signature) headers['X-Webhook-Signature'] = signature
+        headers['X-Source-Id'] = sourceId
+
+        return {
+          url: `/leads/ingest?sourceId=${encodeURIComponent(sourceId)}`,
+          method: 'POST',
+          body: payload,
+          headers,
+        }
+      },
+      transformResponse: (response: ApiResponse<{ contactId: string; isNew: boolean; routed: boolean }>) =>
+        response.data,
+      invalidatesTags: ['Contacts', 'Leads', 'LeadSources'],
+    }),
+
+    captureWidgetLead: builder.mutation<
+      { contactId: string; isNew: boolean },
+      CaptureLeadPayload
+    >({
+      query: (data) => ({
+        url: '/leads/capture',
+        method: 'POST',
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<{ contactId: string; isNew: boolean }>) => response.data,
+      invalidatesTags: ['Contacts', 'Leads', 'LeadSources'],
+    }),
+
+    acknowledgeLeads: builder.mutation<{ acknowledgedCount: number }, { contactIds: string[] }>({
+      query: (data) => ({
+        url: '/leads/acknowledge',
+        method: 'PATCH',
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<{ acknowledgedCount: number }>) => response.data,
+      invalidatesTags: ['Contacts', 'Leads'],
     }),
   }),
 })
 
 export const {
   useGetLeadSourcesQuery,
-  useToggleLeadSourceMutation,
+  useGetLeadSourceByIdQuery,
+  useCreateLeadSourceMutation,
+  useUpdateLeadSourceMutation,
+  useDeleteLeadSourceMutation,
+  useRotateWebhookSecretMutation,
   useGetRoutingRulesQuery,
+  useGetRoutingRuleByIdQuery,
   useCreateRoutingRuleMutation,
   useUpdateRoutingRuleMutation,
   useDeleteRoutingRuleMutation,
-  useGetWebhooksQuery,
-  useCreateWebhookMutation,
+  useGetScoringConfigQuery,
+  useUpdateScoringConfigMutation,
+  useIngestManualLeadMutation,
+  useIngestWebhookLeadMutation,
+  useCaptureWidgetLeadMutation,
+  useAcknowledgeLeadsMutation,
 } = leadsApi

@@ -6,6 +6,7 @@ import {
   getMe,
   forgotPassword,
   resetPassword,
+  changePassword,
 } from './auth.controller.js'
 import { validate } from '../../middleware/validate.js'
 import {
@@ -13,6 +14,7 @@ import {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 } from './auth.validators.js'
 import { authenticate } from '../../middleware/authenticate.js'
 
@@ -27,5 +29,6 @@ router.post('/reset-password', validate(resetPasswordSchema), resetPassword)
 // Protected Authentication Routes (Requires valid cookie session)
 router.get('/me', authenticate, getMe)
 router.post('/logout', authenticate, logout)
+router.post('/change-password', authenticate, validate(changePasswordSchema), changePassword)
 
 export const authRoutes = router

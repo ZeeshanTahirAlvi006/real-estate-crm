@@ -40,8 +40,11 @@ export const baseApi = createApi({
     'ReactivationCampaigns',
     'SpeedToLead',
     'AuditLogs',
+    'FeatureFlags',
+    'Brokerages',
     'Transactions',
     'Commissions',
+    'ScoringConfig',
   ],
   endpoints: () => ({}),
 })

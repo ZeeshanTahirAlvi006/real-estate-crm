@@ -9,6 +9,8 @@ export const escapeRegExp = (text: string): string => {
 export const cleanXss = (input: string): string => {
   return xss(input.trim())
 }
+// const DANGEROUS_KEYS = new Set(['__proto__','constructor','prototype','$'])
+// const MAX_DEPTH = 10
 
 // Deep sanitize object values by trimming strings and scrubbing script tags
 export const deepSanitize = <T>(obj: T): T => {
@@ -30,3 +32,4 @@ export const deepSanitize = <T>(obj: T): T => {
   }
   return obj
 }
+

@@ -5,6 +5,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   [UserRole.BROKERAGE_OWNER]: 'Brokerage Owner',
   [UserRole.TEAM_LEAD]: 'Team Lead',
   [UserRole.AGENT]: 'Agent',
+  [UserRole.LEAD]: 'Client / Lead Portal',
 }
 
 export const ROLE_COLORS: Record<UserRole, string> = {
@@ -12,6 +13,7 @@ export const ROLE_COLORS: Record<UserRole, string> = {
   [UserRole.BROKERAGE_OWNER]: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
   [UserRole.TEAM_LEAD]: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   [UserRole.AGENT]: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  [UserRole.LEAD]: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
 }
 
 /**
@@ -72,6 +74,20 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<string, boolean>> = {
     manageTeam: false,
     manageIntegrations: false,
     manageSettings: true,
+    viewAllDeals: false,
+    exportData: false,
+  },
+  [UserRole.LEAD]: {
+    viewDashboard: false,
+    manageContacts: false,
+    managePipeline: false,
+    manageLeadIngestion: false,
+    manageSmartLists: false,
+    viewDataHealth: false,
+    triggerDataActions: false,
+    manageTeam: false,
+    manageIntegrations: false,
+    manageSettings: false,
     viewAllDeals: false,
     exportData: false,
   },

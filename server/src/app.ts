@@ -9,6 +9,17 @@ import { sanitizeRequest } from './middleware/sanitize.js'
 import { botGuard } from './middleware/botGuard.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { authRoutes } from './features/auth/auth.routes.js'
+import { featureFlagRoutes } from './features/feature-flags/featureFlag.routes.js'
+import { userRoutes } from './features/users/user.routes.js'
+import { brokerageRoutes } from './features/brokerages/brokerage.routes.js'
+import { contactRoutes } from './features/contacts/contact.routes.js'
+import { auditRoutes } from './features/audit/audit.routes.js'
+import { leadIngestionRoutes, leadSourceRoutes, routingRuleRoutes, scoringConfigRoutes } from './features/leads/lead.routes.js'
+import { pipelineRoutes } from './features/pipeline/pipeline.routes.js'
+import { dealRoutes } from './features/deals/deal.routes.js'
+import { dataHealthRoutes } from './features/data-health/dataHealth.routes.js'
+import { dialerRoutes } from './features/dialer/dialer.routes.js'
+import { initializeDefaultFeatureFlags } from './models/FeatureFlag.js'
 import { logger } from './utils/logger.js'
 import { sendSuccess } from './utils/apiResponse.js'
 import { HTTP_STATUS } from './utils/constants.js'
@@ -50,6 +61,19 @@ export const createApp = (): Express => {
 
   // 7. Feature Routes Mounting
   app.use('/api/auth', authRoutes)
+  app.use('/api/feature-flags', featureFlagRoutes)
+  app.use('/api/users', userRoutes)
+  app.use('/api/brokerages', brokerageRoutes)
+  app.use('/api/contacts', contactRoutes)
+  app.use('/api/audit-logs', auditRoutes)
+  app.use('/api/leads', leadIngestionRoutes)
+  app.use('/api/lead-sources', leadSourceRoutes)
+  app.use('/api/routing-rules', routingRuleRoutes)
+  app.use('/api/scoring-config', scoringConfigRoutes)
+  app.use('/api/pipelines', pipelineRoutes)
+  app.use('/api/deals', dealRoutes)
+  app.use('/api/data-health', dataHealthRoutes)
+  app.use('/api/dialer', dialerRoutes)
 
   // 8. 404 Catch-All Handler
   app.use((_req: Request, res: Response) => {
@@ -68,11 +92,14 @@ export const createApp = (): Express => {
 // Start Server Function
 export const startServer = async (): Promise<void> => {
   try {
-    logger.info('🚀 Initializing PropPulse OS Backend Services...')
+    logger.info('Initializing server...')
 
     // Initialize Database & Cache
     await connectDB()
     initRedis()
+
+    // Initialize & Cache Default Feature Flags
+    await initializeDefaultFeatureFlags()
 
     const app = createApp()
     const server = app.listen(env.PORT, () => {

@@ -13,6 +13,7 @@ export interface IUser extends Document {
   avatarUrl?: string
   timezone?: string
   isActive: boolean
+  mustChangePassword: boolean
   lastActiveAt?: Date
   passwordResetToken?: string
   passwordResetExpires?: Date
@@ -79,6 +80,10 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: true,
       index: true,
+    },
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
     },
     lastActiveAt: {
       type: Date,

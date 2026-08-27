@@ -15,6 +15,7 @@ export const settingsApi = baseApi.injectEndpoints({
 
     getTeamMembers: builder.query<TeamMember[], void>({
       query: () => '/users',
+      transformResponse: (response: any) => response.data || [],
       providesTags: ['TeamMembers'],
     }),
 

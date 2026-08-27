@@ -1,14 +1,17 @@
 import { Request, Response, NextFunction } from 'express'
-import { AnyZodObject, ZodError } from 'zod'
+import { AnyZodObject, ZodError, ZodEffects } from 'zod'
+
+type AnyZodSchema = AnyZodObject | ZodEffects<AnyZodObject, any, any>
 
 interface ValidationTarget {
-  body?: AnyZodObject
-  query?: AnyZodObject
-  params?: AnyZodObject
+  body?: AnyZodSchema
+  query?: AnyZodSchema
+  params?: AnyZodSchema
 }
 
 // Higher-order validation middleware for Zod schemas
-export const validate = (schemas: ValidationTarget | AnyZodObject) => {
+export const validate = (schemas: ValidationTarget | AnyZodSchema) => {
+
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       if ('parseAsync' in schemas) {

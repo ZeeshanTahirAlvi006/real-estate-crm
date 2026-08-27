@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/app.ts",
+    "seed": "tsx src/scripts/seed.ts",
     "build": "tsc",
     "start": "node dist/app.js",
     "typecheck": "tsc --noEmit"
@@ -21,6 +22,7 @@
     "ioredis": "^5.4.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
+    "uuid": "^14.0.2",
     "winston": "^3.17.0",
     "xss": "^1.0.15",
     "zod": "^3.24.1"
@@ -32,6 +34,7 @@
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.7",
+    "@types/uuid": "^10.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }

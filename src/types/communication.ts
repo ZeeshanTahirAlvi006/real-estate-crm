@@ -121,6 +121,7 @@ export interface VoicemailAudioDrop {
 
 export interface DialerQueueContact {
   id: string
+  contactId?: string
   firstName: string
   lastName: string
   phone: string
@@ -130,6 +131,7 @@ export interface DialerQueueContact {
   lastContactedAt?: string
   propertyInterest?: string
   notes?: string
+  priority?: number
 }
 
 // ── Sub-30s Omnichannel AI ISA Engine Types ─────────────────────────

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import type { Deal } from '@/types'
+import type { Deal, Pipeline, PipelineStage } from '@/types'
 import {
   XMarkIcon,
   PhoneIcon,
@@ -9,22 +9,30 @@ import {
   BuildingOfficeIcon,
   CalendarIcon,
   TrashIcon,
+  PencilSquareIcon,
+  ArrowRightIcon,
+  ArrowLeftIcon,
+  ClockIcon,
+
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useAppDispatch } from '@/store/hooks'
 import { openDialer, startDialingSession } from '@/store/slices/dialerSlice'
+import { useGetContactActivityQuery } from '@/store/api/contactsApi'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { DEFAULT_PIPELINE_STAGES, STAGE_COLORS } from '@/constants/pipeline'
 import { cn } from '@/lib/utils'
 
 interface DealDetailDrawerProps {
   deal: Deal | null
+  pipeline: Pipeline | null
   open: boolean
   onClose: () => void
   onDeleteDeal?: (id: string) => void
+  onEditDeal?: (deal: Deal) => void
+  onRequestStageMove?: (deal: Deal, targetStage: PipelineStage) => void
   onOpenCalculator?: (price: number) => void
 }
 
@@ -39,16 +47,29 @@ const defaultChecklist = [
 
 export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
   deal,
+  pipeline,
   open,
   onClose,
   onDeleteDeal,
+  onEditDeal,
+  onRequestStageMove,
   onOpenCalculator,
 }) => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const [checklist, setChecklist] = useState(defaultChecklist)
 
+  const { data: activities = [] } = useGetContactActivityQuery(deal?.contactId || '', {
+    skip: !deal?.contactId,
+  })
+
   if (!open || !deal) return null
+
+  const sortedStages = pipeline ? [...pipeline.stages].sort((a, b) => a.order - b.order) : []
+  const currentStageIndex = sortedStages.findIndex((s) => s.id === deal.stageId)
+  const currentStage = sortedStages[currentStageIndex]
+  const nextStage = currentStageIndex >= 0 && currentStageIndex < sortedStages.length - 1 ? sortedStages[currentStageIndex + 1] : null
+  const prevStage = currentStageIndex > 0 ? sortedStages[currentStageIndex - 1] : null
 
   const handleCall = () => {
     dispatch(openDialer({ lineCount: 1 }))
@@ -77,36 +98,54 @@ export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
   const progressPercent = Math.round((completedCount / checklist.length) * 100)
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-104 bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-md bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
       {/* Header */}
-      <div className="p-5 border-b border-border flex items-center justify-between bg-muted/20">
+      <div className="p-4 sm:p-5 border-b border-border flex items-center justify-between bg-muted/20">
         <div>
           <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            Deal Overview
+            Deal Overview & Milestone
           </span>
           <h3 className="font-bold text-base text-foreground mt-0.5">{deal.contactName}</h3>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <XMarkIcon className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          {onEditDeal && (
+            <button
+              onClick={() => onEditDeal(deal)}
+              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Edit Deal"
+            >
+              <PencilSquareIcon className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Body Content */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-6 text-xs">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6 text-xs">
         {/* Deal Financial Snapshot */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-chart-3/5 to-chart-2/10 border border-primary/20 space-y-3">
+        <div className="p-4 rounded-2xl bg-linear-to-br from-primary/10 via-chart-3/5 to-chart-2/10 border border-primary/20 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-muted-foreground font-semibold">Sale Price / Value</span>
-            <Badge variant="outline" className="font-bold text-xs uppercase">
+            <span className="text-[11px] text-muted-foreground font-semibold">Deal Value & Forecast</span>
+            <Badge variant="outline" className="font-bold text-[10px] uppercase">
               {deal.priority} Priority
             </Badge>
           </div>
-          <p className="text-3xl font-black text-foreground font-mono">
-            ${deal.dealValue.toLocaleString()}
-          </p>
+          <div className="flex items-baseline justify-between">
+            <p className="text-3xl font-black text-foreground font-mono">
+              ${deal.dealValue.toLocaleString()}
+            </p>
+            {currentStage && (
+              <span className="text-xs font-mono font-bold text-primary">
+                Weighted: ${Math.round((deal.dealValue * currentStage.probability) / 100).toLocaleString()}
+              </span>
+            )}
+          </div>
           <div className="flex items-center justify-between pt-2 border-t border-border/50 text-[11px] text-muted-foreground">
             <span>Est. 3% GCI: ${(deal.dealValue * 0.03).toLocaleString()}</span>
             <button
@@ -115,16 +154,86 @@ export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
               className="text-primary font-bold hover:underline flex items-center gap-1"
             >
               <CalculatorIcon className="w-3.5 h-3.5" />
-              <span>Calculate Split</span>
+              <span>Commission Split</span>
             </button>
           </div>
         </div>
+
+        {/* Sequential Stage Navigation Controls */}
+        {sortedStages.length > 0 && (
+          <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/70 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Sequential Stage Pipeline
+              </span>
+              {currentStage && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-bold px-2 py-0.5"
+                  style={{
+                    backgroundColor: `${currentStage.color}15`,
+                    borderColor: `${currentStage.color}50`,
+                    color: currentStage.color,
+                  }}
+                >
+                  Step #{currentStageIndex + 1}: {currentStage.name} ({currentStage.probability}%)
+                </Badge>
+              )}
+            </div>
+
+            {/* Stepper Dots */}
+            <div className="flex items-center gap-1 w-full pt-1">
+              {sortedStages.map((stage, idx) => {
+                const isPassed = idx <= currentStageIndex
+                const isCurrent = idx === currentStageIndex
+                return (
+                  <div
+                    key={stage.id}
+                    title={`${stage.name} (${stage.probability}%)`}
+                    className={cn(
+                      'flex-1 h-1.5 rounded-full transition-all',
+                      isCurrent
+                        ? 'h-2 shadow-xs'
+                        : isPassed
+                          ? 'opacity-80'
+                          : 'bg-muted opacity-40'
+                    )}
+                    style={{ backgroundColor: isPassed ? stage.color : undefined }}
+                  />
+                )
+              })}
+            </div>
+
+            {/* Step forward / backward action buttons */}
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!prevStage}
+                onClick={() => prevStage && onRequestStageMove?.(deal, prevStage)}
+                className="h-8 text-xs flex-1 gap-1"
+              >
+                <ArrowLeftIcon className="w-3.5 h-3.5" />
+                {prevStage ? `Back to ${prevStage.name}` : 'At First Stage'}
+              </Button>
+              <Button
+                size="sm"
+                disabled={!nextStage}
+                onClick={() => nextStage && onRequestStageMove?.(deal, nextStage)}
+                className="h-8 text-xs flex-1 gap-1 font-semibold"
+              >
+                {nextStage ? `Advance: ${nextStage.name}` : 'At Final Stage'}
+                <ArrowRightIcon className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Quick Communication Actions */}
         <div className="grid grid-cols-2 gap-2">
           <Button size="sm" onClick={handleCall} className="shadow-xs font-semibold">
             <PhoneIcon className="w-4 h-4 mr-1.5" />
-            Call Lead
+            Call Client
           </Button>
           <Button
             variant="outline"
@@ -135,19 +244,12 @@ export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
             }}
           >
             <ChatBubbleLeftRightIcon className="w-4 h-4 mr-1.5" />
-            Send Message
+            Send SMS / Email
           </Button>
         </div>
 
         {/* Property & Agent Details */}
         <div className="space-y-2.5 bg-muted/30 border border-border/70 rounded-2xl p-4">
-          <div className="flex items-center justify-between pb-2 border-b border-border/40">
-            <span className="text-muted-foreground font-medium">Pipeline Stage:</span>
-            <Badge variant="outline" className={cn('text-[11px] font-bold px-2 py-0.5', STAGE_COLORS[deal.stageId] || 'bg-primary/10 text-primary')}>
-              {DEFAULT_PIPELINE_STAGES.find((s) => s.id === deal.stageId)?.name || deal.stageName || deal.stageId}
-            </Badge>
-          </div>
-
           <div className="flex items-start gap-2.5">
             <BuildingOfficeIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
             <div>
@@ -160,7 +262,7 @@ export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
             <CalendarIcon className="w-4 h-4 text-muted-foreground shrink-0" />
             <div>
               <span className="text-muted-foreground font-medium block">Stage Velocity:</span>
-              <span className="font-semibold text-foreground">{deal.daysInStage} days in current stage</span>
+              <span className="font-semibold text-foreground">{deal.daysInStage} day(s) in current stage</span>
             </div>
           </div>
 
@@ -172,7 +274,7 @@ export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
             </Avatar>
             <div>
               <span className="text-muted-foreground font-medium block">Assigned Agent:</span>
-              <span className="font-semibold text-foreground">{deal.assignedAgentName || 'Sarah Jenkins'}</span>
+              <span className="font-semibold text-foreground">{deal.assignedAgentName || 'Assigned Agent'}</span>
             </div>
           </div>
         </div>
@@ -183,7 +285,7 @@ export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
             <div className="flex items-center gap-1.5">
               <CheckCircleIcon className="w-4 h-4 text-primary" />
               <span className="font-bold text-xs text-foreground uppercase tracking-wider">
-                Transaction Milestone Checklist
+                Transaction Checklist
               </span>
             </div>
             <span className="text-[11px] font-bold text-emerald-500 font-mono">
@@ -232,28 +334,56 @@ export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
             <p className="text-xs text-foreground leading-relaxed">{deal.notes}</p>
           </div>
         )}
+
+        {/* Activity Timeline */}
+        {activities.length > 0 && (
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <ClockIcon className="w-4 h-4" />
+              <span className="font-bold text-xs uppercase tracking-wider">
+                Recent Contact Activity ({activities.length})
+              </span>
+            </div>
+            <div className="space-y-2 border-l-2 border-border/70 ml-2 pl-3">
+              {activities.slice(0, 5).map((act) => (
+                <div key={act.id} className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-semibold text-foreground">
+                      {act.description}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground block">
+                    {new Date(act.createdAt).toLocaleString()} • {act.createdBy || 'System'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
-      {onDeleteDeal && (
-        <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-between">
+      <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-between">
+        {onDeleteDeal && (
           <Button
             variant="ghost"
             size="sm"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 text-xs gap-1"
             onClick={() => {
-              onDeleteDeal(deal.id)
-              onClose()
+              if (window.confirm(`Delete deal for ${deal.contactName}?`)) {
+                onDeleteDeal(deal.id)
+                onClose()
+              }
             }}
           >
-            <TrashIcon className="w-4 h-4 mr-1" />
+            <TrashIcon className="w-3.5 h-3.5" />
             Delete Deal
           </Button>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      )}
+        )}
+        <Button variant="outline" size="sm" onClick={onClose} className="h-8 text-xs ml-auto">
+          Close
+        </Button>
+      </div>
     </div>
   )
 }

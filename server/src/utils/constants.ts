@@ -43,3 +43,23 @@ export const GENERIC_AUTH_MESSAGES = {
   SESSION_EXPIRED: 'Your session has expired. Please sign in again.',
   FEATURE_MAINTENANCE: 'This feature is currently undergoing scheduled maintenance. Please check back shortly.',
 } as const
+
+// Lead Source Types
+export const LEAD_SOURCE_TYPES = [
+  'zillow',
+  'realtor',
+  'meta_ads',
+  'google_ads',
+  'website',
+  'webhook',
+  'manual',
+] as const
+export type LeadSourceType = (typeof LEAD_SOURCE_TYPES)[number]
+
+// Routing Rule Types
+export const ROUTING_RULE_TYPES = ['round_robin', 'weighted', 'zip_code', 'time_of_day'] as const
+export type RoutingRuleType = (typeof ROUTING_RULE_TYPES)[number]
+
+// Lead Ingestion Defaults
+export const DEFAULT_ESCALATION_TIMEOUT = 60 // seconds
+export const DEFAULT_BASE_SCORE = 50

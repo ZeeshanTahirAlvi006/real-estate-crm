@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import {
   SparklesIcon,
   PaperAirplaneIcon,
@@ -6,12 +6,13 @@ import {
   UserIcon,
   CheckBadgeIcon,
   ArrowPathIcon,
-  SpeakerWaveIcon,
+  SpeakerWaveIcon
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useSimulateAiChatMutation } from '@/store/api/communicationApi'
 
 interface Message {
   id: string
@@ -19,6 +20,8 @@ interface Message {
   text: string
   timestamp: string
   extractedData?: Record<string, string>
+  fairHousingPassed?: boolean
+  fairHousingFlags?: string[]
 }
 
 const samplePrompts = [
@@ -38,8 +41,10 @@ export const AiIsaSimulator: React.FC = () => {
   const [selectedPersona, setSelectedPersona] = useState('consultative')
   const [channel, setChannel] = useState<'sms' | 'whatsapp' | 'voice'>('sms')
   const [inputMessage, setInputMessage] = useState('')
-  const [isTyping, setIsTyping] = useState(false)
   const [warmTransferTriggered, setWarmTransferTriggered] = useState(false)
+  const [warmTransferReason, setWarmTransferReason] = useState<string | null>(null)
+
+  const [simulateChat, { isLoading: isTyping }] = useSimulateAiChatMutation()
 
   const [extractedLead, setExtractedLead] = useState({
     budget: '$650,000 - $800,000',
@@ -56,16 +61,18 @@ export const AiIsaSimulator: React.FC = () => {
       sender: 'lead',
       text: 'Hi, I saw your listing on Highland Ave. Is it still available for a private showing?',
       timestamp: '10:42 AM',
+      fairHousingPassed: true,
     },
     {
       id: 'm-2',
       sender: 'ai',
       text: 'Hi there! Yes, 1420 Highland Ave is currently active. We have private walkthrough slots available this Saturday at 11:00 AM and 2:00 PM. Would either of those work for you?',
       timestamp: '10:42 AM',
+      fairHousingPassed: true,
     },
   ])
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputMessage
     if (!text.trim()) return
 
@@ -78,42 +85,59 @@ export const AiIsaSimulator: React.FC = () => {
 
     setMessages((prev) => [...prev, userMsg])
     setInputMessage('')
-    setIsTyping(true)
 
-    // Simulate ultra-low latency AI response (<600ms)
-    setTimeout(() => {
-      let reply = ''
-      const lower = text.toLowerCase()
+    try {
+      const res = await simulateChat({
+        leadMessage: text.trim(),
+        currentCriteriaState: {
+          budget: extractedLead.budget !== 'Pending' ? extractedLead.budget : undefined,
+          timeline: extractedLead.timeline !== 'Pending' ? extractedLead.timeline : undefined,
+          location: extractedLead.location !== 'Pending' ? extractedLead.location : undefined,
+        },
+      }).unwrap()
 
-      if (lower.includes('saturday') || lower.includes('tour') || lower.includes('showing')) {
-        reply =
-          'Fantastic! I have Saturday at 2:00 PM penciled in for you. To ensure our listing specialist prepares the comps package, are you pre-approved or purchasing all-cash?'
-        setExtractedLead((prev) => ({ ...prev, timeline: 'Immediate / This Weekend', score: 95 }))
+      if (res.extractedCriteria) {
+        setExtractedLead((prev) => ({
+          ...prev,
+          budget: res.extractedCriteria.budget || prev.budget,
+          timeline: res.extractedCriteria.timeline || prev.timeline,
+          location: res.extractedCriteria.location || prev.location,
+          preApproved: res.extractedCriteria.preApproval
+            ? res.extractedCriteria.preApproval === 'approved'
+              ? 'Pre-Approved'
+              : res.extractedCriteria.preApproval === 'cash'
+                ? 'Cash Buyer'
+                : 'Needs Lender Intro'
+            : prev.preApproved,
+          hasHomeToSell: res.extractedCriteria.homeToSell
+            ? res.extractedCriteria.homeToSell === 'selling_first'
+              ? 'Must Sell First'
+              : res.extractedCriteria.homeToSell === 'yes'
+                ? 'Owns Home'
+                : 'No'
+            : prev.hasHomeToSell,
+          score: res.isQualified ? 95 : Math.min(100, prev.score + 5),
+        }))
+      }
+
+      if (res.handoffTriggered) {
         setWarmTransferTriggered(true)
-      } else if (lower.includes('budget') || lower.includes('price') || lower.includes('$')) {
-        reply =
-          'Got it! That price range offers great inventory in that school district right now. Are you currently working with an exclusive buyer representative?'
-        setExtractedLead((prev) => ({ ...prev, budget: '$750,000 - $900,000', score: 82 }))
-      } else if (lower.includes('sell') || lower.includes('dallas')) {
-        reply =
-          'Understood! A contingent purchase is very common. We can generate an instant equity valuation for your Dallas home to calculate your net proceeds. Would you like me to send that over?'
-        setExtractedLead((prev) => ({ ...prev, hasHomeToSell: 'Confirmed (Dallas)', score: 90 }))
-      } else {
-        reply =
-          'Thank you for the details! I have updated your buyer profile. Would you prefer a quick 2-minute phone call with our area specialist Sarah to review off-market listings?'
-        setExtractedLead((prev) => ({ ...prev, score: Math.min(100, prev.score + 5) }))
+        setWarmTransferReason(res.handoffReason || 'Lead Qualified for Human Handoff')
       }
 
       const aiMsg: Message = {
         id: `msg-${Date.now() + 1}`,
         sender: 'ai',
-        text: reply,
+        text: res.reply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        fairHousingPassed: res.fairHousingPassed,
+        fairHousingFlags: res.fairHousingFlags,
       }
 
       setMessages((prev) => [...prev, aiMsg])
-      setIsTyping(false)
-    }, 550)
+    } catch {
+      toast.error('Simulation error')
+    }
   }
 
   const handleResetSimulation = () => {
@@ -123,15 +147,18 @@ export const AiIsaSimulator: React.FC = () => {
         sender: 'lead',
         text: 'Hi, I saw your listing on Highland Ave. Is it still available for a private showing?',
         timestamp: '10:42 AM',
+        fairHousingPassed: true,
       },
       {
         id: 'm-2',
         sender: 'ai',
         text: 'Hi there! Yes, 1420 Highland Ave is currently active. We have private walkthrough slots available this Saturday at 11:00 AM and 2:00 PM. Would either of those work for you?',
         timestamp: '10:42 AM',
+        fairHousingPassed: true,
       },
     ])
     setWarmTransferTriggered(false)
+    setWarmTransferReason(null)
     setExtractedLead({
       budget: '$650,000 - $800,000',
       timeline: 'Within 30 Days',
@@ -210,7 +237,7 @@ export const AiIsaSimulator: React.FC = () => {
       {/* Main Simulator Workspace Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Chat Feed (2 Cols) */}
-        <div className="lg:col-span-2 bg-card border border-border/80 rounded-3xl overflow-hidden shadow-sm flex flex-col h-[560px]">
+        <div className="lg:col-span-2 bg-card border border-border/80 rounded-3xl overflow-hidden shadow-sm flex flex-col h-140">
           {/* Chat Header */}
           <div className="px-6 py-3.5 border-b border-border/60 bg-muted/20 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -351,18 +378,15 @@ export const AiIsaSimulator: React.FC = () => {
         <div className="space-y-4">
           {/* Warm Transfer Banner when triggered */}
           {warmTransferTriggered && (
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-primary/15 border border-emerald-500/30 text-card-foreground shadow-sm animate-in fade-in duration-300">
+            <div className="p-4 rounded-2xl bg-linear-to-r from-emerald-500/15 to-primary/15 border border-emerald-500/30 text-card-foreground shadow-sm animate-in fade-in duration-300">
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-xl bg-emerald-500 text-white font-bold shrink-0">
                   <PhoneArrowUpRightIcon className="w-5 h-5 animate-pulse" />
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600 dark:text-emerald-400">
-                    Warm Transfer Ready
-                  </span>
-                  <h4 className="text-sm font-bold text-foreground">Showing Request Confirmed!</h4>
+                  <h4 className="text-sm font-bold text-foreground">Human Agent Hand-Off Ready</h4>
                   <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                    Lead is qualified and requesting Saturday tour. Take over call with 1 tap.
+                    {warmTransferReason || 'Lead is qualified. Take over conversation with 1 tap.'}
                   </p>
                   <Button
                     size="sm"

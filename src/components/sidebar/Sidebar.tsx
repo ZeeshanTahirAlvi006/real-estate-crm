@@ -47,7 +47,7 @@ const mainNavItems: NavItemDef[] = [
 const aiNavItems: NavItemDef[] = [
   { to: '/lead-ingestion', icon: <SignalIcon className="h-5 w-5" />, label: 'Lead Ingestion', badge: 'Live', badgeVariant: 'live', featureKey: 'lead_ingestion' },
   { to: '/data-health', icon: <ShieldCheckIcon className="h-5 w-5" />, label: 'Data Health', badge: 'Live', badgeVariant: 'live', featureKey: 'data_health' },
-  { to: '/ai-isa', icon: <SparklesIcon className="h-5 w-5" />, label: 'AI ISA Engine', badge: 'Sprint 8', featureKey: 'ai_isa' },
+  { to: '/ai-isa', icon: <SparklesIcon className="h-5 w-5" />, label: 'AI ISA Engine', badge: 'Live', badgeVariant: 'live', featureKey: 'ai_isa' },
 ]
 
 const configNavItems: NavItemDef[] = [

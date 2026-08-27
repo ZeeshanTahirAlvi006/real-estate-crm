@@ -19,6 +19,7 @@ import { pipelineRoutes } from './features/pipeline/pipeline.routes.js'
 import { dealRoutes } from './features/deals/deal.routes.js'
 import { dataHealthRoutes } from './features/data-health/dataHealth.routes.js'
 import { dialerRoutes } from './features/dialer/dialer.routes.js'
+import { aiIsaRoutes } from './features/ai-isa/aiIsa.routes.js'
 import { initializeDefaultFeatureFlags } from './models/FeatureFlag.js'
 import { logger } from './utils/logger.js'
 import { sendSuccess } from './utils/apiResponse.js'
@@ -74,6 +75,7 @@ export const createApp = (): Express => {
   app.use('/api/deals', dealRoutes)
   app.use('/api/data-health', dataHealthRoutes)
   app.use('/api/dialer', dialerRoutes)
+  app.use('/api/ai-isa', aiIsaRoutes)
 
   // 8. 404 Catch-All Handler
   app.use((_req: Request, res: Response) => {

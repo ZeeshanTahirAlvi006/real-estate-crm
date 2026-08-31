@@ -11,7 +11,8 @@ export function TopBar() {
   const { data: notifications } = useGetNotificationsQuery()
   const [showNotifications, setShowNotifications] = useState(false)
 
-  const unreadCount = notifications?.filter(n => !n.isRead).length ?? 0
+  const notifList = Array.isArray(notifications) ? notifications : []
+  const unreadCount = notifList.filter((n) => !n.isRead).length
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
@@ -62,7 +63,7 @@ export function TopBar() {
           </Button>
           {showNotifications && (
             <NotificationDropdown
-              notifications={notifications ?? []}
+              notifications={notifList}
               onClose={() => setShowNotifications(false)}
             />
           )}

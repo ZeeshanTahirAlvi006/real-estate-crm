@@ -3,6 +3,8 @@ import { Brokerage } from '../models/Brokerage.js'
 import { User } from '../models/User.js'
 import { Contact } from '../models/Contact.js'
 import { Activity } from '../models/Activity.js'
+import { Conversation } from '../models/Conversation.js'
+import { Message } from '../models/Message.js'
 import { FeatureFlag, initializeDefaultFeatureFlags } from '../models/FeatureFlag.js'
 import { AuditLog } from '../models/AuditLog.js'
 import { USER_ROLES } from '../utils/constants.js'
@@ -21,6 +23,8 @@ export const seedDatabase = async (): Promise<void> => {
       User.deleteMany({}),
       Contact.deleteMany({}),
       Activity.deleteMany({}),
+      Conversation.deleteMany({}),
+      Message.deleteMany({}),
       FeatureFlag.deleteMany({}),
       AuditLog.deleteMany({}),
     ])
@@ -75,12 +79,12 @@ export const seedDatabase = async (): Promise<void> => {
     alMirajBrokerage.createdBy = brokerageOwner._id
     await alMirajBrokerage.save()
 
-    const teamLead = await User.create({
+    await User.create({
       firstName: 'Ayesha',
       lastName: 'Siddiqua',
       email: 'ayesha.lead@almiraj.com',
       password: DEMO_PASSWORD,
-      role: USER_ROLES.TEAM_LEAD,
+      role: USER_ROLES.LEAD,
       brokerageId: alMirajBrokerage._id,
       phone: '+92 333 4519283',
       timezone: 'Asia/Karachi',
@@ -151,6 +155,38 @@ export const seedDatabase = async (): Promise<void> => {
     // 4. Seed Contacts with Pakistani Names, Pakistani Locations & Interests
     logger.info('Seeding 25+ Pakistani Real Estate Contacts...')
     const contactsData = [
+      {
+        firstName: 'Ayesha',
+        lastName: 'Siddiqua',
+        email: 'ayesha.lead@almiraj.com',
+        phone: '+92 333 4519283',
+        address: 'Villa 12, Street 4, Sector G, Phase 5, DHA',
+        city: 'Lahore',
+        state: 'Punjab',
+        zipCode: '54792',
+        leadSource: 'Client VIP Portal',
+        leadScore: 96,
+        tags: ['VIP Client', 'Under Contract', 'DHA Phase 6', 'Pre-Approved'],
+        status: 'active',
+        propertyInterests: ['742 Evergreen Terrace (Under Contract)', '104 Barton Creek Luxury Villa'],
+        notes: 'VIP Client currently under escrow contract for 742 Evergreen Terrace. Assigned to Hamza Farooq.',
+      },
+      {
+        firstName: 'Kamran',
+        lastName: 'Akram',
+        email: 'kamran.akram@gmail.com',
+        phone: '+92 322 4109823',
+        address: 'House 88, Street 7, Phase 4, Bahria Town',
+        city: 'Rawalpindi',
+        state: 'Punjab',
+        zipCode: '46000',
+        leadSource: 'Website Inquiry',
+        leadScore: 82,
+        tags: ['Buyer', 'Bahria Town', 'Active Inquiries'],
+        status: 'active',
+        propertyInterests: ['1 Kanal Designer Villa Bahria Phase 4'],
+        notes: 'Looking for 1 Kanal house with modern finishes. Budget 6 Crore PKR.',
+      },
       {
         firstName: 'Usman',
         lastName: 'Ghani',
@@ -481,8 +517,8 @@ export const seedDatabase = async (): Promise<void> => {
         brokerageId: alMirajBrokerage._id,
         type: 'system',
         description: `Lead ingested from ${contact.leadSource} and auto-routed to Agent ${assignedAgent.firstName} ${assignedAgent.lastName}`,
-        createdBy: teamLead._id,
-        createdByName: `${teamLead.firstName} ${teamLead.lastName}`,
+        createdBy: brokerageOwner._id,
+        createdByName: `${brokerageOwner.firstName} ${brokerageOwner.lastName}`,
         createdAt: new Date(Date.now() - (i + 2) * 86400 * 1000),
       })
 
@@ -520,6 +556,101 @@ export const seedDatabase = async (): Promise<void> => {
           createdAt: new Date(Date.now() - (i * 6 + 2) * 3600 * 1000),
         })
       }
+
+      // 6. Seed Conversations & Messages for Active Contacts
+      if (i < 10) {
+        const lastChannel: 'sms' | 'whatsapp' | 'email' =
+          i % 3 === 0 ? 'sms' : i % 3 === 1 ? 'whatsapp' : 'email'
+
+        const conv = await Conversation.create({
+          brokerageId: alMirajBrokerage._id,
+          contactId: contact._id,
+          contactName: `${contact.firstName} ${contact.lastName}`,
+          contactPhone: contact.phone,
+          contactEmail: contact.email,
+          assignedAgentId: assignedAgent._id,
+          assignedAgentName: `${assignedAgent.firstName} ${assignedAgent.lastName}`,
+          lastMessageText:
+            contact.email === 'ayesha.lead@almiraj.com'
+              ? 'Looking forward to our private walkthrough this Saturday!'
+              : `Hello ${contact.firstName}, thank you for your interest in ${contact.propertyInterests[0] || 'our properties'}.`,
+          lastMessageAt: new Date(Date.now() - (i + 1) * 3600 * 1000 * 2),
+          lastChannel,
+          unreadCount: contact.email === 'ayesha.lead@almiraj.com' ? 0 : 1,
+          aiIsaEnabled: true,
+          status: 'active',
+          tags: contact.tags,
+        })
+
+        if (contact.email === 'ayesha.lead@almiraj.com') {
+          await Message.create({
+            conversationId: conv._id,
+            brokerageId: alMirajBrokerage._id,
+            contactId: contact._id,
+            sender: 'lead',
+            senderName: `${contact.firstName} ${contact.lastName}`,
+            channel: 'sms',
+            body: 'Hi Hamza! I received the earnest deposit confirmation. Could you please confirm if the property inspection report is ready for review?',
+            direction: 'inbound',
+            deliveryStatus: 'read',
+            createdAt: new Date(Date.now() - 24 * 3600 * 1000),
+          })
+
+          await Message.create({
+            conversationId: conv._id,
+            brokerageId: alMirajBrokerage._id,
+            contactId: contact._id,
+            sender: 'agent',
+            senderName: `${assignedAgent.firstName} ${assignedAgent.lastName}`,
+            senderId: assignedAgent._id,
+            channel: 'sms',
+            body: 'Hello Ayesha! Yes, the inspector finished the structural analysis today. Everything passed with flying colors! I have uploaded the report to your closing checklist.',
+            direction: 'outbound',
+            deliveryStatus: 'delivered',
+            createdAt: new Date(Date.now() - 12 * 3600 * 1000),
+          })
+
+          await Message.create({
+            conversationId: conv._id,
+            brokerageId: alMirajBrokerage._id,
+            contactId: contact._id,
+            sender: 'lead',
+            senderName: `${contact.firstName} ${contact.lastName}`,
+            channel: 'sms',
+            body: 'Looking forward to our private walkthrough this Saturday!',
+            direction: 'inbound',
+            deliveryStatus: 'delivered',
+            createdAt: new Date(Date.now() - 2 * 3600 * 1000),
+          })
+        } else {
+          await Message.create({
+            conversationId: conv._id,
+            brokerageId: alMirajBrokerage._id,
+            contactId: contact._id,
+            sender: 'lead',
+            senderName: `${contact.firstName} ${contact.lastName}`,
+            channel: lastChannel,
+            body: `Hi, I submitted an inquiry regarding ${contact.propertyInterests[0] || 'your property listing'}. Could you please send more details?`,
+            direction: 'inbound',
+            deliveryStatus: 'read',
+            createdAt: new Date(Date.now() - (i + 2) * 3600 * 1000 * 6),
+          })
+
+          await Message.create({
+            conversationId: conv._id,
+            brokerageId: alMirajBrokerage._id,
+            contactId: contact._id,
+            sender: 'agent',
+            senderName: `${assignedAgent.firstName} ${assignedAgent.lastName}`,
+            senderId: assignedAgent._id,
+            channel: lastChannel,
+            body: `Hello ${contact.firstName}, yes it is available! I would be delighted to share full floor plans and pricing details with you.`,
+            direction: 'outbound',
+            deliveryStatus: 'delivered',
+            createdAt: new Date(Date.now() - (i + 1) * 3600 * 1000 * 6),
+          })
+        }
+      }
     }
 
     // 6. Seed Initial Audit Logs
@@ -545,7 +676,7 @@ export const seedDatabase = async (): Promise<void> => {
     logger.info('👥 Seeded Users (Password for all: Password!123):')
     logger.info('   1. Super Admin:      superadmin@proppulse.com  (Zeeshan Tahir Alvi)')
     logger.info('   2. Brokerage Owner:  owner@almiraj.com         (Tariq Mahmood Khan)')
-    logger.info('   3. Team Lead:        ayesha.lead@almiraj.com   (Ayesha Siddiqua)')
+    logger.info('   3. Client / Lead:    ayesha.lead@almiraj.com   (Ayesha Siddiqua)')
     logger.info('   4. Agent:            hamza@almiraj.com         (Hamza Farooq)')
     logger.info('   5. Agent:            fatima@almiraj.com        (Fatima Noor)')
     logger.info('   6. Agent:            bilal@almiraj.com         (Bilal Ahmed Qureshi)')

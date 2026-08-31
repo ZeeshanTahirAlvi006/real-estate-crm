@@ -6,6 +6,7 @@ const initialState: AuthState = {
   user: null,
   token: null,
   isAuthenticated: false,
+  isInitialized: false,
 }
 
 const authSlice = createSlice({
@@ -17,15 +18,21 @@ const authSlice = createSlice({
       state.user = action.payload.user
       state.token = action.payload.token || null
       state.isAuthenticated = true
+      state.isInitialized = true
     },
     // Called on logout — cookie cleared by backend
     logout: (state) => {
       state.user = null
       state.token = null
       state.isAuthenticated = false
+      state.isInitialized = true
+    },
+    // Called when GET /api/auth/me finishes (success or failure)
+    setInitialized: (state) => {
+      state.isInitialized = true
     },
   },
 })
 
-export const { setCredentials, logout } = authSlice.actions
+export const { setCredentials, logout, setInitialized } = authSlice.actions
 export default authSlice.reducer

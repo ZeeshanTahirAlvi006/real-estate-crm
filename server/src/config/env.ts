@@ -19,6 +19,35 @@ const envSchema = z.object({
   COOKIE_DOMAIN: z.string().optional(),
   COOKIE_SECURE: z.coerce.boolean().default(false),
   ENCRYPTION_MASTER_KEY: z.string().length(64, 'ENCRYPTION_MASTER_KEY must be a 64-character hex string (32 bytes)').default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
+  OPENROUTER_API_KEY: z.string().optional(),
+  MISTRAL_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  AI_PROVIDER: z.enum(['openrouter', 'mistral', 'openai', 'gemini', 'anthropic', 'local', 'auto']).default('auto'),
+  META_WHATSAPP_TOKEN: z.string().optional(),
+  META_PHONE_NUMBER_ID: z.string().optional(),
+  META_VERIFY_TOKEN: z.string().default('proppulse_webhook_verify_token_2026'),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_PHONE_NUMBER: z.string().optional(),
+  // Rate Limits (req/min)
+  RATE_LIMIT_SUPER_ADMIN: z.coerce.number().default(200),
+  RATE_LIMIT_BROKERAGE_OWNER: z.coerce.number().default(120),
+  RATE_LIMIT_TEAM_LEAD: z.coerce.number().default(80),
+  RATE_LIMIT_AGENT: z.coerce.number().default(60),
+  RATE_LIMIT_LEAD: z.coerce.number().default(20),
+  RATE_LIMIT_UNAUTHENTICATED: z.coerce.number().default(10),
+  // Daily Quotas
+  QUOTA_DAILY_USER_REQUESTS: z.coerce.number().default(1000),
+  QUOTA_DAILY_BROKERAGE_REQUESTS: z.coerce.number().default(20000),
+  QUOTA_DAILY_USER_AI_TOKENS: z.coerce.number().default(50000),
+  QUOTA_DAILY_BROKERAGE_AI_TOKENS: z.coerce.number().default(500000),
+  QUOTA_DAILY_USER_SMS: z.coerce.number().default(100),
+  QUOTA_DAILY_BROKERAGE_SMS: z.coerce.number().default(2000),
+  // Circuit Breakers
+  CIRCUIT_BREAKER_FAILURE_THRESHOLD: z.coerce.number().default(5),
+  CIRCUIT_BREAKER_COOLDOWN_MS: z.coerce.number().default(300000),
 })
 
 // Parse and validate process.env

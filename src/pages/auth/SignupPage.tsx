@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -9,10 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { useSignupMutation } from '@/store/api/authApi'
 import { setCredentials } from '@/store/slices/authSlice'
-import { useAppDispatch } from '@/store/hooks'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { UserRole } from '@/types/auth'
 
 export function SignupPage() {
+  const { isAuthenticated } = useAppSelector((state) => state.auth)
+
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   const [form, setForm] = useState<{
     firstName: string
     lastName: string
@@ -183,11 +190,11 @@ export function SignupPage() {
                   <SelectItem value={UserRole.BROKERAGE_OWNER}>
                     🏢 Brokerage Owner
                   </SelectItem>
-                  <SelectItem value={UserRole.TEAM_LEAD}>
-                    👥 Team Lead
-                  </SelectItem>
                   <SelectItem value={UserRole.AGENT}>
-                    👤 Agent
+                    👤 Real Estate Agent
+                  </SelectItem>
+                  <SelectItem value={UserRole.LEAD}>
+                    💼 Client / Business Lead (Assigned)
                   </SelectItem>
                 </SelectContent>
               </Select>

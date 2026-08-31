@@ -30,15 +30,22 @@ export const settingsApi = baseApi.injectEndpoints({
 
     getIntegrations: builder.query<Integration[], void>({
       query: () => '/integrations',
+      transformResponse: (response: any) => response.data || [],
       providesTags: ['Integrations'],
     }),
 
     getNotificationPreferences: builder.query<NotificationPreference[], void>({
       query: () => '/settings/notification-preferences',
+      transformResponse: (response: any) => response.data || [],
     }),
 
     getNotifications: builder.query<Notification[], void>({
       query: () => '/notifications',
+      transformResponse: (response: any) => {
+        if (Array.isArray(response)) return response
+        if (Array.isArray(response?.data)) return response.data
+        return []
+      },
       providesTags: ['Notifications'],
     }),
 

@@ -1,11 +1,19 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import type { DialerLine, DialerLineCount, LineState } from '@/types/communication'
+import type { DialerLine, DialerLineCount, LineState, LocalPresenceInfo } from '@/types/communication'
+
+export interface TranscriptEntry {
+  id: string
+  speaker: 'Agent' | 'Prospect' | 'System'
+  text: string
+  time: string
+}
 
 interface DialerState {
   isOpen: boolean
   isMinimized: boolean
   lineCount: DialerLineCount
   isDialing: boolean
+  useLocalPresence: boolean
   lines: DialerLine[]
   activeConnectedLineIndex: number | null
   isMuted: boolean
@@ -14,6 +22,7 @@ interface DialerState {
   autoNextCall: boolean
   sessionDurationSeconds: number
   callsCompletedInSession: number
+  liveTranscript: TranscriptEntry[]
 }
 
 const initialLines = (count: DialerLineCount): DialerLine[] =>
@@ -30,6 +39,7 @@ const initialState: DialerState = {
   isMinimized: false,
   lineCount: 3,
   isDialing: false,
+  useLocalPresence: true,
   lines: initialLines(3),
   activeConnectedLineIndex: null,
   isMuted: false,
@@ -38,13 +48,17 @@ const initialState: DialerState = {
   autoNextCall: true,
   sessionDurationSeconds: 0,
   callsCompletedInSession: 0,
+  liveTranscript: [],
 }
 
 export const dialerSlice = createSlice({
   name: 'dialer',
   initialState,
   reducers: {
-    openDialer: (state, action: PayloadAction<{ lineCount?: DialerLineCount; minimize?: boolean } | undefined>) => {
+    openDialer: (
+      state,
+      action: PayloadAction<{ lineCount?: DialerLineCount; minimize?: boolean } | undefined>
+    ) => {
       state.isOpen = true
       state.isMinimized = action.payload?.minimize ?? false
       if (action.payload?.lineCount) {
@@ -58,6 +72,7 @@ export const dialerSlice = createSlice({
       state.isDialing = false
       state.activeConnectedLineIndex = null
       state.lines = initialLines(state.lineCount)
+      state.liveTranscript = []
     },
     minimizeDialer: (state) => {
       state.isMinimized = true
@@ -70,12 +85,23 @@ export const dialerSlice = createSlice({
       state.lineCount = action.payload
       state.lines = initialLines(action.payload)
     },
+    toggleLocalPresence: (state) => {
+      state.useLocalPresence = !state.useLocalPresence
+    },
     startDialingSession: (
       state,
-      action: PayloadAction<{ targets: Array<{ id: string; name: string; phone: string }> }>
+      action: PayloadAction<{
+        targets: Array<{
+          id: string
+          name: string
+          phone: string
+          localPresence?: LocalPresenceInfo
+        }>
+      }>
     ) => {
       state.isDialing = true
       state.activeConnectedLineIndex = null
+      state.liveTranscript = []
       const targets = action.payload.targets
 
       state.lines = state.lines.map((line, idx) => {
@@ -86,6 +112,7 @@ export const dialerSlice = createSlice({
             contactId: target.id,
             contactName: target.name,
             contactPhone: target.phone,
+            localPresence: target.localPresence,
             state: 'dialing',
             callDurationSeconds: 0,
           }
@@ -105,14 +132,45 @@ export const dialerSlice = createSlice({
         }
         if (action.payload.state === 'connected') {
           state.activeConnectedLineIndex = action.payload.lineIndex
-          // Other dialing lines get hung up or marked idle
+          // Other dialing lines get hung up or marked completed
           state.lines.forEach((l, idx) => {
-            if (idx !== action.payload.lineIndex && (l.state === 'dialing' || l.state === 'ringing')) {
+            if (
+              idx !== action.payload.lineIndex &&
+              (l.state === 'dialing' || l.state === 'ringing')
+            ) {
               l.state = 'completed'
             }
           })
         }
       }
+    },
+    setLineLocalPresence: (
+      state,
+      action: PayloadAction<{ lineIndex: number; localPresence: LocalPresenceInfo }>
+    ) => {
+      const line = state.lines[action.payload.lineIndex]
+      if (line) {
+        line.localPresence = action.payload.localPresence
+      }
+    },
+    appendTranscriptSnippet: (
+      state,
+      action: PayloadAction<{ speaker: 'Agent' | 'Prospect' | 'System'; text: string }>
+    ) => {
+      const now = new Date()
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
+      state.liveTranscript.push({
+        id: `ts_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        speaker: action.payload.speaker,
+        text: action.payload.text,
+        time: timeStr,
+      })
+    },
+    clearTranscript: (state) => {
+      state.liveTranscript = []
     },
     hangupActiveCall: (state) => {
       if (state.activeConnectedLineIndex !== null) {
@@ -155,8 +213,12 @@ export const {
   minimizeDialer,
   maximizeDialer,
   setLineCount,
+  toggleLocalPresence,
   startDialingSession,
   updateLineState,
+  setLineLocalPresence,
+  appendTranscriptSnippet,
+  clearTranscript,
   hangupActiveCall,
   toggleMute,
   toggleRecording,

@@ -12,6 +12,7 @@ export interface AuthState {
   user: User | null
   token: string | null
   isAuthenticated: boolean
+  isInitialized: boolean
 }
 
 export interface LoginRequest {
@@ -42,9 +43,11 @@ export interface User {
   phone?: string
   avatarUrl?: string
   role: UserRole
+  brokerageId?: string
   brokerageName?: string
   timezone?: string
   isActive: boolean
+  mustChangePassword?: boolean
   createdAt: string
   lastActiveAt?: string
 }

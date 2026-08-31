@@ -123,56 +123,64 @@ export function ContactsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.contacts.map(c => (
-                <TableRow
-                  key={c.id}
-                  className="cursor-pointer transition-colors hover:bg-muted/50"
-                  onClick={() => navigate(`/contacts/${c.id}`)}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs">{c.firstName[0]}{c.lastName[0]}</AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium">{c.firstName} {c.lastName}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{c.phone}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{c.email}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-xs">{c.leadSource}</Badge></TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant="outline" className={cn('text-xs font-bold', scoreColor(c.leadScore))}>{c.leadScore}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1 flex-wrap">{c.tags.slice(0, 2).map(t => <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>)}</div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-primary hover:bg-primary/10 hover:text-primary"
-                        onClick={(e) => handleCallContact(e, c)}
-                        title={`Call ${c.firstName}`}
-                      >
-                        <PhoneIcon className="h-4 w-4 mr-1" />
-                        Call
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setDeleteId(c.id)
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </div>
+              {data?.contacts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground text-sm">
+                    No contacts found matching the selected filters.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                data?.contacts.map(c => (
+                  <TableRow
+                    key={c.id}
+                    className="cursor-pointer transition-colors hover:bg-muted/50"
+                    onClick={() => navigate(`/contacts/${c.id}`)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs">{c.firstName[0]}{c.lastName[0]}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{c.firstName} {c.lastName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{c.phone}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{c.email}</TableCell>
+                    <TableCell><Badge variant="outline" className="text-xs">{c.leadSource}</Badge></TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className={cn('text-xs font-bold', scoreColor(c.leadScore))}>{c.leadScore}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 flex-wrap">{c.tags.slice(0, 2).map(t => <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>)}</div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-primary hover:bg-primary/10 hover:text-primary"
+                          onClick={(e) => handleCallContact(e, c)}
+                          title={`Call ${c.firstName}`}
+                        >
+                          <PhoneIcon className="h-4 w-4 mr-1" />
+                          Call
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDeleteId(c.id)
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>

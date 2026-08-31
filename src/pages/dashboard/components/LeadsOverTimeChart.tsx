@@ -1,25 +1,50 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useTheme } from '@/providers/ThemeProvider'
-
-const data = Array.from({ length: 30 }, (_, i) => {
-  const d = new Date()
-  d.setDate(d.getDate() - (29 - i))
-  return {
-    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    leads: Math.floor(Math.random() * 15) + 5 + (i > 20 ? 5 : 0),
-  }
-})
+import { useGetLeadsOverTimeQuery } from '@/store/api/dashboardApi'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export function LeadsOverTimeChart() {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
-
   const strokeColor = isDark ? '#ffffff' : '#18181b'
+
+  const { data: rawStats = [], isLoading } = useGetLeadsOverTimeQuery()
+
+  if (isLoading) {
+    return <Skeleton className="h-56 w-full rounded-xl" />
+  }
+
+  // Format YYYY-MM-DD to human readable dates
+  const chartData = rawStats.map((item) => {
+    let formattedDate = item._id
+    try {
+      const parts = item._id.split('-')
+      if (parts.length === 3) {
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+        formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      }
+    } catch {
+      formattedDate = item._id
+    }
+    return {
+      date: formattedDate,
+      leads: item.count,
+    }
+  })
+
+  if (chartData.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-56 text-muted-foreground text-sm">
+        <p>No recent lead timeline activity.</p>
+        <span className="text-xs opacity-75 mt-1">Inbound leads created across time will render here automatically.</span>
+      </div>
+    )
+  }
 
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
           <defs>
             <linearGradient id="leadGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={strokeColor} stopOpacity={isDark ? 0.45 : 0.32} />
@@ -33,12 +58,13 @@ export function LeadsOverTimeChart() {
             tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
             tickLine={false}
             axisLine={false}
-            interval={4}
+            interval="preserveStartEnd"
           />
           <YAxis
             tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
             tickLine={false}
             axisLine={false}
+            allowDecimals={false}
           />
           <Tooltip
             contentStyle={{

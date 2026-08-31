@@ -21,25 +21,30 @@ export const ContactInfoPane: React.FC<ContactInfoPaneProps> = ({
   onOpenDialerForContact,
   onOpenCopilot,
 }) => {
+  const contactInitials = (conversation.contactName || 'Lead')
+    .split(' ')
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'L'
+
   return (
     <div className="hidden xl:flex flex-col h-full bg-card border-l border-border/80 w-80 shrink-0 p-5 space-y-5 overflow-y-auto">
       {/* Profile Header */}
       <div className="flex flex-col items-center text-center space-y-2 pb-4 border-b border-border/60">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-primary to-chart-3 text-primary-foreground font-bold text-xl shadow-md">
-          {conversation.contactName
-            .split(' ')
-            .map((n) => n[0])
-            .join('')}
+          {contactInitials}
         </div>
         <div>
-          <h3 className="font-bold text-sm text-foreground">{conversation.contactName}</h3>
+          <h3 className="font-bold text-sm text-foreground">{conversation.contactName || 'Lead'}</h3>
           <p className="text-xs text-muted-foreground">{conversation.assignedAgentName || 'Unassigned'}</p>
         </div>
 
         {/* Lead Score Badge */}
         <div className="flex items-center gap-2 pt-1">
           <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
-            Lead Score: {conversation.leadScore}/100
+            Lead Score: {conversation.leadScore ?? 50}/100
           </span>
         </div>
       </div>

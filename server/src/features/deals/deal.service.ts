@@ -9,6 +9,8 @@ import { HTTP_STATUS, USER_ROLES } from '../../utils/constants.js'
 import { verifyBrokerageAccess } from '../../middleware/tenantScope.js'
 import { logAuditEvent } from '../../utils/auditLogger.js'
 import { escapeRegExp } from '../../utils/sanitizer.js'
+import { emitDealStageChange } from '../../config/socket.js'
+import { pushNotification } from '../notifications/notification.service.js'
 import {
   CreateDealInput,
   UpdateDealInput,
@@ -356,6 +358,22 @@ export const moveDealStage = async (
     ipAddress: clientIp,
     userAgent: userAgent,
   })
+
+  // Real-Time Broadcast & Push Notification
+  try {
+    const formatted = formatDealDto(deal, newStageName)
+    emitDealStageChange(formatted, deal.brokerageId.toString())
+    await pushNotification({
+      brokerageId: deal.brokerageId.toString(),
+      type: 'stage_change',
+      title: '🚀 Deal Stage Advanced',
+      message: `"${deal.propertyAddress}" progressed from "${oldStageName}" → "${newStageName}"`,
+      linkTo: '/pipeline',
+      metadata: { dealId: deal._id.toString(), from: oldStageName, to: newStageName },
+    })
+  } catch (err) {
+    // Non-blocking
+  }
 
   return formatDealDto(deal, newStageName)
 }

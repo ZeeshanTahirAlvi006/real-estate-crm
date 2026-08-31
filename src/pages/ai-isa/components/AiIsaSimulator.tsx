@@ -391,7 +391,7 @@ export const AiIsaSimulator: React.FC = () => {
                   <Button
                     size="sm"
                     className="mt-3 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs"
-                    onClick={() => toast.success('Agent Takeover Activated. Audio stream bridged!')}
+                    onClick={() => toast.success('Agent Takeover Successful')}
                   >
                     1-Tap Human Agent Takeover
                   </Button>

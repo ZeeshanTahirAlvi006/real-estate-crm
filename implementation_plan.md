@@ -1600,16 +1600,109 @@ server/scripts/healthcheck.ts
 
 ---
 
+### Sprint 23 — AI Objection Handling Engine (Scripts & Rebuttals Copilot)
+
+**Goal:** Intelligent real estate objection handling copilot for agents in conversations with auto-detection and custom playbook management.
+
+#### Files Created:
+```
+server/src/features/ai-chatbot/objections/objection.types.ts
+server/src/features/ai-chatbot/objections/objection.service.ts
+server/src/features/ai-chatbot/objections/objection.controller.ts
+server/src/features/ai-chatbot/objections/objection.routes.ts
+server/src/features/ai-chatbot/objections/objection.prompts.ts
+```
+
+#### Key Deliverables:
+- **Auto-Detection in Inbox:** Automatically analyzes inbound lead messages in real time to flag objections (interest rate fears, market crash hesitations, commission fee negotiations, lowball offers, contingency delays).
+- **Multi-Angle Rebuttal Generation (3+ Distinct Angles):**
+  1. *Analytical & Data-Driven Angle* (e.g. historical equity growth stats, refinancing math).
+  2. *Empathetic & Trust-Building Angle* (e.g. acknowledging concerns, building long-term relationship).
+  3. *Urgency & Opportunity Angle* (e.g. inventory scarcity, cost of waiting).
+- **Brokerage Custom Playbook in Settings:** Brokerage owners can configure and customize company-specific scripts & rebuttals in a dedicated "Scripts & Objection Playbook" tab.
+- `POST /api/chatbot/objections/rebuttal` — returns 3+ ranked rebuttals with confidence score
+- `GET /api/chatbot/objections/playbook` — returns curated library of proven objection handling scripts
+- `POST /api/chatbot/objections/playbook` — saves custom brokerage scripts
+
+#### Acceptance Criteria:
+- [ ] Objections automatically flagged in Inbox thread view
+- [ ] 3+ distinct rebuttal angles generated dynamically without Fair Housing violations
+- [ ] One-click copy/insert into agent draft area
+- [ ] Scripts and Objection Playbook tab accessible in Settings for Brokerage Owners
+
+---
+
+### Sprint 24 — AI Micro-CMA Storytelling & Equity Narrative Generator
+
+**Goal:** Synthesize MLS sold comparables into personalized valuation stories supporting both buyers and sellers objectively.
+
+#### Files Created:
+```
+server/src/features/seller-radar/cma-ai/cmaStory.types.ts
+server/src/features/seller-radar/cma-ai/cmaStory.service.ts
+server/src/features/seller-radar/cma-ai/cmaStory.controller.ts
+server/src/features/seller-radar/cma-ai/cmaStory.routes.ts
+server/src/features/seller-radar/cma-ai/cmaStory.prompts.ts
+```
+
+#### Key Deliverables:
+- **Unbiased Dual-Perspective Valuation Engine:**
+  - *Seller Mode:* Highlights recent sold prices, neighborhood equity appreciation, and listing pricing strategy.
+  - *Buyer Mode:* Highlights fair market valuation, comparable sales benchmarks, and competitive offer justification.
+- **Recent Sold Price Analysis:** Analyzes 3–5 recent local sold comps to calculate exact $/sqft price trends and historical appreciation.
+- `POST /api/seller-radar/cma/narrative` — generates personalized homeowner/buyer valuation story (`mode: 'seller' | 'buyer'`)
+- Public Micro-CMA landing page embed with dynamic narrative block
+
+#### Acceptance Criteria:
+- [ ] Generates human-like, compliant valuation stories for both buyer and seller modes
+- [ ] Data anchored on recent sold prices with transparent comp citations
+- [ ] Outputs formatted HTML/Markdown snippets for direct inclusion in CMA landing pages
+
+---
+
+### Sprint 25 — Whisper Voice Note & Mobile Audio Transcriber
+
+**Goal:** Auto-transcribe agent voice recordings into structured CRM activity notes and contact updates.
+
+#### Files Created:
+```
+server/src/features/transcription/whisper.types.ts
+server/src/features/transcription/whisper.service.ts
+server/src/features/transcription/whisper.controller.ts
+server/src/features/transcription/whisper.routes.ts
+```
+
+#### Key Deliverables:
+- **Dual Audio Ingestion:**
+  - In-browser / mobile direct microphone voice recording (`MediaRecorder` API).
+  - Pre-recorded audio file uploads (`.m4a`, `.mp3`, `.wav`, `.webm`).
+- **Whisper Speech-to-Text Pipeline:** Integration with Whisper API (OpenAI / Groq Whisper / local stub fallback).
+- **Intelligent Entity & Task Extraction:** Automatically extracts:
+  1. *Contact Name & Identity*
+  2. *Key Discussion Points & Summary*
+  3. *Next Follow-Up Date & Task Creation*
+  4. *Deal Stage Progression & Notes*
+- `POST /api/transcription/voice-note` — uploads audio, transcribes, extracts action items, and auto-updates MongoDB Contact and Activity records
+
+#### Acceptance Criteria:
+- [ ] Supports both direct recording and file upload
+- [ ] Audio transcribed in seconds with high accuracy
+- [ ] Automatically updates Contact fields and schedules next follow-up date in CRM
+- [ ] Creates structured voice note activity record with audio link and transcription text
+
+---
+
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| **Total sprints** | 22 days |
-| **Backend features** | 22 feature modules |
+| **Total sprints** | 25 sprints |
+| **Backend features** | 25 feature modules |
 | **Mongoose models** | 24 |
-| **API endpoint groups** | ~35 route files |
-| **Estimated files created** | ~180+ server files |
-| **External APIs** | Mistral/OpenRouter (active), all others mock-ready |
-| **Frontend changes** | Sprints 9-10 (2 days full frontend rewire) |
+| **API endpoint groups** | ~38 route files |
+| **Estimated files created** | ~195+ server files |
+| **External APIs** | Mistral/OpenRouter/Whisper, all others mock-ready |
+| **Frontend changes** | Sprints 9-10 (full frontend integration) |
 | **Testing** | Sprint 21 (unit + integration) |
 | **Deployment** | Sprint 22 (Vercel + Render + MongoDB Atlas + Redis Cloud) |
+

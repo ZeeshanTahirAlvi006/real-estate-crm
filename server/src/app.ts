@@ -1,12 +1,17 @@
+import http from 'http'
 import express, { Express, Request, Response } from 'express'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import { env } from './config/env.js'
 import { connectDB, disconnectDB } from './config/db.js'
 import { initRedis } from './config/redis.js'
+import { initSocketServer } from './config/socket.js'
 import { corsMiddleware } from './config/cors.js'
 import { sanitizeRequest } from './middleware/sanitize.js'
 import { botGuard } from './middleware/botGuard.js'
+import { rateLimiter } from './middleware/rateLimiter.js'
+import { quotaGuard } from './middleware/quotaGuard.js'
+import { httpAuditLogger } from './middleware/auditLogger.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { authRoutes } from './features/auth/auth.routes.js'
 import { featureFlagRoutes } from './features/feature-flags/featureFlag.routes.js'
@@ -20,7 +25,14 @@ import { dealRoutes } from './features/deals/deal.routes.js'
 import { dataHealthRoutes } from './features/data-health/dataHealth.routes.js'
 import { dialerRoutes } from './features/dialer/dialer.routes.js'
 import { aiIsaRoutes } from './features/ai-isa/aiIsa.routes.js'
+import { inboxRoutes } from './features/inbox/inbox.routes.js'
+import { communicationRoutes } from './features/communication/communication.routes.js'
+import { notificationRoutes } from './features/notifications/notification.routes.js'
+import { chatbotRoutes, complianceRoutes } from './features/ai-chatbot/chatbot.routes.js'
+import smartListRoutes from './features/smart-lists/smartList.routes.js'
+import dashboardRoutes from './features/dashboard/dashboard.routes.js'
 import { initializeDefaultFeatureFlags } from './models/FeatureFlag.js'
+import { startScheduler, stopScheduler } from './jobs/scheduler.js'
 import { logger } from './utils/logger.js'
 import { sendSuccess } from './utils/apiResponse.js'
 import { HTTP_STATUS } from './utils/constants.js'
@@ -52,7 +64,16 @@ export const createApp = (): Express => {
   // 6. Bot, Webcrawler & Anti-Cache Guard
   app.use(botGuard)
 
-  // 7. Basic Liveness Health Check
+  // 7. Global Sliding-Window Rate Limiter
+  app.use(rateLimiter)
+
+  // 8. Strict Dual-Tier Quota Guard (Per-User & Cumulative Brokerage)
+  app.use(quotaGuard)
+
+  // 9. HTTP Mutation Audit Logger
+  app.use(httpAuditLogger)
+
+  // 10. Basic Liveness Health Check
   app.get('/health', (_req: Request, res: Response) => {
     sendSuccess(res, { status: 'healthy', timestamp: new Date().toISOString() }, 'System online')
   })
@@ -60,7 +81,7 @@ export const createApp = (): Express => {
     sendSuccess(res, { status: 'healthy', timestamp: new Date().toISOString() }, 'API online')
   })
 
-  // 7. Feature Routes Mounting
+  // 11. Feature Routes Mounting
   app.use('/api/auth', authRoutes)
   app.use('/api/feature-flags', featureFlagRoutes)
   app.use('/api/users', userRoutes)
@@ -76,8 +97,15 @@ export const createApp = (): Express => {
   app.use('/api/data-health', dataHealthRoutes)
   app.use('/api/dialer', dialerRoutes)
   app.use('/api/ai-isa', aiIsaRoutes)
+  app.use('/api/inbox', inboxRoutes)
+  app.use('/api/communication', communicationRoutes)
+  app.use('/api/notifications', notificationRoutes)
+  app.use('/api/chatbot', chatbotRoutes)
+  app.use('/api/compliance', complianceRoutes)
+  app.use('/api/smart-lists', smartListRoutes)
+  app.use('/api/dashboard', dashboardRoutes)
 
-  // 8. 404 Catch-All Handler
+  // 9. 404 Catch-All Handler
   app.use((_req: Request, res: Response) => {
     res.status(HTTP_STATUS.NOT_FOUND).json({
       success: false,
@@ -85,13 +113,13 @@ export const createApp = (): Express => {
     })
   })
 
-  // 9. Global Centralized Error Handler
+  // 10. Global Centralized Error Handler
   app.use(errorHandler)
 
   return app
 }
 
-// Start Server Function
+// Start Server Function with Socket.io Attach
 export const startServer = async (): Promise<void> => {
   try {
     logger.info('Initializing server...')
@@ -104,13 +132,21 @@ export const startServer = async (): Promise<void> => {
     await initializeDefaultFeatureFlags()
 
     const app = createApp()
-    const server = app.listen(env.PORT, () => {
-      logger.info(`server running on port ${env.PORT} in [${env.NODE_ENV}] mode`)
+    const httpServer = http.createServer(app)
+
+    // Attach Socket.io WebSocket Server
+    initSocketServer(httpServer)
+
+    const server = httpServer.listen(env.PORT, () => {
+      logger.info(`🚀 Server & WebSocket running on port ${env.PORT} in [${env.NODE_ENV}] mode`)
+      // Start background cron scheduler
+      startScheduler()
     })
 
     // Graceful Shutdown Handlers
     const handleShutdown = async (signal: string) => {
       logger.info(`Received ${signal}. Shutting down server...`)
+      await stopScheduler()
       server.close(async () => {
         await disconnectDB()
         logger.info('👋 Server shutdown complete. Goodbye!')

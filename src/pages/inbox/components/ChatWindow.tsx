@@ -6,6 +6,7 @@ import type {
   ChannelType,
 } from '@/types/communication'
 import { ChannelBadge } from './ChannelBadge'
+import { WhatsAppTemplateModal } from './WhatsAppTemplateModal'
 import {
   FairHousingWarning,
   checkFairHousingCompliance,
@@ -17,6 +18,9 @@ import {
   PhoneIcon,
   CheckIcon,
   ShieldExclamationIcon,
+  ChatBubbleBottomCenterTextIcon,
+  DocumentArrowDownIcon,
+  MusicalNoteIcon,
 } from '@heroicons/react/24/outline'
 
 interface ChatWindowProps {
@@ -41,6 +45,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [inputText, setInputText] = useState('')
   const [selectedChannel, setSelectedChannel] = useState<ChannelType>(conversation.lastChannel)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [isWhatsAppTemplateModalOpen, setIsWhatsAppTemplateModalOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -91,24 +96,32 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const isBlockedDNC = conversation.dncStatus === 'opted_out'
 
+  const contactInitials =
+    (conversation.contactName || 'Lead')
+      .split(' ')
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'L'
+
   return (
     <div className="flex flex-col flex-1 h-full bg-background relative overflow-hidden">
       {/* Top Conversation Header */}
       <div className="flex items-center justify-between px-6 py-3.5 border-b border-border/60 bg-card/60 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm border border-primary/20">
-            {conversation.contactName
-              .split(' ')
-              .map((n) => n[0])
-              .join('')}
+            {contactInitials}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-bold text-sm text-foreground">{conversation.contactName}</h2>
-              <ChannelBadge channel={selectedChannel} showLabel />
+              <h2 className="font-bold text-sm text-foreground">
+                {conversation.contactName || 'Lead'}
+              </h2>
+              <ChannelBadge channel={selectedChannel || 'sms'} showLabel />
             </div>
             <p className="text-xs text-muted-foreground font-mono">
-              {conversation.contactPhone} • {conversation.contactEmail}
+              {conversation.contactPhone || 'No Phone'} • {conversation.contactEmail || 'No Email'}
             </p>
           </div>
         </div>
@@ -173,7 +186,37 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     <span>Autonomous AI Response (&lt;30s speed-to-lead)</span>
                   </div>
                 )}
-                <p className="whitespace-pre-wrap">{msg.body}</p>
+
+                {/* Media Attachment Rendering */}
+                {msg.mediaUrl && (
+                  <div className="mb-2">
+                    {msg.mediaType === 'image' ? (
+                      <img
+                        src={msg.mediaUrl}
+                        alt="WhatsApp Attachment"
+                        className="rounded-lg max-h-48 object-cover border border-white/20"
+                      />
+                    ) : msg.mediaType === 'audio' ? (
+                      <div className="flex items-center gap-2 p-2 rounded-lg bg-black/20">
+                        <MusicalNoteIcon className="w-4 h-4" />
+                        <span className="text-[11px] font-mono">Voice Message</span>
+                        <audio controls src={msg.mediaUrl} className="h-6 w-40" />
+                      </div>
+                    ) : (
+                      <a
+                        href={msg.mediaUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 p-2 rounded-lg bg-black/20 hover:underline"
+                      >
+                        <DocumentArrowDownIcon className="w-4 h-4" />
+                        <span className="text-[11px]">Download Document</span>
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                <p className="whitespace-pre-line">{msg.body}</p>
 
                 {msg.fairHousingFlags && msg.fairHousingFlags.length > 0 && (
                   <div className="mt-2 text-[10px] bg-amber-500/20 text-amber-900 dark:text-amber-200 p-1.5 rounded border border-amber-500/30 flex items-center gap-1">
@@ -232,7 +275,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
 
         {/* Channel Switcher Tabs & Tools */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground font-medium mr-1">Send via:</span>
             {(['whatsapp', 'sms', 'email'] as ChannelType[]).map((ch) => (
@@ -251,14 +294,27 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowTemplates(!showTemplates)}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted/50 hover:bg-muted text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <DocumentDuplicateIcon className="w-3.5 h-3.5" />
-            <span>Templates</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {selectedChannel === 'whatsapp' && (
+              <button
+                type="button"
+                onClick={() => setIsWhatsAppTemplateModalOpen(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/30 transition-colors"
+              >
+                <ChatBubbleBottomCenterTextIcon className="w-3.5 h-3.5" />
+                <span>WhatsApp Template</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowTemplates(!showTemplates)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted/50 hover:bg-muted text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <DocumentDuplicateIcon className="w-3.5 h-3.5" />
+              <span>Quick Replies</span>
+            </button>
+          </div>
         </div>
 
         {/* Textarea Input + Send */}
@@ -288,6 +344,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         )}
       </div>
+
+      {/* WhatsApp Template Modal */}
+      <WhatsAppTemplateModal
+        open={isWhatsAppTemplateModalOpen}
+        onOpenChange={setIsWhatsAppTemplateModalOpen}
+        conversation={conversation}
+      />
     </div>
   )
 }

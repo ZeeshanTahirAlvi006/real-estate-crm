@@ -3,6 +3,9 @@ import type {
   ConversationThread,
   ConversationMessage,
   QuickReplyTemplate,
+  WhatsAppTemplate,
+  WhatsAppBroadcast,
+  LocalPresenceInfo,
   VoicemailAudioDrop,
   DialerQueueContact,
   CallLog,
@@ -65,8 +68,57 @@ export const communicationApi = baseApi.injectEndpoints({
         url: '/inbox/conversations',
         params: params || undefined,
       }),
-      transformResponse: (res: ApiResponse<ConversationThread[]>) => res.data || [],
+      transformResponse: (res: ApiResponse<any[]>) => {
+        const raw = res.data || []
+        return raw.map((c) => ({
+          ...c,
+          contactEmail: c.contactEmail || '',
+          lastChannel: c.lastChannel || 'sms',
+          unreadCount: c.unreadCount || 0,
+          isStarred: !!c.isStarred,
+          dncStatus: c.dncStatus || 'clean',
+          leadScore: c.leadScore ?? 50,
+          tags: c.tags || [],
+          lastMessage: c.lastMessage || {
+            body: c.lastMessageText || '',
+            createdAt: c.lastMessageAt || c.updatedAt || new Date().toISOString(),
+            senderType: 'agent',
+            channel: c.lastChannel || 'sms',
+          },
+        })) as ConversationThread[]
+      },
       providesTags: ['Conversations'],
+    }),
+
+    startConversation: builder.mutation<
+      ConversationThread,
+      { contactId: string; channel?: string; initialMessage?: string }
+    >({
+      query: (data) => ({
+        url: '/inbox/conversations/start',
+        method: 'POST',
+        body: data,
+      }),
+      transformResponse: (res: ApiResponse<any>) => {
+        const c = res.data
+        return {
+          ...c,
+          contactEmail: c.contactEmail || '',
+          lastChannel: c.lastChannel || 'sms',
+          unreadCount: c.unreadCount || 0,
+          isStarred: !!c.isStarred,
+          dncStatus: c.dncStatus || 'clean',
+          leadScore: c.leadScore ?? 50,
+          tags: c.tags || [],
+          lastMessage: c.lastMessage || {
+            body: c.lastMessageText || '',
+            createdAt: c.lastMessageAt || c.updatedAt || new Date().toISOString(),
+            senderType: 'agent',
+            channel: c.lastChannel || 'sms',
+          },
+        } as ConversationThread
+      },
+      invalidatesTags: ['Conversations'],
     }),
 
     getMessages: builder.query<ConversationMessage[], string>({
@@ -107,19 +159,104 @@ export const communicationApi = baseApi.injectEndpoints({
       providesTags: ['QuickTemplates'],
     }),
 
-    // ── Dialer ──
+    // ── WhatsApp Cloud API ──
+    getWhatsAppTemplates: builder.query<WhatsAppTemplate[], void>({
+      query: () => '/communication/whatsapp/templates',
+      transformResponse: (res: ApiResponse<WhatsAppTemplate[]>) => res.data || [],
+      providesTags: ['WhatsAppTemplates'],
+    }),
+
+    createWhatsAppTemplate: builder.mutation<
+      WhatsAppTemplate,
+      Partial<WhatsAppTemplate>
+    >({
+      query: (body) => ({
+        url: '/communication/whatsapp/templates',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<WhatsAppTemplate>) => res.data,
+      invalidatesTags: ['WhatsAppTemplates'],
+    }),
+
+    sendWhatsAppMessage: builder.mutation<
+      { success: boolean; messageId: string },
+      {
+        contactId?: string
+        toPhone?: string
+        type: 'text' | 'template' | 'media'
+        text?: string
+        templateName?: string
+        languageCode?: string
+        templateVariables?: Record<string, string>
+        mediaType?: 'image' | 'document' | 'audio' | 'video'
+        mediaUrl?: string
+        caption?: string
+      }
+    >({
+      query: (body) => ({
+        url: '/communication/whatsapp/send',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<{ success: boolean; messageId: string }>) => res.data,
+      invalidatesTags: ['Conversations', 'Messages'],
+    }),
+
+    getWhatsAppBroadcasts: builder.query<WhatsAppBroadcast[], void>({
+      query: () => '/communication/whatsapp/broadcasts',
+      transformResponse: (res: ApiResponse<WhatsAppBroadcast[]>) => res.data || [],
+      providesTags: ['WhatsAppBroadcasts'],
+    }),
+
+    createWhatsAppBroadcast: builder.mutation<
+      WhatsAppBroadcast,
+      {
+        title: string
+        templateName: string
+        targetAudience: string
+        targetTag?: string
+        customVariables?: Record<string, string>
+      }
+    >({
+      query: (body) => ({
+        url: '/communication/whatsapp/broadcast',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<WhatsAppBroadcast>) => res.data,
+      invalidatesTags: ['WhatsAppBroadcasts', 'Conversations', 'Messages'],
+    }),
+
+    simulateWhatsAppInbound: builder.mutation<
+      { processedCount: number },
+      { fromPhone?: string; text?: string; contactId?: string }
+    >({
+      query: (body) => ({
+        url: '/communication/whatsapp/simulate-inbound',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Conversations', 'Messages'],
+    }),
+
+    // ── Dialer & Telephony ──
     getDialerQueue: builder.query<DialerQueueContact[], void>({
       query: () => '/dialer/queue',
       transformResponse: (res: ApiResponse<DialerQueueContact[]>) => res.data || [],
       providesTags: ['DialerQueue'],
     }),
 
-    getCallLogs: builder.query<{ logs: CallLog[]; total: number } | CallLog[], { page?: number; limit?: number; disposition?: string; search?: string } | void>({
+    getCallLogs: builder.query<
+      { logs: CallLog[]; total: number } | CallLog[],
+      { page?: number; limit?: number; disposition?: string; search?: string } | void
+    >({
       query: (params) => ({
         url: '/dialer/call-logs',
         params: params || undefined,
       }),
-      transformResponse: (res: ApiResponse<{ logs: CallLog[]; total: number }>) => res.data?.logs || res.data || [],
+      transformResponse: (res: ApiResponse<{ logs: CallLog[]; total: number }>) =>
+        res.data?.logs || res.data || [],
       providesTags: ['CallLogs'],
     }),
 
@@ -139,7 +276,11 @@ export const communicationApi = baseApi.injectEndpoints({
         disposition: CallDisposition
         notes?: string
         linesUsed?: number
+        lineIndex?: number
         recordingUrl?: string
+        liveTranscript?: string
+        aiSummary?: string
+        sentiment?: 'positive' | 'neutral' | 'negative'
       }
     >({
       query: (data) => ({
@@ -185,6 +326,48 @@ export const communicationApi = baseApi.injectEndpoints({
         method: 'POST',
       }),
       invalidatesTags: ['DialerQueue'],
+    }),
+
+    matchLocalPresence: builder.mutation<LocalPresenceInfo, { phone: string }>({
+      query: (body) => ({
+        url: '/dialer/local-presence/match',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<LocalPresenceInfo>) => res.data,
+    }),
+
+    startParallelSession: builder.mutation<
+      { sessionId: string; lineCount: number; lines: any[]; startedAt: string },
+      { lineCount: 1 | 3 | 5; targets: Array<{ id: string; name: string; phone: string }>; useLocalPresence?: boolean }
+    >({
+      query: (body) => ({
+        url: '/dialer/parallel/start',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<any>) => res.data,
+    }),
+
+    summarizeCall: builder.mutation<
+      {
+        summary: string
+        keyTakeaways: string[]
+        sentiment: string
+        detectedIntent: string
+        budgetRange?: string
+        timeline?: string
+        nextActionSuggestion: string
+        urgencyScore: number
+      },
+      { transcript: string; contactName?: string; durationSeconds?: number }
+    >({
+      query: (body) => ({
+        url: '/dialer/summarize-call',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<any>) => res.data,
     }),
 
     // ── AI ISA Engine ──
@@ -299,15 +482,83 @@ export const communicationApi = baseApi.injectEndpoints({
       }),
       transformResponse: (res: ApiResponse<AiChatSimulateResult>) => res.data,
     }),
+
+    draftAgentResponse: builder.mutation<
+      { drafts: Array<{ title: string; confidence: number; intent: string; text: string }> },
+      { conversationId?: string; contactId?: string; messages: Array<{ sender: string; body: string }> }
+    >({
+      query: (body) => ({
+        url: '/chatbot/draft-response',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<{ drafts: Array<{ title: string; confidence: number; intent: string; text: string }> }>) =>
+        res.data,
+    }),
+
+    summarizeConversation: builder.mutation<
+      { summary: string; keyTakeaways: string[]; actionItems: string[]; sentiment: string },
+      { text?: string; conversationId?: string; contactId?: string }
+    >({
+      query: (body) => ({
+        url: '/chatbot/summarize',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<{ summary: string; keyTakeaways: string[]; actionItems: string[]; sentiment: string }>) =>
+        res.data,
+    }),
+
+    suggestNextAction: builder.mutation<
+      { suggestedActions: Array<{ action: string; priority: string; reason: string; timeFrame: string }> },
+      { contactId: string }
+    >({
+      query: (body) => ({
+        url: '/chatbot/suggest-next-action',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<{ suggestedActions: Array<{ action: string; priority: string; reason: string; timeFrame: string }> }>) =>
+        res.data,
+    }),
+
+    checkFairHousing: builder.mutation<
+      {
+        hasWarning: boolean
+        flaggedPhrases: Array<{ phrase: string; reason: string; replacement: string; severity: string }>
+        recommendedText?: string
+        explanation?: string
+      },
+      { text: string }
+    >({
+      query: (body) => ({
+        url: '/compliance/fair-housing-check',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<{
+        hasWarning: boolean
+        flaggedPhrases: Array<{ phrase: string; reason: string; replacement: string; severity: string }>
+        recommendedText?: string
+        explanation?: string
+      }>) => res.data,
+    }),
   }),
 })
 
 export const {
   useGetConversationsQuery,
+  useStartConversationMutation,
   useGetMessagesQuery,
   useSendMessageMutation,
   useToggleAiIsaMutation,
   useGetQuickTemplatesQuery,
+  useGetWhatsAppTemplatesQuery,
+  useCreateWhatsAppTemplateMutation,
+  useSendWhatsAppMessageMutation,
+  useGetWhatsAppBroadcastsQuery,
+  useCreateWhatsAppBroadcastMutation,
+  useSimulateWhatsAppInboundMutation,
   useGetDialerQueueQuery,
   useGetCallLogsQuery,
   useGetDialerStatsQuery,
@@ -316,6 +567,9 @@ export const {
   useCreateVoicemailDropMutation,
   useEnqueueDialerContactsMutation,
   useClearDialerQueueMutation,
+  useMatchLocalPresenceMutation,
+  useStartParallelSessionMutation,
+  useSummarizeCallMutation,
   useGetQualificationCriteriaQuery,
   useUpdateQualificationCriteriaMutation,
   useGetReactivationCampaignsQuery,
@@ -324,4 +578,8 @@ export const {
   useToggleReactivationCampaignMutation,
   useGetSpeedToLeadMetricsQuery,
   useSimulateAiChatMutation,
+  useDraftAgentResponseMutation,
+  useSummarizeConversationMutation,
+  useSuggestNextActionMutation,
+  useCheckFairHousingMutation,
 } = communicationApi

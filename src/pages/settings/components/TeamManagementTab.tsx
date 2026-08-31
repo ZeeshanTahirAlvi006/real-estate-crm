@@ -151,10 +151,9 @@ export function TeamManagementTab() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value={UserRole.BROKERAGE_OWNER}>Brokerage Owner</SelectItem>
-                              <SelectItem value={UserRole.TEAM_LEAD}>Team Lead</SelectItem>
-                              <SelectItem value={UserRole.AGENT}>Agent</SelectItem>
-                              <SelectItem value={UserRole.LEAD}>Lead / Client</SelectItem>
+                              <SelectItem value={UserRole.BROKERAGE_OWNER}>🏢 Brokerage Owner</SelectItem>
+                              <SelectItem value={UserRole.AGENT}>👤 Real Estate Agent</SelectItem>
+                              <SelectItem value={UserRole.LEAD}>💼 Client / Business Lead</SelectItem>
                             </SelectContent>
                           </Select>
                         ) : (
@@ -257,10 +256,9 @@ export function TeamManagementTab() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={UserRole.TEAM_LEAD}>👥 Team Lead</SelectItem>
-                  <SelectItem value={UserRole.AGENT}>👤 Agent</SelectItem>
+                  <SelectItem value={UserRole.AGENT}>👤 Real Estate Agent</SelectItem>
                   <SelectItem value={UserRole.BROKERAGE_OWNER}>🏢 Brokerage Owner</SelectItem>
-                  <SelectItem value={UserRole.LEAD}>🏷️ Lead / Customer</SelectItem>
+                  <SelectItem value={UserRole.LEAD}>💼 Client / Business Lead</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -34,6 +34,8 @@ import {
 } from './lead.types.js'
 import { formatContactDto } from '../contacts/contact.service.js'
 import { ContactResponseDto } from '../contacts/contact.types.js'
+import { emitNewLead } from '../../config/socket.js'
+import { pushNotification } from '../notifications/notification.service.js'
 
 // ═══════════════════════════════════════════
 //  In-process escalation timer store (demo)
@@ -1122,7 +1124,6 @@ export const ingestLead = async (
     await LeadSource.updateOne({ _id: leadSourceId }, { $inc: { leadCount: 1 } })
   }
 
-  // 7. Audit log
   await logAuditEvent({
     action: 'LEAD_INGESTED',
     resource: 'leads',
@@ -1138,6 +1139,23 @@ export const ingestLead = async (
     status: 'success',
     ipAddress: clientIp,
   })
+
+  // 8. Real-Time WebSocket & Push Notification Alert
+  try {
+    const formatted = formatContactDto(contact)
+    emitNewLead(formatted, brokerageId.toString(), contact.assignedAgentId?.toString())
+    await pushNotification({
+      userId: contact.assignedAgentId?.toString(),
+      brokerageId: brokerageId.toString(),
+      type: 'new_lead',
+      title: '🔥 New Lead Ingested',
+      message: `${contact.firstName} ${contact.lastName} was ingested from ${parsed.sourceType} (Score: ${leadScore})`,
+      linkTo: `/contacts/${contact._id}`,
+      metadata: { contactId: contact._id.toString(), leadScore, sourceType: parsed.sourceType },
+    })
+  } catch (err) {
+    logger.warn('Failed to emit lead ingestion notification:', err)
+  }
 
   return { contact: formatContactDto(contact), isNew, routingResult }
 }

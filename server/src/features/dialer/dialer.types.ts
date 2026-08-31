@@ -1,4 +1,5 @@
 import type { CallDisposition } from '../../models/CallLog.js'
+import type { LocalPresenceResult } from './localPresence.js'
 
 export interface CallLogResponseDto {
   id: string
@@ -44,6 +45,7 @@ export interface DialerQueueContactDto {
   propertyInterest?: string
   notes?: string
   priority: number
+  localPresence?: LocalPresenceResult
 }
 
 export interface SaveDispositionInput {
@@ -73,4 +75,30 @@ export interface DialerStatsDto {
 export interface EnqueueContactsInput {
   contactIds: string[]
   priority?: number
+}
+
+export interface StartParallelSessionInput {
+  lineCount: 1 | 3 | 5
+  targets: Array<{
+    id: string
+    name: string
+    phone: string
+  }>
+  useLocalPresence?: boolean
+}
+
+export interface ParallelSessionLineDto {
+  lineIndex: number
+  contactId: string
+  contactName: string
+  contactPhone: string
+  state: 'idle' | 'dialing' | 'ringing' | 'connected' | 'completed' | 'failed'
+  localPresence: LocalPresenceResult
+}
+
+export interface StartParallelSessionResult {
+  sessionId: string
+  lineCount: 1 | 3 | 5
+  lines: ParallelSessionLineDto[]
+  startedAt: string
 }

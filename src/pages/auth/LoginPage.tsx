@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useLoginMutation } from '@/store/api/authApi'
 import { setCredentials } from '@/store/slices/authSlice'
-import { useAppDispatch } from '@/store/hooks'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
 
 export function LoginPage() {
   const [email, setEmail] = useState('owner@almiraj.com')
@@ -17,6 +17,12 @@ export function LoginPage() {
   const [login, { isLoading }] = useLoginMutation()
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const { isAuthenticated } = useAppSelector((state) => state.auth)
+
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   const handleQuickFill = (demoEmail: string) => {
     setEmail(demoEmail)
@@ -34,8 +40,9 @@ export function LoginPage() {
       dispatch(setCredentials(result))
       toast.success(`Welcome back, ${result.user.firstName}!`)
       navigate('/dashboard')
-    } catch {
-      toast.error('Invalid email or password. Please try again.')
+    } catch (err: any) {
+      const message = err?.data?.message || 'Invalid email or password. Please try again.'
+      toast.error(message)
     }
   }
 
@@ -45,7 +52,7 @@ export function LoginPage() {
         <div className="mb-6 text-center">
           <h2 className="text-xl font-semibold">Welcome back</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sign in to your PropPulse OS account
+            Sign in to your PropPulse account
           </p>
         </div>
 
@@ -120,7 +127,7 @@ export function LoginPage() {
               className="text-xs justify-start h-8 px-2"
               onClick={() => handleQuickFill('ayesha.lead@almiraj.com')}
             >
-              👥 Team Lead
+              💼 Client / Business Lead
             </Button>
             <Button
               type="button"

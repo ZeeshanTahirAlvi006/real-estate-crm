@@ -26,6 +26,8 @@ export interface ConversationMessage {
   channel: ChannelType
   direction: MessageDirection
   body: string
+  mediaUrl?: string
+  mediaType?: string
   attachments?: MessageAttachment[]
   status: MessageStatus
   createdAt: string
@@ -67,11 +69,68 @@ export interface QuickReplyTemplate {
   variables: string[]
 }
 
+// ── WhatsApp Cloud API Types ──────────────────────────────────────────
+
+export interface WhatsAppTemplate {
+  id: string
+  name: string
+  title: string
+  category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+  language: string
+  headerType: 'TEXT' | 'IMAGE' | 'DOCUMENT' | 'VIDEO' | 'NONE'
+  headerText?: string
+  bodyText: string
+  footerText?: string
+  buttons?: Array<{
+    type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
+    text: string
+    url?: string
+    phoneNumber?: string
+  }>
+  variables: string[]
+  status: 'APPROVED' | 'PENDING' | 'REJECTED'
+  isDefault: boolean
+  createdAt: string
+}
+
+export interface WhatsAppBroadcast {
+  id: string
+  title: string
+  templateName: string
+  targetAudience: 'all' | 'dormant' | 'high_score' | 'buyers' | 'sellers' | 'custom_tag'
+  targetTag?: string
+  recipientCount: number
+  sentCount: number
+  deliveredCount: number
+  readCount: number
+  failedCount: number
+  status: 'draft' | 'queued' | 'processing' | 'completed' | 'failed'
+  createdAt: string
+}
+
+export interface LocalPresenceInfo {
+  areaCode: string
+  city: string
+  state: string
+  metro: string
+  callerIdPhone: string
+  callerIdFormatted: string
+  isExactMatch: boolean
+}
+
 // ── Multi-Line Parallel Dialer Types ──────────────────────────────────
 
 export type DialerLineCount = 1 | 3 | 5
 
-export type LineState = 'idle' | 'dialing' | 'ringing' | 'connected' | 'busy' | 'no_answer' | 'voicemail_dropped' | 'completed'
+export type LineState =
+  | 'idle'
+  | 'dialing'
+  | 'ringing'
+  | 'connected'
+  | 'busy'
+  | 'no_answer'
+  | 'voicemail_dropped'
+  | 'completed'
 
 export interface DialerLine {
   lineIndex: number
@@ -82,6 +141,7 @@ export interface DialerLine {
   callDurationSeconds: number
   isMuted: boolean
   isRecording: boolean
+  localPresence?: LocalPresenceInfo
 }
 
 export type CallDisposition =
@@ -93,6 +153,7 @@ export type CallDisposition =
   | 'dnc_requested'
   | 'voicemail_left'
   | 'call_back_later'
+  | 'no_answer'
 
 export interface CallLog {
   id: string
@@ -132,6 +193,7 @@ export interface DialerQueueContact {
   propertyInterest?: string
   notes?: string
   priority?: number
+  localPresence?: LocalPresenceInfo
 }
 
 // ── Sub-30s Omnichannel AI ISA Engine Types ─────────────────────────

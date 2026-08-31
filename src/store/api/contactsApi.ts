@@ -5,6 +5,12 @@ interface ApiResponse<T> {
   success: boolean
   data: T
   message?: string
+  meta?: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
   pagination?: {
     total: number
     page: number
@@ -18,15 +24,27 @@ export const contactsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getContacts: builder.query<
       { contacts: Contact[]; total: number },
-      { search?: string; page?: number; limit?: number; source?: string; status?: string; sortBy?: string; sortOrder?: string }
+      { search?: string; page?: number; limit?: number; source?: string; status?: string; sortBy?: string; sortOrder?: string } | void
     >({
-      query: (params) => ({
-        url: '/contacts',
-        params,
-      }),
+      query: (params) => {
+        const cleanedParams: Record<string, any> = {}
+        if (params) {
+          if (params.page) cleanedParams.page = params.page
+          if (params.limit) cleanedParams.limit = params.limit
+          if (params.search && params.search.trim()) cleanedParams.search = params.search.trim()
+          if (params.source && params.source !== 'all') cleanedParams.source = params.source
+          if (params.status && params.status !== 'all') cleanedParams.status = params.status
+          if (params.sortBy) cleanedParams.sortBy = params.sortBy
+          if (params.sortOrder) cleanedParams.sortOrder = params.sortOrder
+        }
+        return {
+          url: '/contacts',
+          params: cleanedParams,
+        }
+      },
       transformResponse: (response: ApiResponse<Contact[]>) => ({
         contacts: response.data || [],
-        total: response.pagination?.total ?? (response.data?.length || 0),
+        total: response.meta?.total ?? response.pagination?.total ?? (response.data?.length || 0),
       }),
       providesTags: ['Contacts'],
     }),

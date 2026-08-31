@@ -37,7 +37,7 @@ export const usersApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ApiResponse<User[]>) => ({
         users: response.data || [],
-        total: response.pagination?.total ?? (response.data?.length || 0),
+        total: (response as any).meta?.total ?? response.pagination?.total ?? (response.data?.length || 0),
       }),
       providesTags: ['Users', 'TeamMembers'],
     }),

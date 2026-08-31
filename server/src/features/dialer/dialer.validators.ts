@@ -39,3 +39,25 @@ export const enqueueContactsSchema = z.object({
   contactIds: z.array(z.string().min(1)).min(1, 'At least one contact ID is required'),
   priority: z.number().int().min(1).max(100).default(50),
 })
+
+export const matchLocalPresenceSchema = z.object({
+  phone: z.string().min(3, 'Phone number or area code is required'),
+})
+
+export const startParallelSessionSchema = z.object({
+  lineCount: z.union([z.literal(1), z.literal(3), z.literal(5)]).default(3),
+  targets: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      phone: z.string(),
+    })
+  ).min(1),
+  useLocalPresence: z.boolean().default(true),
+})
+
+export const summarizeCallSchema = z.object({
+  transcript: z.string().min(5),
+  contactName: z.string().default('Prospect'),
+  durationSeconds: z.number().default(60),
+})

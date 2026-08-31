@@ -17,13 +17,16 @@ import {
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { toggleSidebar } from '@/store/slices/uiSlice'
 import { logout } from '@/store/slices/authSlice'
+import { useLogoutMutation } from '@/store/api/authApi'
 import { useGetFeatureFlagsQuery } from '@/store/api/featureFlagsApi'
+import { baseApi } from '@/store/api/baseApi'
 import { useNavigate } from 'react-router-dom'
 import { SidebarNavItem } from './SidebarNavItem'
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { ROLE_LABELS } from '@/constants/roles'
+import { ROLE_LABELS, ROLE_PERMISSIONS } from '@/constants/roles'
+import { UserRole } from '@/types/auth'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface NavItemDef {
@@ -33,25 +36,26 @@ interface NavItemDef {
   badge?: string
   badgeVariant?: 'live' | 'upcoming' | 'maintenance'
   featureKey?: string
+  permission?: string
 }
 
 const mainNavItems: NavItemDef[] = [
-  { to: '/dashboard', icon: <HomeIcon className="h-5 w-5" />, label: 'Dashboard', badge: 'Live', badgeVariant: 'live' },
-  { to: '/contacts', icon: <UserGroupIcon className="h-5 w-5" />, label: 'Contacts', badge: 'Live', badgeVariant: 'live' },
-  { to: '/pipeline', icon: <RectangleStackIcon className="h-5 w-5" />, label: 'Pipeline', badge: 'Live', badgeVariant: 'live', featureKey: 'deals_pipeline' },
-  { to: '/dialer', icon: <PhoneIcon className="h-5 w-5" />, label: 'Parallel Dialer', badge: 'Live', badgeVariant: 'live', featureKey: 'dialer' },
-  { to: '/inbox', icon: <ChatBubbleLeftRightIcon className="h-5 w-5" />, label: 'Inbox', badge: 'Sprint 12', featureKey: 'ai_chatbot' },
-  { to: '/smart-lists', icon: <FunnelIcon className="h-5 w-5" />, label: 'Smart Lists', badge: 'Sprint 10' },
+  { to: '/dashboard', icon: <HomeIcon className="h-5 w-5" />, label: 'Dashboard', badge: 'Live', badgeVariant: 'live', permission: 'viewDashboard' },
+  { to: '/contacts', icon: <UserGroupIcon className="h-5 w-5" />, label: 'Contacts', badge: 'Live', badgeVariant: 'live', permission: 'manageContacts' },
+  { to: '/pipeline', icon: <RectangleStackIcon className="h-5 w-5" />, label: 'Pipeline', badge: 'Live', badgeVariant: 'live', featureKey: 'deals_pipeline', permission: 'managePipeline' },
+  { to: '/dialer', icon: <PhoneIcon className="h-5 w-5" />, label: 'Parallel Dialer', badge: 'Live', badgeVariant: 'live', featureKey: 'dialer', permission: 'manageContacts' },
+  { to: '/inbox', icon: <ChatBubbleLeftRightIcon className="h-5 w-5" />, label: 'Inbox', badge: 'Sprint 12', featureKey: 'ai_chatbot', permission: 'manageContacts' },
+  { to: '/smart-lists', icon: <FunnelIcon className="h-5 w-5" />, label: 'Smart Lists', badge: 'Sprint 10', permission: 'manageSmartLists' },
 ]
 
 const aiNavItems: NavItemDef[] = [
-  { to: '/lead-ingestion', icon: <SignalIcon className="h-5 w-5" />, label: 'Lead Ingestion', badge: 'Live', badgeVariant: 'live', featureKey: 'lead_ingestion' },
-  { to: '/data-health', icon: <ShieldCheckIcon className="h-5 w-5" />, label: 'Data Health', badge: 'Live', badgeVariant: 'live', featureKey: 'data_health' },
-  { to: '/ai-isa', icon: <SparklesIcon className="h-5 w-5" />, label: 'AI ISA Engine', badge: 'Live', badgeVariant: 'live', featureKey: 'ai_isa' },
+  { to: '/lead-ingestion', icon: <SignalIcon className="h-5 w-5" />, label: 'Lead Ingestion', badge: 'Live', badgeVariant: 'live', featureKey: 'lead_ingestion', permission: 'manageLeadIngestion' },
+  { to: '/data-health', icon: <ShieldCheckIcon className="h-5 w-5" />, label: 'Data Health', badge: 'Live', badgeVariant: 'live', featureKey: 'data_health', permission: 'viewDataHealth' },
+  { to: '/ai-isa', icon: <SparklesIcon className="h-5 w-5" />, label: 'AI ISA Engine', badge: 'Live', badgeVariant: 'live', featureKey: 'ai_isa', permission: 'managePipeline' },
 ]
 
 const configNavItems: NavItemDef[] = [
-  { to: '/settings', icon: <Cog6ToothIcon className="h-5 w-5" />, label: 'Settings', badge: 'Live', badgeVariant: 'live' },
+  { to: '/settings', icon: <Cog6ToothIcon className="h-5 w-5" />, label: 'Settings', badge: 'Live', badgeVariant: 'live', permission: 'manageSettings' },
 ]
 
 export function Sidebar() {
@@ -79,14 +83,40 @@ export function Sidebar() {
     return item
   }
 
-  const handleLogout = () => {
+  const [logoutMutation] = useLogoutMutation()
+
+  const handleLogout = async () => {
+    try {
+      await logoutMutation().unwrap()
+    } catch {
+      // Even if server logout fails, clear client state
+    }
     dispatch(logout())
+    dispatch(baseApi.util.resetApiState())
     navigate('/login')
   }
 
   const initials = user
     ? `${user.firstName[0]}${user.lastName[0]}`
     : 'PP'
+
+  // Filter navigation items by role permissions
+  const rolePermissions = user?.role ? ROLE_PERMISSIONS[user.role] : undefined
+
+  const filteredMain = mainNavItems.filter((item) => {
+    if (!rolePermissions || !item.permission) return true
+    return rolePermissions[item.permission] !== false
+  })
+
+  const filteredAi = aiNavItems.filter((item) => {
+    if (!rolePermissions || !item.permission) return true
+    return rolePermissions[item.permission] !== false
+  })
+
+  const filteredConfig = configNavItems.filter((item) => {
+    if (!rolePermissions || !item.permission) return true
+    return rolePermissions[item.permission] !== false
+  })
 
   return (
     <aside
@@ -111,36 +141,87 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {!collapsed && (
-          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-            Main
-          </p>
+        {user?.role === UserRole.LEAD ? (
+          <div className="space-y-1">
+            {!collapsed && (
+              <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                Client Portal
+              </p>
+            )}
+            <SidebarNavItem
+              to="/dashboard"
+              icon={<HomeIcon className="h-5 w-5" />}
+              label="Dashboard"
+              badge="VIP"
+              badgeVariant="live"
+              collapsed={collapsed}
+            />
+            <SidebarNavItem
+              to="/inbox"
+              icon={<ChatBubbleLeftRightIcon className="h-5 w-5" />}
+              label="Advisor Chat"
+              badge="Live"
+              badgeVariant="live"
+              collapsed={collapsed}
+            />
+
+            <Separator className="my-4" />
+            {!collapsed && (
+              <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                Account
+              </p>
+            )}
+            <SidebarNavItem
+              to="/settings"
+              icon={<Cog6ToothIcon className="h-5 w-5" />}
+              label="Settings"
+              collapsed={collapsed}
+            />
+          </div>
+        ) : (
+          <>
+            {filteredMain.length > 0 && (
+              <>
+                {!collapsed && (
+                  <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    Main
+                  </p>
+                )}
+                {filteredMain.map((item) => (
+                  <SidebarNavItem key={item.to} {...resolveNavItem(item)} collapsed={collapsed} />
+                ))}
+              </>
+            )}
+
+            {filteredAi.length > 0 && (
+              <>
+                <Separator className="my-4" />
+                {!collapsed && (
+                  <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    Intelligence & Data
+                  </p>
+                )}
+                {filteredAi.map((item) => (
+                  <SidebarNavItem key={item.to} {...resolveNavItem(item)} collapsed={collapsed} />
+                ))}
+              </>
+            )}
+
+            {filteredConfig.length > 0 && (
+              <>
+                <Separator className="my-4" />
+                {!collapsed && (
+                  <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    Configuration
+                  </p>
+                )}
+                {filteredConfig.map((item) => (
+                  <SidebarNavItem key={item.to} {...resolveNavItem(item)} collapsed={collapsed} />
+                ))}
+              </>
+            )}
+          </>
         )}
-        {mainNavItems.map((item) => (
-          <SidebarNavItem key={item.to} {...resolveNavItem(item)} collapsed={collapsed} />
-        ))}
-
-        <Separator className="my-4" />
-
-        {!collapsed && (
-          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-            Intelligence & Data
-          </p>
-        )}
-        {aiNavItems.map((item) => (
-          <SidebarNavItem key={item.to} {...resolveNavItem(item)} collapsed={collapsed} />
-        ))}
-
-        <Separator className="my-4" />
-
-        {!collapsed && (
-          <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
-            Configuration
-          </p>
-        )}
-        {configNavItems.map((item) => (
-          <SidebarNavItem key={item.to} {...resolveNavItem(item)} collapsed={collapsed} />
-        ))}
       </nav>
 
       {/* Bottom section: user + collapse toggle */}

@@ -47,8 +47,9 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
     return () => document.removeEventListener('mousedown', handler)
   }, [onClose])
 
-  const unreadNotifications = notifications.filter((n) => !n.isRead)
-  const sourceList = filter === 'unread' ? unreadNotifications : notifications
+  const safeList = Array.isArray(notifications) ? notifications : []
+  const unreadNotifications = safeList.filter((n) => !n.isRead)
+  const sourceList = filter === 'unread' ? unreadNotifications : safeList
   const displayedNotifications = sourceList.slice(0, 3)
 
   const handleNotificationClick = async (n: Notification) => {
@@ -127,7 +128,7 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
       </div>
 
       {/* Notification List (strictly 3 displayed) */}
-      <div className="max-h-[290px] overflow-y-auto divide-y divide-border/30">
+      <div className="max-h-72.5 overflow-y-auto divide-y divide-border/30">
         {displayedNotifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 mb-2">
@@ -156,7 +157,7 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
               }}
               className={cn(
                 'group relative flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60 cursor-pointer',
-                !n.isRead && 'bg-primary/[0.04]'
+                !n.isRead && 'bg-primary/4'
               )}
             >
               {/* Type Icon */}

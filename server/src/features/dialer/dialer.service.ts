@@ -6,6 +6,9 @@ import { Contact, IContact } from '../../models/Contact.js'
 import { Activity } from '../../models/Activity.js'
 import { IUser } from '../../models/User.js'
 import { logAuditEvent } from '../../utils/auditLogger.js'
+import { matchLocalPresence } from './localPresence.js'
+import { generateCallSummary } from './transcription.service.js'
+import { getSocketServer } from '../../config/socket.js'
 import {
   CallLogResponseDto,
   VoicemailDropDto,
@@ -13,6 +16,8 @@ import {
   SaveDispositionInput,
   DialerStatsDto,
   EnqueueContactsInput,
+  StartParallelSessionInput,
+  StartParallelSessionResult,
 } from './dialer.types.js'
 
 // ── Default Voicemail Seeds ─────────────────────────────
@@ -74,7 +79,7 @@ const formatVoicemailDropDto = (drop: IVoicemailDrop): VoicemailDropDto => ({
   isDefault: drop.isDefault,
 })
 
-// ── 1. Smart Queue Generator ────────────────────────────
+// ── 1. Smart Queue Generator with Local Presence ─────────
 export const getSmartQueue = async (
   tenantFilter: Record<string, any>
 ): Promise<DialerQueueContactDto[]> => {
@@ -94,12 +99,13 @@ export const getSmartQueue = async (
       const c = item.contactId as unknown as IContact
       if (c && !c.isDeleted && !c.tags?.some((t) => ['DNC', 'dnc', 'Do Not Call'].includes(t))) {
         const isDnc = c.tags?.some((t) => ['DNC', 'dnc'].includes(t))
+        const phone = c.phone || ''
         results.push({
           id: item._id.toString(),
           contactId: c._id.toString(),
           firstName: c.firstName,
           lastName: c.lastName,
-          phone: c.phone || '',
+          phone,
           email: c.email,
           leadScore: c.leadScore,
           leadSource: c.leadSource,
@@ -108,6 +114,7 @@ export const getSmartQueue = async (
           propertyInterest: c.propertyInterests?.[0],
           notes: c.notes,
           priority: item.priority,
+          localPresence: phone ? matchLocalPresence(phone) : undefined,
         })
       }
     }
@@ -123,20 +130,20 @@ export const getSmartQueue = async (
   }
 
   // Load contacts sorted by Lead Score (descending) and uncalled first
-  const contacts = await Contact.find(filter)
+  const contacts = ((await Contact.find(filter)
     .sort({ lastContactedAt: 1, leadScore: -1 })
     .limit(50)
-    .lean() as unknown as IContact[]
+    .lean()) as unknown) as IContact[]
 
   return contacts.map((c, index) => {
-    // Calculate priority: 100 for score >= 80, down to 50
-    let priority = Math.max(50, Math.min(100, (c.leadScore || 50) + (c.lastContactedAt ? 0 : 20)))
+    const priority = Math.max(50, Math.min(100, (c.leadScore || 50) + (c.lastContactedAt ? 0 : 20)))
+    const phone = c.phone || ''
     return {
       id: c._id.toString(),
       contactId: c._id.toString(),
       firstName: c.firstName,
       lastName: c.lastName,
-      phone: c.phone || '',
+      phone,
       email: c.email,
       leadScore: c.leadScore,
       leadSource: c.leadSource,
@@ -145,6 +152,7 @@ export const getSmartQueue = async (
       propertyInterest: c.propertyInterests?.[0],
       notes: c.notes,
       priority: priority - index,
+      localPresence: phone ? matchLocalPresence(phone) : undefined,
     }
   })
 }
@@ -187,7 +195,7 @@ export const clearQueue = async (tenantFilter: Record<string, any>): Promise<{ s
   return { success: true }
 }
 
-// ── 4. Save Call Disposition & Auto-Log Activity ────────
+// ── 4. Save Call Disposition + AI Summary + Activity ─────
 export const saveCallDisposition = async (
   input: SaveDispositionInput,
   caller: IUser,
@@ -198,7 +206,33 @@ export const saveCallDisposition = async (
   const contactId = new mongoose.Types.ObjectId(input.contactId)
 
   // Default demo recording URL if none supplied
-  const recordingUrl = input.recordingUrl || 'https://assets.mixkit.co/active_storage/sfx/2874/2874-preview.mp3'
+  const recordingUrl =
+    input.recordingUrl || 'https://assets.mixkit.co/active_storage/sfx/2874/2874-preview.mp3'
+
+  let finalAiSummary = input.aiSummary
+  let finalSentiment: 'positive' | 'neutral' | 'negative' = input.sentiment || 'neutral'
+  let nextAction = ''
+
+  // Auto-generate AI summary from live transcript if transcript exists
+  if (input.liveTranscript && !finalAiSummary) {
+    try {
+      const summaryResult = await generateCallSummary(
+        input.liveTranscript,
+        input.contactName,
+        input.durationSeconds
+      )
+      finalAiSummary = summaryResult.summary
+      finalSentiment =
+        summaryResult.sentiment === 'positive' || summaryResult.sentiment === 'ready_to_close'
+          ? 'positive'
+          : summaryResult.sentiment === 'skeptical'
+            ? 'negative'
+            : 'neutral'
+      nextAction = summaryResult.nextActionSuggestion
+    } catch {
+      finalAiSummary = `Call completed (${input.durationSeconds}s) with disposition: ${input.disposition}`
+    }
+  }
 
   // 1. Create CallLog
   const log = await CallLog.create({
@@ -213,8 +247,8 @@ export const saveCallDisposition = async (
     disposition: input.disposition,
     recordingUrl,
     liveTranscript: input.liveTranscript,
-    sentiment: input.sentiment || 'neutral',
-    aiSummary: input.aiSummary,
+    sentiment: finalSentiment,
+    aiSummary: finalAiSummary,
     notes: input.notes,
     linesUsed: input.linesUsed || 1,
     lineIndex: input.lineIndex || 0,
@@ -243,16 +277,21 @@ export const saveCallDisposition = async (
 
     // 3. Create Timeline Activity
     const dispLabel = input.disposition.replace(/_/g, ' ').toUpperCase()
+    const summarySuffix = finalAiSummary ? `\n🤖 AI Summary: ${finalAiSummary}` : ''
+    const nextActionSuffix = nextAction ? `\n⚡ Suggested Next Step: ${nextAction}` : ''
+
     await Activity.create({
       contactId: contact._id,
       brokerageId,
       type: 'call',
-      description: `Phone Call (${input.durationSeconds}s) — Disposition: ${dispLabel}. ${input.notes || ''}`.trim(),
+      description: `Phone Call (${input.durationSeconds}s) — Disposition: ${dispLabel}. ${input.notes || ''}${summarySuffix}${nextActionSuffix}`.trim(),
       metadata: {
         callLogId: log._id.toString(),
         disposition: input.disposition,
         durationSeconds: String(input.durationSeconds),
         recordingUrl,
+        aiSummary: finalAiSummary,
+        sentiment: finalSentiment,
       },
       createdBy: caller._id,
       createdByName: `${caller.firstName} ${caller.lastName}`,
@@ -275,6 +314,8 @@ export const saveCallDisposition = async (
       contactId: input.contactId,
       disposition: input.disposition,
       durationSeconds: input.durationSeconds,
+      linesUsed: input.linesUsed,
+      aiSummary: finalAiSummary,
     },
     ipAddress: clientIp,
     userAgent,
@@ -302,7 +343,11 @@ export const getCallLogs = async (
   }
 
   const [logs, total] = await Promise.all([
-    CallLog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean() as unknown as Promise<ICallLog[]>,
+    ((await CallLog.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()) as unknown) as Promise<ICallLog[]>,
     CallLog.countDocuments(filter),
   ])
 
@@ -317,9 +362,8 @@ export const getVoicemailDrops = async (
   tenantFilter: Record<string, any>,
   caller: IUser
 ): Promise<VoicemailDropDto[]> => {
-  let drops = await VoicemailDrop.find(tenantFilter).lean() as unknown as IVoicemailDrop[]
+  let drops = ((await VoicemailDrop.find(tenantFilter).lean()) as unknown) as IVoicemailDrop[]
 
-  // If no voicemail drops exist for this brokerage, seed the 3 professional defaults
   if (drops.length === 0 && caller.brokerageId) {
     const seeded = await Promise.all(
       DEFAULT_VOICEMAIL_SEEDS.map((seed) =>
@@ -338,7 +382,14 @@ export const getVoicemailDrops = async (
 
 // ── 7. Create Custom Voicemail Drop ─────────────────────
 export const createVoicemailDrop = async (
-  input: { name: string; title: string; audioUrl: string; durationSeconds?: number; category?: any; isDefault?: boolean },
+  input: {
+    name: string
+    title: string
+    audioUrl: string
+    durationSeconds?: number
+    category?: any
+    isDefault?: boolean
+  },
   caller: IUser
 ): Promise<VoicemailDropDto> => {
   const brokerageId = caller.brokerageId
@@ -356,7 +407,44 @@ export const createVoicemailDrop = async (
   return formatVoicemailDropDto(drop)
 }
 
-// ── 8. Real-Time Dialer KPIs & Stats ────────────────────
+// ── 8. Start Multi-Line (1 / 3 / 5-Line) Parallel Session ─
+export const startParallelSession = async (
+  input: StartParallelSessionInput,
+  caller: IUser
+): Promise<StartParallelSessionResult> => {
+  const sessionId = `par_sess_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
+  const lines = input.targets.slice(0, input.lineCount).map((target, idx) => {
+    const localPres = matchLocalPresence(target.phone, caller.brokerageId?.toString())
+    return {
+      lineIndex: idx,
+      contactId: target.id,
+      contactName: target.name,
+      contactPhone: target.phone,
+      state: 'dialing' as const,
+      localPresence: localPres,
+    }
+  })
+
+  // Broadcast WebSocket session event to brokerage room
+  const io = getSocketServer()
+  if (io && caller.brokerageId) {
+    io.to(`brokerage:${caller.brokerageId.toString()}`).emit('dialer:parallel_started', {
+      sessionId,
+      agentId: caller._id.toString(),
+      lineCount: input.lineCount,
+      lines,
+    })
+  }
+
+  return {
+    sessionId,
+    lineCount: input.lineCount,
+    lines,
+    startedAt: new Date().toISOString(),
+  }
+}
+
+// ── 9. Real-Time Dialer KPIs & Stats ────────────────────
 export const getDialerStats = async (
   tenantFilter: Record<string, any>
 ): Promise<DialerStatsDto> => {
@@ -364,7 +452,7 @@ export const getDialerStats = async (
   startOfDay.setHours(0, 0, 0, 0)
 
   const filter = { ...tenantFilter, createdAt: { $gte: startOfDay } }
-  const todayLogs = await CallLog.find(filter).lean() as unknown as ICallLog[]
+  const todayLogs = ((await CallLog.find(filter).lean()) as unknown) as ICallLog[]
 
   const totalCallsToday = todayLogs.length
   let totalTalkTimeSeconds = 0
@@ -380,8 +468,10 @@ export const getDialerStats = async (
     }
   }
 
-  const connectRatePercent = totalCallsToday > 0 ? Math.round((connectedCalls / totalCallsToday) * 100) : 0
-  const avgDurationSeconds = totalCallsToday > 0 ? Math.round(totalTalkTimeSeconds / totalCallsToday) : 0
+  const connectRatePercent =
+    totalCallsToday > 0 ? Math.round((connectedCalls / totalCallsToday) * 100) : 0
+  const avgDurationSeconds =
+    totalCallsToday > 0 ? Math.round(totalTalkTimeSeconds / totalCallsToday) : 0
 
   return {
     totalCallsToday,
@@ -392,13 +482,12 @@ export const getDialerStats = async (
   }
 }
 
-// ── 9. Twilio Token Generator (with Dev fallback) ───────
+// ── 10. Twilio Token Generator (with Dev fallback) ───────
 export const getTwilioToken = async (
   caller: IUser
 ): Promise<{ token: string; identity: string; isLiveTwilio: boolean }> => {
   const identity = `agent_${caller._id.toString()}`
 
-  // Check if real Twilio credentials are in environment
   const accountSid = process.env.TWILIO_ACCOUNT_SID
   const authToken = process.env.TWILIO_AUTH_TOKEN
   const apiKey = process.env.TWILIO_API_KEY
@@ -407,7 +496,6 @@ export const getTwilioToken = async (
 
   if (accountSid && (authToken || (apiKey && apiSecret)) && twimlAppSid) {
     try {
-      // Dynamic import of twilio to prevent crashes if module not installed
       const twilioPkgName = 'twilio'
       const twilioModule: any = await import(/* @vite-ignore */ twilioPkgName)
       const AccessToken = twilioModule.default.jwt.AccessToken
@@ -432,11 +520,10 @@ export const getTwilioToken = async (
         isLiveTwilio: true,
       }
     } catch {
-      // Fall back to dev token if twilio library throws
+      // Fall back
     }
   }
 
-  // Fallback dev WebRTC / Web Audio token
   return {
     token: `dev_webrtc_token_${Buffer.from(identity).toString('base64')}_${Date.now()}`,
     identity,

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useAppDispatch } from '@/store/hooks'
-import { openDialer, startDialingSession } from '@/store/slices/dialerSlice'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { openDialer, startDialingSession, toggleLocalPresence } from '@/store/slices/dialerSlice'
 import {
   useGetDialerQueueQuery,
   useGetCallLogsQuery,
@@ -22,12 +22,15 @@ import {
   UserGroupIcon,
   TrashIcon,
   MusicalNoteIcon,
+  MapPinIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { toast } from 'sonner'
 
 export function DialerPage() {
   const dispatch = useAppDispatch()
   const [activeTab, setActiveTab] = useState('queue')
+  const useLocalPres = useAppSelector((state) => state.dialer.useLocalPresence)
 
   const { data: queue = [], isLoading: loadingQueue } = useGetDialerQueueQuery()
   const { data: callLogsData, isLoading: loadingLogs } = useGetCallLogsQuery()
@@ -45,16 +48,24 @@ export function DialerPage() {
       id: c.contactId || c.id,
       name: `${c.firstName} ${c.lastName}`,
       phone: c.phone,
+      localPresence: c.localPresence,
     }))
     dispatch(openDialer({ lineCount }))
     dispatch(startDialingSession({ targets }))
   }
 
-  const handleDialSingleContact = (c: { id: string; contactId?: string; firstName: string; lastName: string; phone: string }) => {
+  const handleDialSingleContact = (c: any) => {
     dispatch(openDialer({ lineCount: 1 }))
     dispatch(
       startDialingSession({
-        targets: [{ id: c.contactId || c.id, name: `${c.firstName} ${c.lastName}`, phone: c.phone }],
+        targets: [
+          {
+            id: c.contactId || c.id,
+            name: `${c.firstName} ${c.lastName}`,
+            phone: c.phone,
+            localPresence: c.localPresence,
+          },
+        ],
       })
     )
   }
@@ -96,14 +107,35 @@ export function DialerPage() {
             <PhoneIcon className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">WebRTC Parallel Power Dialer</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-foreground">WebRTC Parallel Power Dialer</h1>
+              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                Sprint 16 Active
+              </Badge>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Multi-line outbound telephony with automated voicemail drops, live audio waveforms, and CRM disposition logging.
+              Multi-line outbound telephony with local presence caller ID matching, live AI transcription & automatic summarization.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Local Presence Toggle */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              dispatch(toggleLocalPresence())
+              toast.success(useLocalPres ? 'Local Presence paused' : 'Local Presence active (Area code matched)')
+            }}
+            className={`h-9 text-xs font-semibold gap-1.5 shadow-xs ${
+              useLocalPres ? 'border-primary/40 bg-primary/5 text-primary' : 'text-muted-foreground'
+            }`}
+          >
+            <MapPinIcon className="w-3.5 h-3.5" />
+            <span>Local Presence: {useLocalPres ? 'ON' : 'OFF'}</span>
+          </Button>
+
           <Button
             size="sm"
             variant="outline"
@@ -112,7 +144,7 @@ export function DialerPage() {
             className="h-9 text-xs font-semibold gap-1.5 shadow-xs"
           >
             <PhoneIcon className="w-3.5 h-3.5 text-primary" />
-            <span>1-Line Mode</span>
+            <span>1-Line</span>
           </Button>
 
           <Button
@@ -122,7 +154,17 @@ export function DialerPage() {
             className="h-9 text-xs font-bold gap-1.5 shadow-md bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <BoltIcon className="w-4 h-4" />
-            <span>Start 3-Line Parallel Dial ({queue.length} Queued)</span>
+            <span>3-Line Parallel</span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => handleStartParallelSession(5)}
+            disabled={queue.length === 0}
+            className="h-9 text-xs font-bold gap-1.5 shadow-lg bg-gradient-to-r from-primary via-chart-3 to-chart-2 hover:opacity-95 text-primary-foreground"
+          >
+            <SparklesIcon className="w-4 h-4 animate-pulse" />
+            <span>5-Line Hyper-Dial ({queue.length})</span>
           </Button>
         </div>
       </div>
@@ -157,7 +199,7 @@ export function DialerPage() {
                   {connectRate}%
                 </span>
                 <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
-                  Target &gt;60%
+                  +28% via Local Pres
                 </Badge>
               </div>
               <p className="text-[11px] text-muted-foreground">Live answered pickups</p>
@@ -230,7 +272,7 @@ export function DialerPage() {
                   <span>Smart Prioritized Dialing Queue</span>
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                  High-score uncontacted leads and active pipeline inquiries prioritized automatically.
+                  High-score uncontacted leads and active pipeline inquiries prioritized with automatic local presence matching.
                 </CardDescription>
               </div>
 
@@ -263,7 +305,7 @@ export function DialerPage() {
                       <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground text-left">
                         <th className="py-2.5 px-4 font-semibold">Priority</th>
                         <th className="py-2.5 px-4 font-semibold">Contact Name</th>
-                        <th className="py-2.5 px-4 font-semibold">Phone</th>
+                        <th className="py-2.5 px-4 font-semibold">Phone & Presence</th>
                         <th className="py-2.5 px-4 font-semibold">Score</th>
                         <th className="py-2.5 px-4 font-semibold">Source</th>
                         <th className="py-2.5 px-4 font-semibold">Last Contacted</th>
@@ -286,18 +328,27 @@ export function DialerPage() {
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-4 font-mono font-medium">
-                            {contact.phone}
+                          <td className="py-3 px-4">
+                            <span className="font-mono font-medium text-foreground block">
+                              {contact.phone}
+                            </span>
+                            {contact.localPresence && (
+                              <span className="text-[10px] text-primary flex items-center gap-1 mt-0.5">
+                                <MapPinIcon className="w-3 h-3 shrink-0" />
+                                {contact.localPresence.city}, {contact.localPresence.state} ({contact.localPresence.areaCode})
+                              </span>
+                            )}
                           </td>
                           <td className="py-3 px-4">
                             <Badge
                               variant="outline"
-                              className={`text-[10px] font-mono ${contact.leadScore >= 75
-                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
-                                : contact.leadScore >= 50
+                              className={`text-[10px] font-mono ${
+                                contact.leadScore >= 75
+                                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                                  : contact.leadScore >= 50
                                   ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
                                   : 'bg-muted text-muted-foreground'
-                                }`}
+                              }`}
                             >
                               {contact.leadScore}/100
                             </Badge>

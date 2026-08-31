@@ -453,3 +453,32 @@ export const getSpeedToLeadMetrics = async (
     totalAiConversations: Math.max(28, contactsCount * 2),
   }
 }
+
+// ── 6. Inbound Lead Chat Auto-Pilot Handler ──────────────
+export const handleInboundLeadChat = async (input: {
+  conversationId: string
+  contactId: string
+  inboundText: string
+  channel: 'sms' | 'whatsapp' | 'email'
+}): Promise<void> => {
+  const result = await simulateAiIsaChat(
+    {
+      leadMessage: input.inboundText,
+      contactId: input.contactId,
+    },
+    { _id: new mongoose.Types.ObjectId() } as any
+  )
+
+  if (result.reply) {
+    const contact = await Contact.findById(input.contactId)
+    if (contact) {
+      await Activity.create({
+        contactId: contact._id,
+        brokerageId: contact.brokerageId,
+        type: input.channel,
+        description: `Autonomous AI ISA Response: "${result.reply.slice(0, 80)}..."`,
+      })
+    }
+  }
+}
+

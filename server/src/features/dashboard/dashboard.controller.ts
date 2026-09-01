@@ -6,7 +6,6 @@ import { IUser } from '../../models/User.js'
 export const getKpis = async (req: Request, res: Response) => {
   try {
     const tenantFilter = req.tenantFilter || {}
-    if (!tenantFilter) sendError(res, "Tenant not found")
     const data = await dashboardService.getKpis(tenantFilter)
     sendSuccess(res, data)
   } catch (error: any) {

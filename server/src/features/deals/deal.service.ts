@@ -366,7 +366,7 @@ export const moveDealStage = async (
     await pushNotification({
       brokerageId: deal.brokerageId.toString(),
       type: 'stage_change',
-      title: '🚀 Deal Stage Advanced',
+      title: 'Deal Stage Advanced',
       message: `"${deal.propertyAddress}" progressed from "${oldStageName}" → "${newStageName}"`,
       linkTo: '/pipeline',
       metadata: { dealId: deal._id.toString(), from: oldStageName, to: newStageName },

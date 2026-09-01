@@ -10,11 +10,15 @@ export interface IReactivationCampaign extends Document {
   targetSegment: string
   channel: CampaignChannel
   messageTemplate: string
+  dormantDaysThreshold: number
   totalLeads: number
   contactedCount: number
+  respondedCount: number
   engagedCount: number
   convertedCount: number
+  meetingsBookedCount: number
   lastExecutedAt?: Date
+  lastRunAt?: Date
   createdBy?: mongoose.Types.ObjectId
   createdAt: Date
   updatedAt: Date
@@ -53,11 +57,21 @@ const reactivationCampaignSchema = new Schema<IReactivationCampaign>(
       type: String,
       required: [true, 'Message template is required'],
     },
+    dormantDaysThreshold: {
+      type: Number,
+      default: 90,
+      min: 1,
+      max: 365,
+    },
     totalLeads: {
       type: Number,
       default: 0,
     },
     contactedCount: {
+      type: Number,
+      default: 0,
+    },
+    respondedCount: {
       type: Number,
       default: 0,
     },
@@ -69,7 +83,14 @@ const reactivationCampaignSchema = new Schema<IReactivationCampaign>(
       type: Number,
       default: 0,
     },
+    meetingsBookedCount: {
+      type: Number,
+      default: 0,
+    },
     lastExecutedAt: {
+      type: Date,
+    },
+    lastRunAt: {
       type: Date,
     },
     createdBy: {
@@ -82,7 +103,7 @@ const reactivationCampaignSchema = new Schema<IReactivationCampaign>(
   }
 )
 
-reactivationCampaignSchema.index({ brokerageId: 1, status: 1, createdAt: -1 })
+reactivationCampaignSchema.index({ brokerageId: 1, status: 1, lastRunAt: 1 })
 
 export const ReactivationCampaign: Model<IReactivationCampaign> =
   mongoose.models.ReactivationCampaign ||

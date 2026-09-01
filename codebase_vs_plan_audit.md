@@ -10,18 +10,18 @@
 | Metric | Count |
 |--------|-------|
 | **Total Sprints** | 22 |
-| **Fully Complete** | 6 |
-| **Substantially Complete (≥70%)** | 7 |
-| **Partially Complete (30–69%)** | 4 |
-| **Not Started (0%)** | 5 |
-| **Overall Completion** | **~55%** |
+| **Fully Complete** | 9 |
+| **Substantially Complete (≥70%)** | 6 |
+| **Partially Complete (30–69%)** | 3 |
+| **Not Started (0%)** | 4 |
+| **Overall Completion** | **~70%** |
 
 ```mermaid
 pie title Sprint Completion Overview
-    "Fully Complete (6)" : 6
-    "Substantially Complete (7)" : 7
-    "Partially Complete (4)" : 4
-    "Not Started (5)" : 5
+    "Fully Complete (9)" : 9
+    "Substantially Complete (6)" : 6
+    "Partially Complete (3)" : 3
+    "Not Started (4)" : 4
 ```
 
 ---
@@ -193,28 +193,28 @@ pie title Sprint Completion Overview
 
 ---
 
-### Sprint 7 — Smart Lists + Dashboard APIs ❌ NOT STARTED (Backend)
+### Sprint 7 — Smart Lists + Dashboard APIs ✅ COMPLETE (100%)
 
-**Status: ~30% (Frontend pages exist, backend feature dirs missing)**
+**Status: 100% Done**
 
-| Planned File | Exists |
-|:-------------|:------:|
-| `server/src/models/SmartList.ts` | ❌ |
-| `server/src/features/smart-lists/*` | ❌ — No directory |
-| `server/src/features/dashboard/*` | ❌ — No directory |
+| Planned File | Exists | Content Verified |
+|:-------------|:------:|:----------------:|
+| [server/src/models/SmartList.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/models/SmartList.ts) | ✅ | ✅ Dynamic filters, Mongoose schema, compound index on `brokerageId` & `createdBy` |
+| [server/src/features/smart-lists/*](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/smart-lists) | ✅ | ✅ Full CRUD + `buildMongoQueryFromFilters` + preview pagination |
+| [server/src/features/dashboard/*](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/dashboard) | ✅ | ✅ KPIs, lead sources, leads over time, pipeline summary, activity feed, lead portal with Redis caching |
+| [src/store/api/dashboardApi.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/src/store/api/dashboardApi.ts) | ✅ | ✅ RTK Query endpoints with cache tags |
+| [src/store/api/smartListsApi.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/src/store/api/smartListsApi.ts) | ✅ | ✅ RTK Query endpoints for list CRUD & live preview |
+| [src/pages/dashboard/*](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/src/pages/dashboard) | ✅ | ✅ Live KPI cards, charts, activity feed, and client portal redirection |
+| [src/pages/smart-lists/*](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/src/pages/smart-lists) | ✅ | ✅ Filter builder, presets sidebar, seller radar, micro CMA, dialer dispatch |
 
 **What's Done:**
-- ✅ Frontend `SmartListsPage.tsx` with `FilterBuilder.tsx`, `SavedListSidebar.tsx` (UI exists)
-- ✅ Frontend `DashboardPage.tsx` with charts (UI exists)
-
-**What's Missing:**
-- ❌ **SmartList model** — no MongoDB model
-- ❌ **Smart list feature backend** — no CRUD, no dynamic query builder
-- ❌ **Dashboard feature backend** — no KPI aggregation endpoints
-- ❌ No `GET /api/dashboard/kpis`, `/lead-sources`, `/leads-over-time`, `/pipeline-summary`, `/activity-feed`
-- ❌ No `GET /api/dashboard/lead-portal` for lead role
-- ❌ No `GET/POST/PATCH/DELETE /api/smart-lists` endpoints
-- ❌ No `POST /api/smart-lists/preview` dynamic query execution
+- ✅ **Dynamic Smart List Query Engine (`smartList.service.ts`)** — translates `equals`, `not_equals`, `contains`, `greater_than`, `less_than`, `between`, `in`, `is_empty`, and `is_not_empty` into secure MongoDB `$and`/`$or` queries with ReDoS regex escaping.
+- ✅ **Smart List Full CRUD & Preview** — `GET /api/smart-lists`, `POST /api/smart-lists`, `PATCH /api/smart-lists/:id`, `DELETE /api/smart-lists/:id`, `POST /api/smart-lists/preview`.
+- ✅ **Role-Scoped Dashboard KPI Aggregations (`dashboard.service.ts`)** — calculates total contacts, new leads this week, active deals, pipeline value, high priority leads, and avg speed to lead.
+- ✅ **Redis Cache-Aside Layer** — 5-minute deterministic TTL caching per tenant/role (`dashboard:kpis:...`, `dashboard:leadSources:...`, `dashboard:leadsOverTime:...`).
+- ✅ **Charts & Analytics Endpoints** — `GET /api/dashboard/lead-sources`, `GET /api/dashboard/leads-over-time`, `GET /api/dashboard/pipeline-summary`.
+- ✅ **Live Activity Feed** — `GET /api/dashboard/activity-feed` aggregates recent brokerage events.
+- ✅ **Dedicated Client Lead Portal** — `GET /api/dashboard/lead-portal` delivers assigned agent contact details, active deal status, and milestone updates.
 
 ---
 
@@ -351,64 +351,68 @@ pie title Sprint Completion Overview
 
 ---
 
-### Sprint 13 — AI ISA Engine + Reactivation Campaigns ✅ SUBSTANTIALLY COMPLETE (~80%)
+### Sprint 13 — AI ISA Engine + Reactivation Campaigns ✅ COMPLETE (100%)
 
-**Status: 80% Done**
+**Status: 100% Done**
 
 | Planned File | Exists | Content Verified |
 |:-------------|:------:|:----------------:|
-| [server/src/features/ai-isa/*](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/ai-isa) | ✅ | ✅ 6 files + `fairHousingGuard.ts` |
-| [server/src/models/QualificationCriteria.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/models/QualificationCriteria.ts) | ✅ | ✅ |
-| [server/src/models/ReactivationCampaign.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/models/ReactivationCampaign.ts) | ✅ | ✅ |
-| `server/src/jobs/reactivation.job.ts` | ❌ | ❌ Not created |
+| [server/src/models/AiIsaConfig.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/models/AiIsaConfig.ts) | ✅ | ✅ Multi-tenant persona, tone, channels & handoff thresholds |
+| [server/src/models/QualificationCriteria.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/models/QualificationCriteria.ts) | ✅ | ✅ Dynamic rules with custom prompt directives |
+| [server/src/models/ReactivationCampaign.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/models/ReactivationCampaign.ts) | ✅ | ✅ Dormant day thresholds, compound indexes, converted metrics |
+| [server/src/jobs/reactivation.job.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/jobs/reactivation.job.ts) | ✅ | ✅ Background job with Redis distributed locking & Fair Housing guard |
+| [server/src/features/ai-isa/isa.scheduler.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/ai-isa/isa.scheduler.ts) | ✅ | ✅ Cron & ad-hoc execution coordinator |
+| [server/src/jobs/scheduler.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/jobs/scheduler.ts) | ✅ | ✅ Registered daily 03:00 AM PKT reactivation scan |
+| [server/src/features/ai-isa/*](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/ai-isa) | ✅ | ✅ Complete CRUD, criteria, campaigns, metrics, WhatsApp test handshake |
+| [src/pages/ai-isa/*](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/src/pages/ai-isa) | ✅ | ✅ Live AI Lead Conversations, Campaigns, Rules, Persona Config, WhatsApp WABA Self-Service, Sandbox |
 
 **What's Done:**
-- ✅ Chat simulator endpoint (`POST /api/ai-isa/simulate`)
-- ✅ Qualification criteria CRUD
-- ✅ Reactivation campaign CRUD (create, toggle, execute)
-- ✅ Speed-to-lead metrics endpoint
-- ✅ Fair Housing guard integrated
-
-**What's Missing:**
-- ❌ **Background scheduler** for automatic reactivation (`reactivation.job.ts`)
-- ❌ `isa.scheduler.ts` — no automated cron for dormant lead detection
-- ⚠️ Campaign model named `ReactivationCampaign` instead of `Campaign` (functional deviation)
+- ✅ **Multi-Tenant AI ISA Engine (`AiIsaConfig.ts`)** — custom persona name, brokerage branding, tone, autopilot/draft toggle, handoff criteria, and channel selection.
+- ✅ **Autonomous Reactivation Cron Job (`jobs/reactivation.job.ts`)** — scans dormant leads (90+ days), filters out DNC/closed deals, batches outreach, and logs activities.
+- ✅ **Dual-Layer Distributed Locking** — in-memory `isLocalRunning` + Redis `lock:job:reactivation_campaign` with automatic TTL cleanup to prevent race conditions.
+- ✅ **Live Omnichannel WhatsApp & AI Autopilot** — `handleInboundLeadChat` parses incoming texts, runs AI ISA qualification, checks Fair Housing compliance, saves DB threads, updates Socket.io in real time, and sends WhatsApp replies.
+- ✅ **Self-Service Multi-Tenant WhatsApp Integration (`WhatsAppIntegrationSettings.tsx`)** — enables subscribing brokerages to connect their own WABA ID, Phone ID, and AES-256 encrypted permanent access token directly in the UI.
+- ✅ **Dynamic Inbound Webhook Tenant Routing** — matches Meta's `metadata.phone_number_id` to the correct tenant brokerage automatically.
+- ✅ **Front-and-Center Live Conversations Monitor (`LiveAiConversations.tsx`)** — displays real-time AI qualifying conversations with live transcript stream, human takeover pause toggle, and interactive WhatsApp test handshake launcher.
+- ✅ **In-App Webhook Simulator** — allows instant testing of the inbound lead webhook pipeline with 1 click.
+- ✅ **Reactivation Campaigns Full Management (`ReactivationCampaigns.tsx`)** — create campaigns, toggle active/paused, ad-hoc batch trigger, and performance metrics modal.
+- ✅ **Qualification Rules Builder (`QualificationConfig.tsx`)** — customizable criteria with custom prompt directives.
+- ✅ **Title VIII Fair Housing Compliance Guard** — automatic NLP scanning and correction on all outbound AI ISA replies.
+- ✅ **Developer Testing Playground (`AiIsaSimulator.tsx`)** — mock qualification sandbox for testing prompts and edge cases.
 
 ---
 
-### Sprint 14 — Communication Hub (Email/SMS/WhatsApp + Opt-Out) ⚠️ PARTIALLY COMPLETE (~45%)
+### Sprint 14 — Communication Hub (Email/SMS/WhatsApp/Voice + Opt-Out + DNC Guard) ✅ COMPLETE (100%)
 
-**Status: 45% Done**
+**Status: 100% Done**
 
-| Planned File | Exists |
-|:-------------|:------:|
-| [server/src/features/communication/communication.routes.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/communication.routes.ts) | ✅ |
-| [server/src/features/communication/providers/whatsapp.provider.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/providers/whatsapp.provider.ts) | ✅ |
-| [server/src/features/communication/whatsapp.controller.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/whatsapp.controller.ts) | ✅ |
-| [server/src/features/communication/whatsapp.service.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/whatsapp.service.ts) | ✅ |
-| `server/src/features/communication/comm.controller.ts` | ❌ |
-| `server/src/features/communication/comm.service.ts` | ❌ |
-| `server/src/features/communication/providers/email.provider.ts` | ❌ |
-| `server/src/features/communication/providers/sms.provider.ts` | ❌ |
-| `server/src/features/communication/providers/voice.provider.ts` | ❌ |
+| Planned File | Exists | Content Verified |
+|:-------------|:------:|:----------------:|
+| [server/src/features/communication/providers/ICommunicationProvider.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/providers/ICommunicationProvider.ts) | ✅ | ✅ Channel interface with `send()`, `getStatus()`, `handleWebhook()` |
+| [server/src/features/communication/providers/email.provider.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/providers/email.provider.ts) | ✅ | ✅ Nodemailer with zero-card Ethereal sandbox (live preview URLs) + SMTP |
+| [server/src/features/communication/providers/sms.provider.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/providers/sms.provider.ts) | ✅ | ✅ Twilio SMS adapter with zero-card dev sandbox & E.164 phone formatter |
+| [server/src/features/communication/providers/voice.provider.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/providers/voice.provider.ts) | ✅ | ✅ Twilio Voice & TwiML engine with call state simulator |
+| [server/src/features/communication/providers/whatsapp.provider.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/providers/whatsapp.provider.ts) | ✅ | ✅ Meta Cloud API implementing `ICommunicationProvider` |
+| [server/src/features/communication/comm.service.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/comm.service.ts) | ✅ | ✅ Unified multi-channel dispatcher, TCPA opt-out engine, pre-send DNC guard |
+| [server/src/features/communication/comm.controller.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/comm.controller.ts) | ✅ | ✅ Handlers for `POST /send`, `POST /opt-out`, `POST /opt-back-in`, `GET/POST /templates` |
+| [server/src/features/communication/comm.types.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/comm.types.ts) | ✅ | ✅ Unified message, DNC, and opt-out types |
+| [server/src/features/communication/comm.validators.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/comm.validators.ts) | ✅ | ✅ Zod validation schemas |
+| [server/src/features/compliance/dnc.service.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/compliance/dnc.service.ts) | ✅ | ✅ TCPA safe calling hours (8am-9pm) & Federal/State DNC registry check |
+| [server/src/features/communication/communication.routes.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/communication.routes.ts) | ✅ | ✅ Mounted unified communication REST endpoints |
+| [src/store/api/communicationApi.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/src/store/api/communicationApi.ts) | ✅ | ✅ RTK Query hooks for unified send, DNC check, opt-out, opt-back-in |
+| [src/pages/inbox/components/ContactInfoPane.tsx](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/src/pages/inbox/components/ContactInfoPane.tsx) | ✅ | ✅ Live TCPA status indicator and 1-click Opt-Out / Re-Consent toggle |
+| [src/pages/inbox/components/ChatWindow.tsx](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/src/pages/inbox/components/ChatWindow.tsx) | ✅ | ✅ Omnichannel channel switcher (WhatsApp/SMS/Email), template inserter, DNC block guard |
 
 **What's Done:**
-- ✅ WhatsApp provider (Meta Cloud API + simulation mode)
-- ✅ WhatsApp webhook receiver (inbound messages)
-- ✅ WhatsApp templates CRUD
-- ✅ WhatsApp broadcasts
-- ✅ Communication quick reply templates (hardcoded)
-- ✅ `GET /api/communication/templates` endpoint
-
-**What's Missing:**
-- ❌ **Email provider** (SendGrid adapter + mock)
-- ❌ **SMS provider** (Twilio adapter + mock)
-- ❌ **Voice provider** (Twilio Voice adapter + mock)
-- ❌ **Unified `POST /api/communication/send`** endpoint
-- ❌ **Opt-out engine** (STOP/UNSUBSCRIBE auto-detection)
-- ❌ **DNC check stubs**
-- ❌ **ICommunicationProvider interface** pattern
-- ❌ `comm.controller.ts` / `comm.service.ts` — no unified communication layer
+- ✅ **Standardized Provider Abstraction (`ICommunicationProvider.ts`)** — unified contract across Email, SMS, WhatsApp, and Voice.
+- ✅ **Zero-Card Free Developer Sandboxes** — Nodemailer + Ethereal Email with live message preview URLs, Twilio SMS/Voice simulator with realistic SID and delivery tracking.
+- ✅ **Unified Multi-Channel Send Endpoint (`POST /api/communication/send`)** — dispatches via Email, SMS, WhatsApp, or Voice with dynamic variable templating (`{{firstName}}`, `{{propertyAddress}}`, `{{cmaLink}}`).
+- ✅ **TCPA Inbound Opt-Out Auto-Detection Engine** — auto-detects `STOP`, `UNSUBSCRIBE`, `QUIT`, `CANCEL`, `OPT-OUT`, `END`, `REVOKE` and updates `contact.dncStatus = 'opted_out'`.
+- ✅ **Consent Reactivation** — auto-detects `START`, `UNSTOP`, `YES` and restores clean consent state.
+- ✅ **Manual Opt-Out & Re-Consent Endpoints** — `POST /api/communication/opt-out` and `POST /api/communication/opt-back-in`.
+- ✅ **Pre-Send DNC & Opt-Out Guard** — blocks outbound messages and calls to opted-out or DNC-flagged contacts.
+- ✅ **DNC Registry Check Endpoint (`POST /api/compliance/dnc-check`)** — validates phone numbers against Federal/State DNC registries and TCPA safe calling window (8:00 AM - 9:00 PM).
+- ✅ **Frontend Integration** — RTK Query hooks connected, 1-click TCPA Opt-Out toggle in Inbox sidebar, and live channel switching in chat window.
 
 ---
 

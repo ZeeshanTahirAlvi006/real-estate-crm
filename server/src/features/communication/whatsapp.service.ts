@@ -5,12 +5,14 @@ import { Contact, IContact } from '../../models/Contact.js'
 import { Conversation, IConversation } from '../../models/Conversation.js'
 import { Message } from '../../models/Message.js'
 import { Activity } from '../../models/Activity.js'
+import { Brokerage } from '../../models/Brokerage.js'
 import { IUser } from '../../models/User.js'
 import { whatsAppProvider, ParsedInboundWhatsAppMessage } from './providers/whatsapp.provider.js'
 import { getSocketServer } from '../../config/socket.js'
 import { handleInboundLeadChat } from '../ai-isa/aiIsa.service.js'
 import { logAuditEvent } from '../../utils/auditLogger.js'
 import { logger } from '../../utils/logger.js'
+import { encrypt } from '../../utils/cryptoHelper.js'
 import {
   WhatsAppTemplateDto,
   SendWhatsAppInput,
@@ -204,15 +206,26 @@ export const sendWhatsAppMessage = async (
 ): Promise<{ success: boolean; messageId: string; messageRecord?: any }> => {
   const brokerageId = caller.brokerageId
   let contact: IContact | null = null
+  let conversation: IConversation | null = null
 
-  if (input.contactId && mongoose.Types.ObjectId.isValid(input.contactId)) {
-    contact = await Contact.findById(input.contactId)
-  } else if (input.toPhone) {
-    const cleanPhone = input.toPhone.replace(/\D/g, '')
-    contact = await Contact.findOne({ brokerageId, phone: { $regex: cleanPhone } })
+  // 1. Resolve Conversation if conversationId provided
+  if (input.conversationId && mongoose.Types.ObjectId.isValid(input.conversationId)) {
+    conversation = await Conversation.findOne({ _id: input.conversationId, brokerageId })
+    if (conversation?.contactId) {
+      contact = await Contact.findById(conversation.contactId)
+    }
   }
 
-  const destinationPhone = contact?.phone || input.toPhone || ''
+  // 2. Resolve Contact if contactId or toPhone provided
+  if (!contact && input.contactId && mongoose.Types.ObjectId.isValid(input.contactId)) {
+    contact = await Contact.findById(input.contactId)
+  } else if (!contact && input.toPhone) {
+    const cleanPhone = input.toPhone.replace(/\D/g, '')
+    const searchDigits = cleanPhone.length > 10 ? cleanPhone.slice(-10) : cleanPhone
+    contact = await Contact.findOne({ brokerageId, phone: { $regex: searchDigits } })
+  }
+
+  const destinationPhone = contact?.phone || conversation?.contactPhone || input.toPhone || ''
   if (!destinationPhone) {
     throw new Error('Destination phone number is required')
   }
@@ -231,69 +244,90 @@ export const sendWhatsAppMessage = async (
 
     if (input.templateVariables) {
       for (const [k, v] of Object.entries(input.templateVariables)) {
-        rendered = rendered.replace(new RegExp(`{{${k}}}`, 'g'), v)
+        rendered = rendered.replace(new RegExp(`{{${k}}}`, 'g'), String(v ?? ''))
       }
     }
     finalBody = rendered
+
+    // Format Meta components if template variables are defined
+    const components: any[] = []
+    if (tmpl && tmpl.variables && tmpl.variables.length > 0 && input.templateVariables) {
+      const parameters = tmpl.variables.map((varName) => ({
+        type: 'text',
+        text: String(input.templateVariables?.[varName] || ''),
+      }))
+      components.push({
+        type: 'body',
+        parameters,
+      })
+    }
+
     sendResult = await whatsAppProvider.sendTemplateMessage(
       destinationPhone,
       input.templateName,
-      input.languageCode || 'en_US',
-      []
+      input.languageCode || tmpl?.language || 'en_US',
+      components,
+      { brokerageId }
     )
   } else if (input.type === 'media' && input.mediaUrl && input.mediaType) {
     sendResult = await whatsAppProvider.sendMediaMessage(
       destinationPhone,
       input.mediaType,
       input.mediaUrl,
-      input.caption
+      input.caption,
+      { brokerageId }
     )
     finalBody = input.caption ? `[Attachment: ${input.mediaType}] ${input.caption}` : `[Attachment: ${input.mediaType}]`
   } else {
-    sendResult = await whatsAppProvider.sendTextMessage(destinationPhone, finalBody)
+    sendResult = await whatsAppProvider.sendTextMessage(destinationPhone, finalBody, {
+      previewUrl: input.previewUrl,
+      brokerageId,
+    })
   }
 
   // Find or Create Conversation Thread
-  let conversation: IConversation | null = null
-  if (contact) {
+  if (!conversation && contact) {
     conversation = await Conversation.findOne({ brokerageId, contactId: contact._id })
-    if (!conversation) {
-      conversation = await Conversation.create({
-        brokerageId,
-        contactId: contact._id,
-        contactName: `${contact.firstName} ${contact.lastName}`,
-        contactPhone: contact.phone,
-        contactEmail: contact.email,
-        assignedAgentId: caller._id,
-        lastMessageText: finalBody,
-        lastMessageAt: new Date(),
-        lastChannel: 'whatsapp',
-        unreadCount: 0,
-      })
-    } else {
-      conversation.lastMessageText = finalBody
-      conversation.lastMessageAt = new Date()
-      conversation.lastChannel = 'whatsapp'
-      await conversation.save()
-    }
+  }
 
-    // Persist Message Record
-    const messageDoc = await Message.create({
+  if (!conversation) {
+    conversation = await Conversation.create({
       brokerageId,
-      conversationId: conversation._id,
-      contactId: contact._id,
-      sender: 'agent',
-      senderId: caller._id,
-      senderName: `${caller.firstName} ${caller.lastName}`,
-      channel: 'whatsapp',
-      body: finalBody,
-      direction: 'outbound',
-      deliveryStatus: sendResult.status || 'delivered',
-      mediaUrl: input.mediaUrl,
-      mediaType: input.mediaType,
+      contactId: contact?._id,
+      contactName: contact ? `${contact.firstName} ${contact.lastName}` : destinationPhone,
+      contactPhone: destinationPhone,
+      contactEmail: contact?.email || '',
+      assignedAgentId: caller._id,
+      lastMessageText: finalBody,
+      lastMessageAt: new Date(),
+      lastChannel: 'whatsapp',
+      unreadCount: 0,
     })
+  } else {
+    conversation.lastMessageText = finalBody
+    conversation.lastMessageAt = new Date()
+    conversation.lastChannel = 'whatsapp'
+    await conversation.save()
+  }
 
-    // Log Activity Timeline
+  // Persist Message Record
+  const messageDoc = await Message.create({
+    brokerageId,
+    conversationId: conversation._id,
+    contactId: contact?._id,
+    sender: 'agent',
+    senderId: caller._id,
+    senderName: `${caller.firstName} ${caller.lastName}`,
+    channel: 'whatsapp',
+    body: finalBody,
+    direction: 'outbound',
+    deliveryStatus: sendResult.status || 'delivered',
+    mediaUrl: input.mediaUrl,
+    mediaType: input.mediaType,
+  })
+
+  // Log Activity Timeline
+  if (contact) {
     await Activity.create({
       contactId: contact._id,
       brokerageId,
@@ -307,24 +341,24 @@ export const sendWhatsAppMessage = async (
       createdBy: caller._id,
       createdByName: `${caller.firstName} ${caller.lastName}`,
     })
+  }
 
-    // Broadcast Real-Time Socket Event
-    const io = getSocketServer()
-    if (io) {
-      io.to(`brokerage:${brokerageId.toString()}`).emit('message:new', {
+  // Broadcast Real-Time Socket Event
+  const io = getSocketServer()
+  if (io) {
+    io.to(`brokerage:${brokerageId.toString()}`).emit('message:new', {
+      conversationId: conversation._id.toString(),
+      message: {
+        id: messageDoc._id.toString(),
         conversationId: conversation._id.toString(),
-        message: {
-          id: messageDoc._id.toString(),
-          conversationId: conversation._id.toString(),
-          body: finalBody,
-          channel: 'whatsapp',
-          senderType: 'agent',
-          senderName: `${caller.firstName} ${caller.lastName}`,
-          createdAt: messageDoc.createdAt.toISOString(),
-          mediaUrl: input.mediaUrl,
-        },
-      })
-    }
+        body: finalBody,
+        channel: 'whatsapp',
+        senderType: 'agent',
+        senderName: `${caller.firstName} ${caller.lastName}`,
+        createdAt: messageDoc.createdAt.toISOString(),
+        mediaUrl: input.mediaUrl,
+      },
+    })
   }
 
   if (ipAddress) {
@@ -357,46 +391,121 @@ export const processInboundWebhook = async (rawPayload: any): Promise<{ processe
     return { processedCount: 0 }
   }
 
+  // Multi-tenant resolution: Extract phone_number_id from Meta webhook metadata
+  const phoneNumberId = rawPayload?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id
+  let targetBrokerageId: mongoose.Types.ObjectId | undefined
+  if (phoneNumberId) {
+    const matchedBrokerage = await Brokerage.findOne({ 'whatsappConfig.phoneNumberId': phoneNumberId }).lean()
+    if (matchedBrokerage) {
+      targetBrokerageId = matchedBrokerage._id as mongoose.Types.ObjectId
+    }
+  }
+
   for (const msg of parsedMessages) {
     const rawFrom = msg.from.replace(/\D/g, '')
-    // Look up contact by phone ending with digits
-    const contact = await Contact.findOne({
-      phone: { $regex: rawFrom.slice(-10) },
-      isDeleted: false,
+    const phoneSuffix = rawFrom.slice(-10)
+
+    // 1. Look up active contact first
+    let contact = await Contact.findOne({
+      phone: { $regex: phoneSuffix },
+      isDeleted: { $ne: true },
+      ...(targetBrokerageId ? { brokerageId: targetBrokerageId } : {}),
     })
+
+    // 2. If not found in active contacts, check if contact was previously soft-deleted or archived
+    if (!contact) {
+      contact = await Contact.findOne({
+        phone: { $regex: phoneSuffix },
+        ...(targetBrokerageId ? { brokerageId: targetBrokerageId } : {}),
+      }).sort({ createdAt: 1 })
+
+      if (contact) {
+        // Automatically restore contact since they are messaging back
+        contact.isDeleted = false
+        contact.status = 'active'
+        contact.dncStatus = 'clean'
+        contact.optedOutAt = undefined
+        await contact.save()
+        logger.info(`Restored existing Contact ${contact._id} (${contact.firstName} ${contact.lastName}) upon receiving inbound WhatsApp`)
+      }
+    }
+
+    let brokerageId = targetBrokerageId || contact?.brokerageId
+
+    // Fallback: If no brokerage found yet, use the first active brokerage
+    if (!brokerageId) {
+      const defaultBrokerage = await Brokerage.findOne({ isActive: true }).lean()
+      if (defaultBrokerage) {
+        brokerageId = defaultBrokerage._id as mongoose.Types.ObjectId
+      }
+    }
+
+    if (!brokerageId) {
+      logger.warn(`Inbound WhatsApp dropped: Could not resolve brokerage for phone +${rawFrom}`)
+      continue
+    }
+
+    // Auto-create Contact if first-time lead texting in
+    if (!contact) {
+      const nameParts = (msg.senderName || `WhatsApp Lead (${rawFrom.slice(-4)})`).trim().split(/\s+/)
+      const firstName = nameParts[0] || 'WhatsApp'
+      const lastName = nameParts.slice(1).join(' ') || `Lead (${rawFrom.slice(-4)})`
+
+      contact = await Contact.create({
+        brokerageId,
+        firstName,
+        lastName,
+        phone: rawFrom.startsWith('+') ? rawFrom : `+${rawFrom}`,
+        status: 'active',
+        leadScore: 50,
+        leadSource: 'whatsapp_inbound',
+        tags: ['WhatsApp Lead', 'Inbound'],
+      })
+      logger.info(`Created new Lead ${contact._id} (${firstName} ${lastName}) from inbound WhatsApp +${rawFrom}`)
+    }
 
     const bodyText = msg.text || msg.caption || `[Received WhatsApp ${msg.type}]`
     const isOptOut = /^(stop|unsubscribe|cancel|quit|opt-out|optout)$/i.test(bodyText.trim())
 
     if (contact) {
-      const brokerageId = contact.brokerageId
-
       // Handle Opt-Out Keyword
       if (isOptOut) {
         if (!contact.tags) contact.tags = []
         if (!contact.tags.includes('DNC')) contact.tags.push('DNC')
         if (!contact.tags.includes('Opt-Out')) contact.tags.push('Opt-Out')
         contact.status = 'do_not_contact'
+        contact.dncStatus = 'opted_out'
+        contact.optedOutAt = new Date()
         await contact.save()
         logger.info(`Contact ${contact._id} opted out via WhatsApp reply STOP`)
       }
 
-      // Find or create conversation
-      let conversation = await Conversation.findOne({ brokerageId, contactId: contact._id })
+      // Find or create conversation (search by contactId OR phone suffix)
+      let conversation = await Conversation.findOne({
+        $or: [
+          { contactId: contact._id },
+          { contactPhone: { $regex: phoneSuffix } }
+        ],
+        brokerageId,
+      }).sort({ updatedAt: -1 })
+
       if (!conversation) {
         conversation = await Conversation.create({
           brokerageId,
           contactId: contact._id,
-          contactName: `${contact.firstName} ${contact.lastName}`,
-          contactPhone: contact.phone,
-          contactEmail: contact.email,
+          contactName: `${contact.firstName} ${contact.lastName}`.trim(),
+          contactPhone: contact.phone || (rawFrom.startsWith('+') ? rawFrom : `+${rawFrom}`),
+          contactEmail: contact.email || '',
           lastMessageText: bodyText,
           lastMessageAt: new Date(),
           lastChannel: 'whatsapp',
           unreadCount: 1,
-          aiIsaEnabled: true,
+          aiIsaEnabled: false,
         })
       } else {
+        conversation.contactId = contact._id
+        conversation.contactName = `${contact.firstName} ${contact.lastName}`.trim()
+        conversation.contactPhone = contact.phone || conversation.contactPhone
         conversation.lastMessageText = bodyText
         conversation.lastMessageAt = new Date()
         conversation.lastChannel = 'whatsapp'
@@ -410,7 +519,7 @@ export const processInboundWebhook = async (rawPayload: any): Promise<{ processe
         conversationId: conversation._id,
         contactId: contact._id,
         sender: 'lead',
-        senderName: `${contact.firstName} ${contact.lastName}`,
+        senderName: `${contact.firstName} ${contact.lastName}`.trim(),
         channel: 'whatsapp',
         body: bodyText,
         direction: 'inbound',
@@ -431,21 +540,38 @@ export const processInboundWebhook = async (rawPayload: any): Promise<{ processe
         },
       })
 
-      // Socket.io real-time alert
+      // Socket.io real-time alert with comprehensive room delivery
       const io = getSocketServer()
       if (io) {
-        io.to(`brokerage:${brokerageId.toString()}`).emit('message:new', {
+        const payload = {
           conversationId: conversation._id.toString(),
           message: {
             id: messageDoc._id.toString(),
+            _id: messageDoc._id.toString(),
             conversationId: conversation._id.toString(),
+            contactId: contact._id.toString(),
             body: bodyText,
             channel: 'whatsapp',
+            sender: 'lead',
             senderType: 'lead',
-            senderName: `${contact.firstName} ${contact.lastName}`,
+            senderName: `${contact.firstName} ${contact.lastName}`.trim(),
+            direction: 'inbound',
+            deliveryStatus: 'delivered',
             createdAt: messageDoc.createdAt.toISOString(),
             mediaUrl: msg.mediaUrl,
+            mediaType: msg.type,
           },
+        }
+
+        io.to(`brokerage:${brokerageId.toString()}`).emit('message:new', payload)
+        io.to(`conversation:${conversation._id.toString()}`).emit('message:new', payload)
+        io.emit('message:new', payload)
+
+        io.to(`brokerage:${brokerageId.toString()}`).emit('conversation:updated', {
+          conversationId: conversation._id.toString(),
+        })
+        io.emit('conversation:updated', {
+          conversationId: conversation._id.toString(),
         })
 
         io.to(`brokerage:${brokerageId.toString()}`).emit('notification:new', {
@@ -469,8 +595,6 @@ export const processInboundWebhook = async (rawPayload: any): Promise<{ processe
           logger.error('Failed to trigger AI ISA for inbound WhatsApp:', err)
         })
       }
-    } else {
-      logger.info(`Inbound WhatsApp from unknown number: +${rawFrom}`)
     }
   }
 
@@ -564,4 +688,160 @@ export const getWhatsAppBroadcasts = async (
 ): Promise<WhatsAppBroadcastDto[]> => {
   const list = (await WhatsAppBroadcast.find(tenantFilter).sort({ createdAt: -1 }).limit(50).lean()) as unknown as IWhatsAppBroadcast[]
   return list.map(formatBroadcastDto)
+}
+
+// ── 7. Get Tenant WhatsApp Configuration ────────────────
+export const getTenantWhatsAppConfig = async (brokerageId: string | mongoose.Types.ObjectId) => {
+  const brokerage = await Brokerage.findById(brokerageId).select('+whatsappConfig.accessTokenEncrypted').lean()
+  if (!brokerage) {
+    throw new Error('Brokerage not found')
+  }
+
+  const config = brokerage.whatsappConfig || { status: 'disconnected' }
+  const hasTokenConfigured = Boolean(config.accessTokenEncrypted)
+  const isUsingSystemFallback = !hasTokenConfigured && whatsAppProvider.isLiveMode()
+
+  return {
+    wabaId: config.wabaId || '',
+    phoneNumberId: config.phoneNumberId || '',
+    displayPhoneNumber: config.displayPhoneNumber || '',
+    qualityRating: config.qualityRating || 'UNKNOWN',
+    tier: config.tier || 'TIER_1K',
+    status: config.status || 'disconnected',
+    verifiedName: config.verifiedName || '',
+    lastTestedAt: config.lastTestedAt || null,
+    hasTokenConfigured,
+    isUsingSystemFallback,
+  }
+}
+
+// ── 8. Update Tenant WhatsApp Configuration ─────────────
+export const updateTenantWhatsAppConfig = async (
+  brokerageId: string | mongoose.Types.ObjectId,
+  input: {
+    wabaId?: string
+    phoneNumberId?: string
+    displayPhoneNumber?: string
+    accessToken?: string
+  }
+) => {
+  const brokerage = await Brokerage.findById(brokerageId)
+  if (!brokerage) {
+    throw new Error('Brokerage not found')
+  }
+
+  if (!brokerage.whatsappConfig) {
+    brokerage.whatsappConfig = { status: 'disconnected' }
+  }
+
+  if (input.wabaId !== undefined) brokerage.whatsappConfig.wabaId = input.wabaId.trim()
+  if (input.phoneNumberId !== undefined) brokerage.whatsappConfig.phoneNumberId = input.phoneNumberId.trim()
+  if (input.displayPhoneNumber !== undefined) brokerage.whatsappConfig.displayPhoneNumber = input.displayPhoneNumber.trim()
+
+  if (input.accessToken && input.accessToken.trim()) {
+    const cleanToken = input.accessToken.trim()
+    const phoneId = input.phoneNumberId?.trim() || brokerage.whatsappConfig.phoneNumberId
+
+    if (!phoneId) {
+      throw new Error('Phone Number ID is required when connecting an Access Token')
+    }
+
+    // Verify token with Meta Graph API
+    const verifyRes = await whatsAppProvider.verifyConnection(phoneId, cleanToken)
+    if (!verifyRes.success) {
+      throw new Error(`Meta verification failed: ${verifyRes.error || 'Invalid credentials'}`)
+    }
+
+    // Auto-subscribe WABA to App Webhook events
+    const wabaId = input.wabaId?.trim() || brokerage.whatsappConfig.wabaId
+    if (wabaId) {
+      try {
+        await fetch(`https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${cleanToken}` },
+        })
+        logger.info(`WABA ${wabaId} successfully subscribed to App Webhooks`)
+      } catch (err: any) {
+        logger.warn(`Failed to auto-subscribe WABA ${wabaId} to webhooks: ${err?.message}`)
+      }
+    }
+
+    brokerage.whatsappConfig.accessTokenEncrypted = encrypt(cleanToken)
+    brokerage.whatsappConfig.status = 'connected'
+    brokerage.whatsappConfig.verifiedName = verifyRes.verifiedName || ''
+    if (verifyRes.displayPhoneNumber) brokerage.whatsappConfig.displayPhoneNumber = verifyRes.displayPhoneNumber
+    if (verifyRes.qualityRating) brokerage.whatsappConfig.qualityRating = verifyRes.qualityRating as any
+    brokerage.whatsappConfig.lastTestedAt = new Date()
+  }
+
+  await brokerage.save()
+  return getTenantWhatsAppConfig(brokerageId)
+}
+
+// ── 9. Test Tenant WhatsApp Connection ──────────────────
+export const testTenantWhatsAppConnection = async (
+  brokerageId: string | mongoose.Types.ObjectId,
+  testPhone?: string
+) => {
+  const credentials = await whatsAppProvider.resolveTenantCredentials(brokerageId)
+  if (!credentials.phoneNumberId || !credentials.token) {
+    throw new Error('No WhatsApp credentials configured for this brokerage')
+  }
+
+  const verifyRes = await whatsAppProvider.verifyConnection(credentials.phoneNumberId, credentials.token)
+  if (!verifyRes.success) {
+    throw new Error(`Meta connection failed: ${verifyRes.error}`)
+  }
+
+  const brokerage = await Brokerage.findById(brokerageId)
+  if (brokerage && brokerage.whatsappConfig) {
+    // Ensure WABA is subscribed to webhooks
+    if (brokerage.whatsappConfig.wabaId && credentials.token) {
+      try {
+        await fetch(`https://graph.facebook.com/v19.0/${brokerage.whatsappConfig.wabaId}/subscribed_apps`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${credentials.token}` },
+        })
+      } catch (e: any) {
+        logger.warn(`Failed to subscribe WABA on test: ${e?.message}`)
+      }
+    }
+
+    brokerage.whatsappConfig.verifiedName = verifyRes.verifiedName || brokerage.whatsappConfig.verifiedName
+    if (verifyRes.qualityRating) brokerage.whatsappConfig.qualityRating = verifyRes.qualityRating as any
+    brokerage.whatsappConfig.lastTestedAt = new Date()
+    await brokerage.save()
+  }
+
+  let handshakeResult = null
+  if (testPhone && testPhone.trim()) {
+    handshakeResult = await whatsAppProvider.sendTextMessage(
+      testPhone.trim(),
+      `🚀 PropPulse WhatsApp Integration Test: Connected successfully to ${verifyRes.verifiedName || 'your brokerage'}!`,
+      { brokerageId }
+    )
+  }
+
+  return {
+    success: true,
+    verifiedName: verifyRes.verifiedName,
+    displayPhoneNumber: verifyRes.displayPhoneNumber,
+    qualityRating: verifyRes.qualityRating,
+    handshakeResult,
+    message: `Connected successfully to Meta WhatsApp Cloud API! Verified Account: "${verifyRes.verifiedName || 'Business WABA'}"`,
+  }
+}
+
+// ── 10. Disconnect Tenant WhatsApp ──────────────────────
+export const disconnectTenantWhatsApp = async (brokerageId: string | mongoose.Types.ObjectId) => {
+  const brokerage = await Brokerage.findById(brokerageId)
+  if (!brokerage) throw new Error('Brokerage not found')
+
+  if (brokerage.whatsappConfig) {
+    brokerage.whatsappConfig.status = 'disconnected'
+    brokerage.whatsappConfig.accessTokenEncrypted = undefined
+    await brokerage.save()
+  }
+
+  return { success: true, message: 'WhatsApp integration disconnected' }
 }

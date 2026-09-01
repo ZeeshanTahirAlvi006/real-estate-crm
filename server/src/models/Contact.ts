@@ -33,6 +33,8 @@ export interface IContact extends Document {
   leadSourceId?: mongoose.Types.ObjectId
   originalPayload?: Record<string, unknown>
   inquiryCount: number
+  dncStatus?: 'clean' | 'dnc_federal' | 'dnc_state' | 'opted_out' | 'unverified'
+  optedOutAt?: Date
   isDeleted: boolean
   createdAt: Date
   updatedAt: Date
@@ -107,6 +109,16 @@ const contactSchema = new Schema<IContact>(
       enum: ['active', 'inactive', 'do_not_contact', 'archived'],
       default: 'active',
       index: true,
+    },
+    dncStatus: {
+      type: String,
+      enum: ['clean', 'dnc_federal', 'dnc_state', 'opted_out', 'unverified'],
+      default: 'clean',
+      index: true,
+    },
+    optedOutAt: {
+      type: Date,
+      default: null,
     },
     assignedAgentId: {
       type: Schema.Types.ObjectId,

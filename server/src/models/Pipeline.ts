@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema, Model } from 'mongoose'
 
-// ── Pipeline Stage subdocument ──────────────────────────
+// Pipeline Stage subdocument 
 export interface IPipelineStage {
   _id: mongoose.Types.ObjectId
   name: string
@@ -39,7 +39,7 @@ const pipelineStageSchema = new Schema<IPipelineStage>(
   { _id: true }
 )
 
-// ── Pipeline document ───────────────────────────────────
+// Pipeline document 
 export interface IPipeline extends Document {
   name: string
   brokerageId: mongoose.Types.ObjectId
@@ -87,7 +87,7 @@ const pipelineSchema = new Schema<IPipeline>(
 pipelineSchema.index({ brokerageId: 1, name: 1 }, { unique: true })
 pipelineSchema.index({ brokerageId: 1, isDefault: 1 })
 
-// ── Default stage definitions (seeded on pipeline creation) ──
+// Default stage definitions (seeded on pipeline creation) 
 export const DEFAULT_PIPELINE_STAGES: Omit<IPipelineStage, '_id'>[] = [
   { name: 'New Lead', color: '#6366f1', order: 0, probability: 10 },
   { name: 'Contacted', color: '#8b5cf6', order: 1, probability: 20 },

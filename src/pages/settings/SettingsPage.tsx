@@ -6,6 +6,7 @@ import { AuditLogsTab } from './components/AuditLogsTab'
 import { FeatureFlagsTab } from './components/FeatureFlagsTab'
 import { BrokeragesTab } from './components/BrokeragesTab'
 import { SecurityTab } from './components/SecurityTab'
+import { WhatsAppIntegrationSettings } from '../ai-isa/components/WhatsAppIntegrationSettings'
 import { useAppSelector } from '@/store/hooks'
 import { UserRole } from '@/types/auth'
 
@@ -40,6 +41,12 @@ export function SettingsPage() {
             </TabsTrigger>
           )}
 
+          {!isClient && canManageTeam && (
+            <TabsTrigger value="whatsapp" className="rounded-xl text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              WhatsApp Cloud API
+            </TabsTrigger>
+          )}
+
           {!isClient && (isSuperAdmin || isBrokerageOwner) && (
             <TabsTrigger value="audit" className="rounded-xl text-xs font-semibold">
               Security & Audit Logs
@@ -70,6 +77,12 @@ export function SettingsPage() {
         {canManageTeam && (
           <TabsContent value="team" className="mt-4">
             <TeamManagementTab />
+          </TabsContent>
+        )}
+
+        {canManageTeam && (
+          <TabsContent value="whatsapp" className="mt-4">
+            <WhatsAppIntegrationSettings />
           </TabsContent>
         )}
 

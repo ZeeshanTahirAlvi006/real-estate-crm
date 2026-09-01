@@ -1,6 +1,6 @@
 import type { IDeal, DealPriority } from '../../models/Deal.js'
 
-// ── Request DTOs ────────────────────────────────────────
+// Request DTOs 
 
 export interface CreateDealInput {
   pipelineId: string
@@ -37,7 +37,7 @@ export interface ListDealsQuery {
   limit?: number
 }
 
-// ── Response DTOs ───────────────────────────────────────
+// Response DTOs 
 
 export interface DealResponseDto {
   id: string

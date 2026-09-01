@@ -58,6 +58,7 @@ export const WhatsAppTemplateModal: React.FC<WhatsAppTemplateModalProps> = ({
 
     try {
       const payload = {
+        conversationId: conversation.id,
         contactId: conversation.contactId || undefined,
         toPhone: conversation.contactPhone || '+13105550199',
         type: 'template' as const,
@@ -71,7 +72,7 @@ export const WhatsAppTemplateModal: React.FC<WhatsAppTemplateModalProps> = ({
       onOpenChange(false)
     } catch (err: any) {
       const errorMsg = err?.data?.message || err?.message || 'Failed to send WhatsApp template'
-      toast.error(errorMsg, { duration: 6000 })
+      toast.error(errorMsg, { duration: 7000 })
     }
   }
 

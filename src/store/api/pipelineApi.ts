@@ -63,7 +63,7 @@ export interface MoveDealStagePayload {
 
 export const pipelineApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // ── Pipelines ─────────────────────────────────────────
+    //Pipelines 
     getPipelines: builder.query<Pipeline[], void>({
       query: () => '/pipelines',
       transformResponse: (response: ApiResponse<Pipeline[]>) => response.data || [],
@@ -102,7 +102,7 @@ export const pipelineApi = baseApi.injectEndpoints({
       invalidatesTags: ['Pipeline', 'Deals'],
     }),
 
-    // ── Stages ───────────────────────────────────────────
+    // Stages
     addStage: builder.mutation<Pipeline, CreateStagePayload>({
       query: ({ pipelineId, ...body }) => ({
         url: `/pipelines/${pipelineId}/stages`,
@@ -138,14 +138,14 @@ export const pipelineApi = baseApi.injectEndpoints({
       invalidatesTags: ['Pipeline', 'Deals'],
     }),
 
-    // ── Kanban View ───────────────────────────────────────
+    // Kanban View 
     getKanbanData: builder.query<KanbanResponse, string>({
       query: (pipelineId) => `/deals/kanban/${pipelineId}`,
       transformResponse: (response: ApiResponse<KanbanResponse>) => response.data,
       providesTags: ['Deals', 'Pipeline'],
     }),
 
-    // ── Deals CRUD ────────────────────────────────────────
+    // Deals CRUD 
     getDeals: builder.query<Deal[], { pipelineId?: string; stageId?: string; search?: string } | void>({
       query: (params) => ({
         url: '/deals',

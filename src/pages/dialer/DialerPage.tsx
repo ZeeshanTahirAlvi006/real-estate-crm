@@ -128,9 +128,8 @@ export function DialerPage() {
               dispatch(toggleLocalPresence())
               toast.success(useLocalPres ? 'Local Presence paused' : 'Local Presence active (Area code matched)')
             }}
-            className={`h-9 text-xs font-semibold gap-1.5 shadow-xs ${
-              useLocalPres ? 'border-primary/40 bg-primary/5 text-primary' : 'text-muted-foreground'
-            }`}
+            className={`h-9 text-xs font-semibold gap-1.5 shadow-xs ${useLocalPres ? 'border-primary/40 bg-primary/5 text-primary' : 'text-muted-foreground'
+              }`}
           >
             <MapPinIcon className="w-3.5 h-3.5" />
             <span>Local Presence: {useLocalPres ? 'ON' : 'OFF'}</span>
@@ -161,7 +160,7 @@ export function DialerPage() {
             size="sm"
             onClick={() => handleStartParallelSession(5)}
             disabled={queue.length === 0}
-            className="h-9 text-xs font-bold gap-1.5 shadow-lg bg-gradient-to-r from-primary via-chart-3 to-chart-2 hover:opacity-95 text-primary-foreground"
+            className="h-9 text-xs font-bold gap-1.5 shadow-lg bg-linear-to-r from-primary via-chart-3 to-chart-2 hover:opacity-95 text-primary-foreground"
           >
             <SparklesIcon className="w-4 h-4 animate-pulse" />
             <span>5-Line Hyper-Dial ({queue.length})</span>
@@ -342,13 +341,12 @@ export function DialerPage() {
                           <td className="py-3 px-4">
                             <Badge
                               variant="outline"
-                              className={`text-[10px] font-mono ${
-                                contact.leadScore >= 75
+                              className={`text-[10px] font-mono ${contact.leadScore >= 75
                                   ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
                                   : contact.leadScore >= 50
-                                  ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
-                                  : 'bg-muted text-muted-foreground'
-                              }`}
+                                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                                    : 'bg-muted text-muted-foreground'
+                                }`}
                             >
                               {contact.leadScore}/100
                             </Badge>

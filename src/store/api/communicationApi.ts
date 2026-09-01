@@ -9,10 +9,15 @@ import type {
   VoicemailAudioDrop,
   DialerQueueContact,
   CallLog,
+  AiIsaConfig,
   QualificationCriteria,
   ReactivationCampaign,
+  CampaignMetrics,
   SpeedToLeadMetric,
   CallDisposition,
+  WhatsAppTenantConfig,
+  UnifiedSendPayload,
+  DncCheckResponse,
 } from '@/types/communication'
 
 interface ApiResponse<T> {
@@ -240,6 +245,96 @@ export const communicationApi = baseApi.injectEndpoints({
       invalidatesTags: ['Conversations', 'Messages'],
     }),
 
+    getWhatsAppConfig: builder.query<WhatsAppTenantConfig, void>({
+      query: () => '/communication/whatsapp/config',
+      transformResponse: (res: ApiResponse<WhatsAppTenantConfig>) => res.data,
+      providesTags: ['WhatsAppConfig'],
+    }),
+
+    updateWhatsAppConfig: builder.mutation<
+      WhatsAppTenantConfig,
+      { wabaId?: string; phoneNumberId?: string; displayPhoneNumber?: string; accessToken?: string }
+    >({
+      query: (body) => ({
+        url: '/communication/whatsapp/config',
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<WhatsAppTenantConfig>) => res.data,
+      invalidatesTags: ['WhatsAppConfig'],
+    }),
+
+    testWhatsAppConnection: builder.mutation<
+      { success: boolean; message: string; verifiedName?: string; qualityRating?: string },
+      { testPhone?: string } | void
+    >({
+      query: (body) => ({
+        url: '/communication/whatsapp/test-connection',
+        method: 'POST',
+        body: body || {},
+      }),
+      transformResponse: (res: ApiResponse<any>) => res.data,
+      invalidatesTags: ['WhatsAppConfig'],
+    }),
+
+    disconnectWhatsApp: builder.mutation<{ success: boolean; message: string }, void>({
+      query: () => ({
+        url: '/communication/whatsapp/disconnect',
+        method: 'POST',
+      }),
+      transformResponse: (res: ApiResponse<any>) => res.data,
+      invalidatesTags: ['WhatsAppConfig'],
+    }),
+
+    // ── Unified Communication Hub (Email / SMS / WhatsApp / Voice) ──
+    sendUnifiedMessage: builder.mutation<
+      { success: boolean; messageId: string; status: string; previewUrl?: string },
+      UnifiedSendPayload
+    >({
+      query: (body) => ({
+        url: '/communication/send',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<any>) => res.data,
+      invalidatesTags: ['Conversations', 'Messages', 'Contacts', 'ContactDetail'],
+    }),
+
+    checkDncStatus: builder.mutation<DncCheckResponse, { phone: string }>({
+      query: (body) => ({
+        url: '/compliance/dnc-check',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<DncCheckResponse>) => res.data,
+    }),
+
+    optOutContact: builder.mutation<
+      { success: boolean; message: string },
+      { phone?: string; email?: string; contactId?: string; reason?: string }
+    >({
+      query: (body) => ({
+        url: '/communication/opt-out',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<any>) => res.data,
+      invalidatesTags: ['Contacts', 'ContactDetail', 'Conversations'],
+    }),
+
+    optBackInContact: builder.mutation<
+      { success: boolean; message: string },
+      { phone?: string; email?: string; contactId?: string }
+    >({
+      query: (body) => ({
+        url: '/communication/opt-back-in',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<any>) => res.data,
+      invalidatesTags: ['Contacts', 'ContactDetail', 'Conversations'],
+    }),
+
     // ── Dialer & Telephony ──
     getDialerQueue: builder.query<DialerQueueContact[], void>({
       query: () => '/dialer/queue',
@@ -371,10 +466,42 @@ export const communicationApi = baseApi.injectEndpoints({
     }),
 
     // ── AI ISA Engine ──
+
+    // Config
+    getAiIsaConfig: builder.query<AiIsaConfig, void>({
+      query: () => '/ai-isa/config',
+      transformResponse: (res: ApiResponse<AiIsaConfig>) => res.data,
+      providesTags: ['AiIsaConfig'],
+    }),
+
+    updateAiIsaConfig: builder.mutation<AiIsaConfig, Partial<AiIsaConfig>>({
+      query: (body) => ({
+        url: '/ai-isa/config',
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<AiIsaConfig>) => res.data,
+      invalidatesTags: ['AiIsaConfig'],
+    }),
+
+    // Qualification Criteria
     getQualificationCriteria: builder.query<QualificationCriteria[], void>({
       query: () => '/ai-isa/qualification-criteria',
       transformResponse: (res: ApiResponse<QualificationCriteria[]>) => res.data || [],
       providesTags: ['QualificationCriteria'],
+    }),
+
+    createQualificationCriteria: builder.mutation<
+      QualificationCriteria,
+      { category: string; label: string; isRequired?: boolean; promptDirective: string; options?: string[]; order?: number }
+    >({
+      query: (body) => ({
+        url: '/ai-isa/qualification-criteria',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<QualificationCriteria>) => res.data,
+      invalidatesTags: ['QualificationCriteria'],
     }),
 
     updateQualificationCriteria: builder.mutation<
@@ -390,15 +517,30 @@ export const communicationApi = baseApi.injectEndpoints({
       invalidatesTags: ['QualificationCriteria'],
     }),
 
+    deleteQualificationCriteria: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/ai-isa/qualification-criteria/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['QualificationCriteria'],
+    }),
+
+    // Reactivation Campaigns
     getReactivationCampaigns: builder.query<ReactivationCampaign[], void>({
       query: () => '/ai-isa/campaigns',
       transformResponse: (res: ApiResponse<ReactivationCampaign[]>) => res.data || [],
       providesTags: ['ReactivationCampaigns'],
     }),
 
+    getReactivationCampaignById: builder.query<ReactivationCampaign, string>({
+      query: (id) => `/ai-isa/campaigns/${id}`,
+      transformResponse: (res: ApiResponse<ReactivationCampaign>) => res.data,
+      providesTags: ['ReactivationCampaigns'],
+    }),
+
     createReactivationCampaign: builder.mutation<
       ReactivationCampaign,
-      { name: string; targetSegment: string; channel: string; messageTemplate: string; totalLeads?: number }
+      { name: string; targetSegment: string; channel: string; messageTemplate: string; dormantDaysThreshold?: number; totalLeads?: number }
     >({
       query: (body) => ({
         url: '/ai-isa/campaigns',
@@ -406,6 +548,27 @@ export const communicationApi = baseApi.injectEndpoints({
         body,
       }),
       transformResponse: (res: ApiResponse<ReactivationCampaign>) => res.data,
+      invalidatesTags: ['ReactivationCampaigns'],
+    }),
+
+    updateReactivationCampaign: builder.mutation<
+      ReactivationCampaign,
+      { id: string; name?: string; targetSegment?: string; channel?: string; messageTemplate?: string; dormantDaysThreshold?: number }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/ai-isa/campaigns/${id}`,
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<ReactivationCampaign>) => res.data,
+      invalidatesTags: ['ReactivationCampaigns'],
+    }),
+
+    deleteReactivationCampaign: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/ai-isa/campaigns/${id}`,
+        method: 'DELETE',
+      }),
       invalidatesTags: ['ReactivationCampaigns'],
     }),
 
@@ -422,6 +585,24 @@ export const communicationApi = baseApi.injectEndpoints({
       invalidatesTags: ['ReactivationCampaigns'],
     }),
 
+    startReactivationCampaign: builder.mutation<ReactivationCampaign, string>({
+      query: (id) => ({
+        url: `/ai-isa/campaigns/${id}/start`,
+        method: 'POST',
+      }),
+      transformResponse: (res: ApiResponse<ReactivationCampaign>) => res.data,
+      invalidatesTags: ['ReactivationCampaigns'],
+    }),
+
+    pauseReactivationCampaign: builder.mutation<ReactivationCampaign, string>({
+      query: (id) => ({
+        url: `/ai-isa/campaigns/${id}/pause`,
+        method: 'POST',
+      }),
+      transformResponse: (res: ApiResponse<ReactivationCampaign>) => res.data,
+      invalidatesTags: ['ReactivationCampaigns'],
+    }),
+
     toggleReactivationCampaign: builder.mutation<ReactivationCampaign, string>({
       query: (id) => ({
         url: `/ai-isa/campaigns/${id}/toggle`,
@@ -429,6 +610,12 @@ export const communicationApi = baseApi.injectEndpoints({
       }),
       transformResponse: (res: ApiResponse<ReactivationCampaign>) => res.data,
       invalidatesTags: ['ReactivationCampaigns'],
+    }),
+
+    getCampaignMetrics: builder.query<CampaignMetrics, string>({
+      query: (id) => `/ai-isa/campaigns/${id}/metrics`,
+      transformResponse: (res: ApiResponse<CampaignMetrics>) => res.data,
+      providesTags: ['ReactivationCampaigns'],
     }),
 
     getSpeedToLeadMetrics: builder.query<SpeedToLeadMetric[], void>({
@@ -472,6 +659,19 @@ export const communicationApi = baseApi.injectEndpoints({
         ]
       },
       providesTags: ['SpeedToLead'],
+    }),
+
+    testWhatsAppHandshake: builder.mutation<
+      { success: boolean; conversationId: string; contactId: string; message: string; replyText: string },
+      { phone: string; leadName?: string }
+    >({
+      query: (body) => ({
+        url: '/ai-isa/test-whatsapp-handshake',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<any>) => res.data,
+      invalidatesTags: ['Conversations', 'Messages'],
     }),
 
     simulateAiChat: builder.mutation<AiChatSimulateResult, AiChatSimulatePayload>({
@@ -559,6 +759,14 @@ export const {
   useGetWhatsAppBroadcastsQuery,
   useCreateWhatsAppBroadcastMutation,
   useSimulateWhatsAppInboundMutation,
+  useGetWhatsAppConfigQuery,
+  useUpdateWhatsAppConfigMutation,
+  useTestWhatsAppConnectionMutation,
+  useDisconnectWhatsAppMutation,
+  useSendUnifiedMessageMutation,
+  useCheckDncStatusMutation,
+  useOptOutContactMutation,
+  useOptBackInContactMutation,
   useGetDialerQueueQuery,
   useGetCallLogsQuery,
   useGetDialerStatsQuery,
@@ -570,13 +778,25 @@ export const {
   useMatchLocalPresenceMutation,
   useStartParallelSessionMutation,
   useSummarizeCallMutation,
+  useGetAiIsaConfigQuery,
+  useUpdateAiIsaConfigMutation,
   useGetQualificationCriteriaQuery,
+  useCreateQualificationCriteriaMutation,
   useUpdateQualificationCriteriaMutation,
+  useDeleteQualificationCriteriaMutation,
   useGetReactivationCampaignsQuery,
+  useGetReactivationCampaignByIdQuery,
   useCreateReactivationCampaignMutation,
+  useUpdateReactivationCampaignMutation,
+  useDeleteReactivationCampaignMutation,
   useExecuteReactivationCampaignMutation,
+  useStartReactivationCampaignMutation,
+  usePauseReactivationCampaignMutation,
   useToggleReactivationCampaignMutation,
+  useGetCampaignMetricsQuery,
+  useLazyGetCampaignMetricsQuery,
   useGetSpeedToLeadMetricsQuery,
+  useTestWhatsAppHandshakeMutation,
   useSimulateAiChatMutation,
   useDraftAgentResponseMutation,
   useSummarizeConversationMutation,

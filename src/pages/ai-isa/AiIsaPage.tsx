@@ -5,23 +5,30 @@ import {
   useGetReactivationCampaignsQuery,
   useToggleReactivationCampaignMutation,
   useGetSpeedToLeadMetricsQuery,
+  useGetAiIsaConfigQuery,
 } from '@/store/api/communicationApi'
 import { SpeedToLeadKpi } from './components/SpeedToLeadKpi'
-import { AiIsaSimulator } from './components/AiIsaSimulator'
+import { LiveAiConversations } from './components/LiveAiConversations'
 import { ReactivationCampaigns } from './components/ReactivationCampaigns'
 import { QualificationConfig } from './components/QualificationConfig'
+import { AiIsaConfigSettings } from './components/AiIsaConfigSettings'
+import { AiIsaSimulator } from './components/AiIsaSimulator'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   ChatBubbleLeftRightIcon,
   ArrowPathIcon,
   AdjustmentsHorizontalIcon,
+  Cog6ToothIcon,
+  SparklesIcon,
+  CommandLineIcon,
 } from '@heroicons/react/24/outline'
 import { toast } from 'sonner'
 
 export function AiIsaPage() {
-  const [activeTab, setActiveTab] = useState('simulator')
+  const [activeTab, setActiveTab] = useState('live')
 
+  const { data: config, isLoading: loadingConfig } = useGetAiIsaConfigQuery()
   const { data: criteria = [], isLoading: loadingCriteria } = useGetQualificationCriteriaQuery()
   const [updateCriteria] = useUpdateQualificationCriteriaMutation()
 
@@ -54,7 +61,7 @@ export function AiIsaPage() {
     }
   }
 
-  if (loadingCriteria || loadingCampaigns || loadingMetrics) {
+  if (loadingCriteria || loadingCampaigns || loadingMetrics || loadingConfig) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-28 w-full rounded-3xl" />
@@ -71,16 +78,56 @@ export function AiIsaPage() {
 
   return (
     <div className="space-y-6">
+      {/* Engine Status Banner */}
+      {config && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 rounded-2xl bg-linear-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-3 w-3">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${config.isEnabled ? 'bg-emerald-400 opacity-75' : 'bg-amber-400 opacity-75'}`}></span>
+              <span className={`relative inline-flex rounded-full h-3 w-3 ${config.isEnabled ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+            </span>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-bold text-foreground">AI ISA: {config.persona?.name || 'Maya'}</span>
+              <span className="text-muted-foreground">•</span>
+              <span className="text-muted-foreground capitalize">Tone: {config.persona?.tone || 'Professional'}</span>
+              <span className="text-muted-foreground">•</span>
+              <span className="text-muted-foreground font-mono">
+                {config.autoReplyChannels?.map((c) => c.toUpperCase()).join(' | ') || 'SMS'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${config.autoPilotEnabled
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                }`}
+            >
+              {config.autoPilotEnabled ? 'Autopilot Active' : 'Draft Mode'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setActiveTab('config')}
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 ml-2"
+            >
+              <SparklesIcon className="w-3.5 h-3.5" />
+              <span>Configure Persona</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Speed-to-Lead KPIs & Live Latency Banner */}
       <SpeedToLeadKpi metrics={speedMetrics} />
 
       {/* Main Tabbed ISA Workspace */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex items-center justify-between border-b border-border/80 pb-2">
-          <TabsList className="bg-muted/50 p-1">
-            <TabsTrigger value="simulator" className="text-xs font-semibold gap-1.5">
-              <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" />
-              <span>Live AI ISA Simulator</span>
+          <TabsList className="bg-muted/50 p-1 flex flex-wrap gap-1">
+            <TabsTrigger value="live" className="text-xs font-semibold gap-1.5">
+              <ChatBubbleLeftRightIcon className="w-3.5 h-3.5 text-emerald-500" />
+              <span>⚡ Live AI Lead Conversations & WhatsApp</span>
             </TabsTrigger>
             <TabsTrigger value="campaigns" className="text-xs font-semibold gap-1.5">
               <ArrowPathIcon className="w-3.5 h-3.5" />
@@ -90,12 +137,20 @@ export function AiIsaPage() {
               <AdjustmentsHorizontalIcon className="w-3.5 h-3.5" />
               <span>Qualification Rules ({criteria.length})</span>
             </TabsTrigger>
+            <TabsTrigger value="config" className="text-xs font-semibold gap-1.5">
+              <Cog6ToothIcon className="w-3.5 h-3.5" />
+              <span>Engine & Persona Settings</span>
+            </TabsTrigger>
+            <TabsTrigger value="sandbox" className="text-xs font-semibold gap-1.5 text-muted-foreground">
+              <CommandLineIcon className="w-3.5 h-3.5" />
+              <span>🧪 Prompt Testing Sandbox</span>
+            </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* Live Simulator Tab */}
-        <TabsContent value="simulator">
-          <AiIsaSimulator />
+        {/* Live Active AI Lead Conversations Tab (Front & Center) */}
+        <TabsContent value="live">
+          <LiveAiConversations />
         </TabsContent>
 
         {/* Reactivation Campaigns Tab */}
@@ -112,6 +167,20 @@ export function AiIsaPage() {
             criteria={criteria}
             onSaveCriteria={handleSaveCriteria}
           />
+        </TabsContent>
+
+        {/* Engine & Persona Settings Tab */}
+        <TabsContent value="config">
+          <AiIsaConfigSettings />
+        </TabsContent>
+
+        {/* Developer Sandbox Tab */}
+        <TabsContent value="sandbox">
+          <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-300">
+            <span className="font-bold block mb-0.5">Developer Testing Sandbox</span>
+            Use this playground to test qualifying prompts and Fair Housing guardrails as a mock prospective buyer without sending real outbound messages.
+          </div>
+          <AiIsaSimulator />
         </TabsContent>
       </Tabs>
     </div>

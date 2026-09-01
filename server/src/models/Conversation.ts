@@ -4,7 +4,7 @@ export interface IConversation extends Document {
   brokerageId: mongoose.Types.ObjectId
   contactId: mongoose.Types.ObjectId
   contactName: string
-  contactPhone: string
+  contactPhone?: string
   contactEmail?: string
   contactAvatar?: string
   assignedAgentId?: mongoose.Types.ObjectId
@@ -41,8 +41,8 @@ const conversationSchema = new Schema<IConversation>(
     },
     contactPhone: {
       type: String,
-      required: true,
       trim: true,
+      default: '',
     },
     contactEmail: {
       type: String,

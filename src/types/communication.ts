@@ -196,7 +196,24 @@ export interface DialerQueueContact {
   localPresence?: LocalPresenceInfo
 }
 
-// ── Sub-30s Omnichannel AI ISA Engine Types ─────────────────────────
+// Sub-30s Omnichannel AI ISA Engine Types 
+
+export interface AiIsaConfig {
+  brokerageId: string
+  isEnabled: boolean
+  persona: {
+    name: string
+    tone: 'professional' | 'friendly' | 'concise' | 'consultative'
+    agentName: string
+    brokerageName: string
+    customInstructions?: string
+  }
+  officeHoursOnly: boolean
+  autoReplyChannels: Array<'sms' | 'whatsapp' | 'email'>
+  autoPilotEnabled: boolean
+  humanHandoffDelaySeconds: number
+  qualificationThresholdScore: number
+}
 
 export interface QualificationCriteria {
   id: string
@@ -205,6 +222,7 @@ export interface QualificationCriteria {
   isRequired: boolean
   promptDirective: string
   options?: string[]
+  order?: number
 }
 
 export interface ReactivationCampaign {
@@ -213,13 +231,33 @@ export interface ReactivationCampaign {
   status: 'active' | 'paused' | 'draft' | 'completed'
   targetSegment: string
   channel: ChannelType
+  messageTemplate: string
   dormantDaysThreshold: number
   totalLeads: number
   contactedCount: number
   respondedCount: number
+  engagedCount: number
+  convertedCount: number
   responseRatePercent: number
   meetingsBookedCount: number
   createdAt: string
+  lastExecutedAt?: string
+  lastRunAt?: string
+}
+
+export interface CampaignMetrics {
+  campaignId: string
+  name: string
+  status: 'active' | 'paused' | 'draft' | 'completed'
+  totalLeads: number
+  contactedCount: number
+  respondedCount: number
+  engagedCount: number
+  convertedCount: number
+  meetingsBookedCount: number
+  responseRatePercent: number
+  engagementRatePercent: number
+  conversionRatePercent: number
   lastRunAt?: string
 }
 
@@ -232,7 +270,7 @@ export interface SpeedToLeadMetric {
   warmTransfersCount: number
 }
 
-// ── AI Copilot Types ─────────────────────────────────────────────────
+// AI Copilot Types 
 
 export interface CopilotSuggestion {
   id: string
@@ -248,4 +286,46 @@ export interface FairHousingCheckResult {
   flaggedPhrases: string[]
   recommendedAlternative?: string
   explanation?: string
+}
+
+export interface WhatsAppTenantConfig {
+  wabaId: string
+  phoneNumberId: string
+  displayPhoneNumber: string
+  qualityRating: 'GREEN' | 'YELLOW' | 'RED' | 'UNKNOWN'
+  tier: 'TIER_1K' | 'TIER_10K' | 'TIER_100K' | 'TIER_UNLIMITED'
+  status: 'connected' | 'disconnected' | 'pending'
+  verifiedName: string
+  lastTestedAt: string | null
+  hasTokenConfigured: boolean
+  isUsingSystemFallback: boolean
+}
+
+export interface UnifiedSendPayload {
+  channel: ChannelType
+  to: string
+  subject?: string
+  text: string
+  html?: string
+  contactId?: string
+  conversationId?: string
+  mediaUrl?: string
+  mediaType?: 'image' | 'document' | 'audio' | 'video'
+  templateName?: string
+  templateVariables?: Record<string, string>
+}
+
+export interface DncCheckResponse {
+  phone: string
+  isClean: boolean
+  dncStatus: DncStatus
+  canCall: boolean
+  canText: boolean
+  safeCallingHours: {
+    start: string
+    end: string
+    isCurrentlySafe: boolean
+  }
+  reason?: string
+  checkedAt: string
 }

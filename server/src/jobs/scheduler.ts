@@ -1,5 +1,7 @@
 import cron, { ScheduledTask } from 'node-cron'
 import { runDataHealthScanJob } from './dataHealthScan.job.js'
+import { runReactivationCampaignJob } from './reactivation.job.js'
+import { recordScheduledRun } from '../features/ai-isa/isa.scheduler.js'
 import { logger } from '../utils/logger.js'
 
 export const SYSTEM_TIMEZONE = 'Asia/Karachi'
@@ -49,6 +51,32 @@ export const startScheduler = (): void => {
       name: 'daily_data_health_scan',
       cronExpression: '0 2 * * * (Daily at 02:00 AM PKT)',
       task: dataHealthTask,
+    })
+
+    // ── 2. Daily Reactivation Campaign Scan (3:00 AM PKT) ────────────────
+    // Cron: 0 3 * * * = At 03:00 AM every day
+    const reactivationTask = cron.schedule(
+      '0 3 * * *',
+      async () => {
+        logger.info('Triggering scheduled Reactivation Campaign Job')
+        try {
+          const result = await runReactivationCampaignJob()
+          recordScheduledRun(result)
+        } catch (jobErr: any) {
+          logger.error(`Error running Reactivation Campaign Job: ${jobErr?.message}`)
+        }
+      },
+      {
+        name: 'daily_reactivation_scan',
+        timezone: SYSTEM_TIMEZONE,
+        noOverlap: true,
+      }
+    )
+
+    activeJobs.push({
+      name: 'daily_reactivation_scan',
+      cronExpression: '0 3 * * * (Daily at 03:00 AM PKT)',
+      task: reactivationTask,
     })
 
     isSchedulerRunning = true

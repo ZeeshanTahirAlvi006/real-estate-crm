@@ -6,6 +6,10 @@ import {
   processInboundWebhook,
   createAndExecuteBroadcast,
   getWhatsAppBroadcasts,
+  getTenantWhatsAppConfig,
+  updateTenantWhatsAppConfig,
+  testTenantWhatsAppConnection,
+  disconnectTenantWhatsApp,
 } from './whatsapp.service.js'
 import { whatsAppProvider } from './providers/whatsapp.provider.js'
 import { sendSuccess, sendError } from '../../utils/apiResponse.js'
@@ -13,9 +17,9 @@ import { HTTP_STATUS } from '../../utils/constants.js'
 
 // 1. Meta Webhook Verification (GET)
 export const verifyWebhook = (req: Request, res: Response): void => {
-  const mode = req.query['hub.mode'] as string
-  const token = req.query['hub.verify_token'] as string
-  const challenge = req.query['hub.challenge'] as string
+  const mode = (req.query['hub.mode'] || req.query['hub_mode'] || req.query.mode || 'subscribe') as string
+  const token = (req.query['hub.verify_token'] || req.query['hub_verify_token'] || req.query.verify_token || req.query.token) as string
+  const challenge = (req.query['hub.challenge'] || req.query['hub_challenge'] || req.query.challenge) as string
 
   const result = whatsAppProvider.verifyWebhook(mode, token, challenge)
 
@@ -30,14 +34,14 @@ export const verifyWebhook = (req: Request, res: Response): void => {
 // 2. Meta Inbound Webhook Event Receiver (POST)
 export const handleWebhook = async (req: Request, res: Response): Promise<void> => {
   try {
+    console.log('[WhatsApp Webhook] Received Meta POST event:', JSON.stringify(req.body))
     // Immediately acknowledge Meta to avoid webhook retry loops
     res.status(200).send('EVENT_RECEIVED')
 
     // Process Inbound payload in background
     await processInboundWebhook(req.body)
   } catch (err: any) {
-    // Already responded 200, log error
-    console.error('Webhook processing error:', err)
+    console.error('[WhatsApp Webhook] Processing error:', err?.message)
   }
 }
 
@@ -132,5 +136,49 @@ export const simulateInbound = async (req: Request, res: Response): Promise<void
     sendSuccess(res, result, 'Simulated inbound WhatsApp event processed')
   } catch (err: any) {
     sendError(res, err.message, HTTP_STATUS.INTERNAL_SERVER_ERROR)
+  }
+}
+
+// 9. Get Tenant WhatsApp Integration Config (GET)
+export const getTenantConfigHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const caller = (req as any).user
+    const config = await getTenantWhatsAppConfig(caller.brokerageId)
+    sendSuccess(res, config, 'WhatsApp configuration retrieved')
+  } catch (err: any) {
+    sendError(res, err.message, HTTP_STATUS.INTERNAL_SERVER_ERROR)
+  }
+}
+
+// 10. Update Tenant WhatsApp Integration Config (PATCH)
+export const updateTenantConfigHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const caller = (req as any).user
+    const config = await updateTenantWhatsAppConfig(caller.brokerageId, req.body)
+    sendSuccess(res, config, 'WhatsApp configuration updated successfully')
+  } catch (err: any) {
+    sendError(res, err.message, HTTP_STATUS.BAD_REQUEST)
+  }
+}
+
+// 11. Test Live WhatsApp Connection (POST)
+export const testTenantConnectionHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const caller = (req as any).user
+    const result = await testTenantWhatsAppConnection(caller.brokerageId, req.body?.testPhone)
+    sendSuccess(res, result, result.message)
+  } catch (err: any) {
+    sendError(res, err.message, HTTP_STATUS.BAD_REQUEST)
+  }
+}
+
+// 12. Disconnect Tenant WhatsApp (POST)
+export const disconnectTenantHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const caller = (req as any).user
+    const result = await disconnectTenantWhatsApp(caller.brokerageId)
+    sendSuccess(res, result, result.message)
+  } catch (err: any) {
+    sendError(res, err.message, HTTP_STATUS.BAD_REQUEST)
   }
 }

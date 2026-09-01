@@ -31,6 +31,14 @@ const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_PHONE_NUMBER: z.string().optional(),
+  // Email Provider (SMTP & IMAP)
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().default('PropPulse OS <zeeshantahiralvi123@gmail.com>'),
+  IMAP_HOST: z.string().default('imap.gmail.com'),
+  IMAP_PORT: z.coerce.number().default(993),
   // Rate Limits (req/min)
   RATE_LIMIT_SUPER_ADMIN: z.coerce.number().default(200),
   RATE_LIMIT_BROKERAGE_OWNER: z.coerce.number().default(120),

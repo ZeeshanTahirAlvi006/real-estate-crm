@@ -22,6 +22,7 @@ export interface WhatsAppTemplateDto {
 
 export interface SendWhatsAppInput {
   contactId?: string
+  conversationId?: string
   toPhone?: string
   type: 'text' | 'template' | 'media'
   text?: string
@@ -31,6 +32,7 @@ export interface SendWhatsAppInput {
   mediaType?: 'image' | 'document' | 'audio' | 'video'
   mediaUrl?: string
   caption?: string
+  previewUrl?: boolean
 }
 
 export interface WhatsAppBroadcastDto {

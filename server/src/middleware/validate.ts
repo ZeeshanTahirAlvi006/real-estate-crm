@@ -16,10 +16,10 @@ export const validate = (schemas: ValidationTarget | AnyZodSchema) => {
     try {
       if ('parseAsync' in schemas) {
         // Single schema defaults to validating req.body
-        req.body = await schemas.parseAsync(req.body)
+        req.body = await schemas.parseAsync(req.body || {})
       } else {
         if (schemas.body) {
-          req.body = await schemas.body.parseAsync(req.body)
+          req.body = await schemas.body.parseAsync(req.body || {})
         }
         if (schemas.query) {
           req.query = (await schemas.query.parseAsync(req.query)) as any

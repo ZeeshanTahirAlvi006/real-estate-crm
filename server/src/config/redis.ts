@@ -17,7 +17,7 @@ export const initRedis = (): void => {
       connectTimeout: 2000,
       retryStrategy: (times) => {
         if (times > 3) {
-          logger.warn('⚠️ Redis unreachable. Operating in in-memory fallback cache mode.')
+          logger.warn('Redis unreachable. In-memory fallback cache mode activated.')
           return null // stop retrying
         }
         return Math.min(times * 100, 2000)
@@ -26,12 +26,12 @@ export const initRedis = (): void => {
 
     redisClient.on('connect', () => {
       isRedisConnected = true
-      logger.info('⚡ Redis connection established successfully')
+      logger.info('Redis connection established successfully')
     })
 
     redisClient.on('error', (err) => {
       isRedisConnected = false
-      logger.warn(`⚠️ Redis error (${err.message}). Using in-memory cache.`)
+      logger.warn(`Redis error (${err.message}). Using in-memory cache.`)
     })
   } catch (error) {
     logger.warn('⚠️ Redis initialization failed. Using in-memory fallback.')

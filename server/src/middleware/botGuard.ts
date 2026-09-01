@@ -38,7 +38,7 @@ export const botGuard = (req: Request, res: Response, next: NextFunction): void 
   // Check if User-Agent matches malicious/unauthorized scraper patterns
   const isScraper = BLOCKED_SCRAPER_PATTERNS.some((pattern) => pattern.test(userAgent))
   if (isScraper && !req.headers['x-api-key']) {
-    logger.warn(`🛑 Blocked automated crawler/scraper access from IP: ${req.ip} (UA: ${userAgent})`)
+    logger.warn(`Blocked automated crawler/scraper access from IP: ${req.ip} (UA: ${userAgent})`)
     return sendError(res, 'Access forbidden. Automated crawling is prohibited.', HTTP_STATUS.FORBIDDEN)
   }
 

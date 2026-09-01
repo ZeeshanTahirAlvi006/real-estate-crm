@@ -63,6 +63,7 @@ export const baseApi = createApi({
     'QualificationCriteria',
     'ReactivationCampaigns',
     'SpeedToLead',
+    'AiIsaConfig',
     'AuditLogs',
     'FeatureFlags',
     'Brokerages',
@@ -71,6 +72,7 @@ export const baseApi = createApi({
     'ScoringConfig',
     'WhatsAppTemplates',
     'WhatsAppBroadcasts',
+    'WhatsAppConfig',
   ],
   endpoints: () => ({}),
 })

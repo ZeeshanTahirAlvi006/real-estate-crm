@@ -8,6 +8,7 @@ import { AppError } from '../../middleware/errorHandler.js'
 import { HTTP_STATUS, USER_ROLES } from '../../utils/constants.js'
 import { emitNewMessage } from '../../config/socket.js'
 import { whatsAppProvider } from '../communication/providers/whatsapp.provider.js'
+import { emailProvider } from '../communication/providers/email.provider.js'
 import {
   ConversationDto,
   MessageDto,
@@ -21,7 +22,7 @@ export const formatConversationDto = (c: IConversation): ConversationDto => ({
   id: c._id.toString(),
   contactId: c.contactId.toString(),
   contactName: c.contactName,
-  contactPhone: c.contactPhone,
+  contactPhone: c.contactPhone || '',
   contactEmail: c.contactEmail,
   contactAvatar: c.contactAvatar,
   assignedAgentId: c.assignedAgentId?.toString(),
@@ -206,9 +207,29 @@ export const sendMessage = async (
   emitNewMessage(formattedMsg, formattedConv)
 
   // Live WhatsApp Gateway Transmission
-  if (channel === 'whatsapp' && !isLeadCaller && conv.contactPhone) {
-    whatsAppProvider.sendTextMessage(conv.contactPhone, input.body).catch((err) => {
-      console.error('Failed to send live WhatsApp text message:', err)
+  if (channel === 'whatsapp' && !isLeadCaller) {
+    let destPhone = conv.contactPhone
+    if (!destPhone) {
+      const contactDoc = await Contact.findById(conv.contactId)
+      destPhone = contactDoc?.phone || ''
+    }
+    if (destPhone) {
+      whatsAppProvider
+        .sendTextMessage(destPhone, input.body, { brokerageId: conv.brokerageId })
+        .catch((err) => {
+          console.error('Failed to send live WhatsApp text message:', err)
+        })
+    }
+  }
+
+  // Live Email Gateway Transmission (Gmail SMTP)
+  if (channel === 'email' && !isLeadCaller && conv.contactEmail) {
+    emailProvider.send({
+      to: conv.contactEmail,
+      subject: `Update regarding your property inquiry`,
+      text: input.body,
+    }).catch((err) => {
+      console.error('Failed to send live email message:', err)
     })
   }
 

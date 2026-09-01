@@ -6,6 +6,7 @@ import {
   summarizeHandler,
   suggestNextActionHandler,
   fairHousingCheckHandler,
+  dncCheckHandler,
 } from './chatbot.controller.js'
 import { authenticate } from '../../middleware/authenticate.js'
 import { tenantScope } from '../../middleware/tenantScope.js'
@@ -16,6 +17,7 @@ import {
   summarizeSchema,
   suggestNextActionSchema,
   fairHousingCheckSchema,
+  dncCheckSchema,
 } from './chatbot.validators.js'
 
 const chatbotRouter = Router()
@@ -39,6 +41,9 @@ chatbotRouter.post('/suggest-next-action', validate(suggestNextActionSchema), su
 
 // 5. Fair Housing Compliance Scan
 complianceRouter.post('/fair-housing-check', validate(fairHousingCheckSchema), fairHousingCheckHandler)
+
+// 6. TCPA & Do Not Call (DNC) Registry Check
+complianceRouter.post('/dnc-check', validate(dncCheckSchema), dncCheckHandler)
 
 export const chatbotRoutes = chatbotRouter
 export const complianceRoutes = complianceRouter

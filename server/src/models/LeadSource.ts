@@ -45,7 +45,6 @@ const leadSourceSchema = new Schema<ILeadSource>(
     captureKey: {
       type: String,
       required: true,
-      index: true,
     },
     isActive: {
       type: Boolean,

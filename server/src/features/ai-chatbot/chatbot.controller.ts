@@ -105,6 +105,8 @@ export const suggestNextActionHandler = async (
   }
 }
 
+import { dncComplianceService } from '../compliance/dnc.service.js'
+
 // POST /api/compliance/fair-housing-check
 export const fairHousingCheckHandler = async (
   req: Request,
@@ -115,6 +117,22 @@ export const fairHousingCheckHandler = async (
     const { text } = req.body
     const result = scanFairHousingCompliance(text || '')
     sendSuccess(res, result, 'Fair Housing compliance scanned')
+  } catch (error) {
+    next(error)
+  }
+}
+
+// POST /api/compliance/dnc-check
+export const dncCheckHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { phone } = req.body
+    const brokerageId = (req as any).effectiveBrokerageId || req.user?.brokerageId
+    const result = await dncComplianceService.checkPhoneNumber(phone, brokerageId)
+    sendSuccess(res, result, 'DNC compliance check completed')
   } catch (error) {
     next(error)
   }

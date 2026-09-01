@@ -70,3 +70,9 @@ export const fairHousingCheckSchema = z.object({
     text: z.string().min(1, 'Text is required for compliance scan'),
   }),
 })
+
+export const dncCheckSchema = z.object({
+  body: z.object({
+    phone: z.string().min(1, 'Phone number is required for DNC check'),
+  }),
+})

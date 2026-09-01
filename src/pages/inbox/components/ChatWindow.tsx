@@ -141,7 +141,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           <button
             type="button"
             onClick={onOpenCopilot}
-            className="p-2 rounded-xl bg-gradient-to-r from-primary to-chart-3 text-primary-foreground transition-all hover:opacity-90 flex items-center gap-1.5 text-xs font-semibold shadow-sm"
+            className="p-2 rounded-xl bg-linear-to-r from-primary to-chart-3 text-primary-foreground transition-all hover:opacity-90 flex items-center gap-1.5 text-xs font-semibold shadow-sm"
           >
             <SparklesIcon className="w-4 h-4" />
             <span>AI Copilot</span>
@@ -158,9 +158,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           return (
             <div
               key={msg.id}
-              className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-2xl ${
-                isMe ? 'ml-auto' : 'mr-auto'
-              }`}
+              className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-2xl ${isMe ? 'ml-auto' : 'mr-auto'
+                }`}
             >
               <div className="flex items-center gap-2 mb-1 px-1 text-[11px] text-muted-foreground">
                 <span className="font-medium">
@@ -172,13 +171,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               </div>
 
               <div
-                className={`p-3.5 rounded-2xl text-xs leading-relaxed max-w-full shadow-sm ${
-                  isAI
-                    ? 'bg-gradient-to-br from-primary/15 via-chart-3/15 to-chart-2/15 text-foreground border border-primary/30 rounded-tr-sm'
+                className={`p-3.5 rounded-2xl text-xs leading-relaxed max-w-full shadow-sm ${isAI
+                    ? 'bg-linear-to-br from-primary/15 via-chart-3/15 to-chart-2/15 text-foreground border border-primary/30 rounded-tr-sm'
                     : isMe
-                    ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                    : 'bg-muted/70 text-foreground border border-border/60 rounded-tl-sm'
-                }`}
+                      ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                      : 'bg-muted/70 text-foreground border border-border/60 rounded-tl-sm'
+                  }`}
               >
                 {isAI && (
                   <div className="flex items-center gap-1 text-[10px] font-bold text-primary mb-1">
@@ -283,11 +281,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 key={ch}
                 type="button"
                 onClick={() => setSelectedChannel(ch)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all ${
-                  selectedChannel === ch
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all ${selectedChannel === ch
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'bg-muted/50 hover:bg-muted text-muted-foreground'
-                }`}
+                  }`}
               >
                 {ch === 'whatsapp' ? 'WhatsApp' : ch.toUpperCase()}
               </button>

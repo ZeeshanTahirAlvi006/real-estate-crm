@@ -33,6 +33,7 @@ import smartListRoutes from './features/smart-lists/smartList.routes.js'
 import dashboardRoutes from './features/dashboard/dashboard.routes.js'
 import { initializeDefaultFeatureFlags } from './models/FeatureFlag.js'
 import { startScheduler, stopScheduler } from './jobs/scheduler.js'
+import { imapListenerService } from './features/communication/imap.listener.js'
 import { logger } from './utils/logger.js'
 import { sendSuccess } from './utils/apiResponse.js'
 import { HTTP_STATUS } from './utils/constants.js'
@@ -141,12 +142,15 @@ export const startServer = async (): Promise<void> => {
       logger.info(`🚀 Server & WebSocket running on port ${env.PORT} in [${env.NODE_ENV}] mode`)
       // Start background cron scheduler
       startScheduler()
+      // Start IMAP live email listener
+      imapListenerService.start()
     })
 
     // Graceful Shutdown Handlers
     const handleShutdown = async (signal: string) => {
       logger.info(`Received ${signal}. Shutting down server...`)
       await stopScheduler()
+      await imapListenerService.stop()
       server.close(async () => {
         await disconnectDB()
         logger.info('👋 Server shutdown complete. Goodbye!')

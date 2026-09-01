@@ -926,11 +926,11 @@ server/src/features/dashboard/dashboard.types.ts
   - `GET /api/dashboard/lead-portal` — my deal status, assigned agent info, recent updates
 
 #### Acceptance Criteria:
-- [ ] Smart list filters translate to correct MongoDB queries
-- [ ] Operators: equals, not_equals, contains, greater_than, less_than, between, in, is_empty all work
-- [ ] Dashboard KPIs scoped by role (agent sees own, team_lead sees team, etc.)
-- [ ] Lead portal returns only the logged-in lead's own deal info
-- [ ] Results cached in Redis (2-5 min TTL)
+- [x] Smart list filters translate to correct MongoDB queries
+- [x] Operators: equals, not_equals, contains, greater_than, less_than, between, in, is_empty all work
+- [x] Dashboard KPIs scoped by role (agent sees own, team_lead sees team, etc.)
+- [x] Lead portal returns only the logged-in lead's own deal info
+- [x] Results cached in Redis (2-5 min TTL)
 
 ---
 
@@ -1193,10 +1193,10 @@ server/src/jobs/reactivation.job.ts
   - Queues for send (via communication provider — stubbed initially)
 
 #### Acceptance Criteria:
-- [ ] Campaign targets dormant leads based on configurable threshold
-- [ ] AI generates personalized message per lead using contact context
-- [ ] Metrics track: total targeted, contacted, responded, meetings booked
-- [ ] Speed-to-lead metrics calculated from activity timestamps
+- [x] Campaign targets dormant leads based on configurable threshold
+- [x] AI generates personalized message per lead using contact context
+- [x] Metrics track: total targeted, contacted, responded, meetings booked
+- [x] Speed-to-lead metrics calculated from activity timestamps
 
 ---
 
@@ -1238,11 +1238,11 @@ server/src/features/communication/providers/voice.provider.ts
   - `GET /api/communication/templates` — quick reply templates CRUD
 
 #### Acceptance Criteria:
-- [ ] Send via any channel routes through correct provider
-- [ ] Mock provider logs to console + creates message record
-- [ ] "STOP" inbound auto-sets dncStatus and blocks future sends
-- [ ] DNC check prevents sending to flagged numbers
-- [ ] Providers swappable via config (no code changes)
+- [x] Send via any channel routes through correct provider
+- [x] Mock provider logs to console + creates message record
+- [x] "STOP" inbound auto-sets dncStatus and blocks future sends
+- [x] DNC check prevents sending to flagged numbers
+- [x] Providers swappable via config (no code changes)
 
 ---
 

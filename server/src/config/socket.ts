@@ -108,7 +108,7 @@ export const initSocketServer = (httpServer: HttpServer): SocketIOServer => {
       socket.join(`brokerage:${brokerageId}`)
     }
 
-    logger.info(`🔌 Real-time client connected: user ${userId} (${user.role})`)
+    logger.info(`Real-time client connected: user ${userId} (${user.role})`)
 
     // Register modular feature handlers
     if (io) {

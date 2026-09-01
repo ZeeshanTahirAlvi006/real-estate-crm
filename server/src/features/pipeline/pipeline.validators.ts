@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-// ── Stage schemas ───────────────────────────────────────
+//  Stage schemas 
 
 const hexColorRegex = /^#[0-9A-Fa-f]{6}$/
 
@@ -27,7 +27,7 @@ export const reorderStagesSchema = z.object({
     .min(1, 'At least one ordering is required'),
 })
 
-// ── Pipeline schemas ────────────────────────────────────
+//  Pipeline schemas 
 
 export const createPipelineSchema = z.object({
   name: z.string().trim().min(1, 'Pipeline name is required').max(100),
@@ -38,7 +38,7 @@ export const updatePipelineSchema = z.object({
   name: z.string().trim().min(1).max(100).optional(),
 })
 
-// ── Query/Param schemas ─────────────────────────────────
+//  Query/Param schemas 
 
 export const pipelineIdParamSchema = z.object({
   id: z.string().min(1, 'Pipeline ID is required'),

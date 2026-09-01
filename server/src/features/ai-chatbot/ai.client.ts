@@ -27,46 +27,15 @@ export const callLLM = async (options: CompletionOptions): Promise<string> => {
   }
   fullMessages.push(...messages)
 
-  // 1. OpenRouter Provider
-  if (env.OPENROUTER_API_KEY && (env.AI_PROVIDER === 'auto' || env.AI_PROVIDER === 'openrouter')) {
-    try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://proppulse.io',
-          'X-Title': 'PropPulse OS Real Estate CRM',
-        },
-        body: JSON.stringify({
-          model: 'mistralai/mistral-small-24b-instruct-2501:free',
-          messages: fullMessages,
-          temperature,
-          max_tokens: maxTokens,
-          response_format: jsonMode ? { type: 'json_object' } : undefined,
-        }),
-      })
-
-      if (response.ok) {
-        const data = (await response.json()) as any
-        const content = data.choices?.[0]?.message?.content
-        if (content) return content
-      } else {
-        logger.warn(`OpenRouter returned status ${response.status}. Falling back to alternative provider.`)
-      }
-    } catch (err) {
-      logger.warn('OpenRouter call error:', err)
-    }
-  }
-
-  // 2. Mistral AI Provider
-  if (env.MISTRAL_API_KEY && (env.AI_PROVIDER === 'auto' || env.AI_PROVIDER === 'mistral')) {
+  // 1. Mistral AI Provider (Direct & Fast)
+  const mistralKey = process.env.MISTRAL_API || process.env.MISTRAL_API_KEY || env.MISTRAL_API_KEY
+  if (mistralKey) {
     try {
       const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${env.MISTRAL_API_KEY}`,
+          Authorization: `Bearer ${mistralKey}`,
         },
         body: JSON.stringify({
           model: 'mistral-small-latest',
@@ -86,6 +55,39 @@ export const callLLM = async (options: CompletionOptions): Promise<string> => {
       }
     } catch (err) {
       logger.warn('Mistral call error:', err)
+    }
+  }
+
+  // 2. OpenRouter Provider
+  const openRouterKey = process.env.OPEN_ROUTER_API || process.env.OPENROUTER_API_KEY || env.OPENROUTER_API_KEY
+  if (openRouterKey) {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openRouterKey}`,
+          'HTTP-Referer': 'https://proppulse.io',
+          'X-Title': 'PropPulse OS Real Estate CRM',
+        },
+        body: JSON.stringify({
+          model: 'openrouter/auto',
+          messages: fullMessages,
+          temperature,
+          max_tokens: maxTokens,
+          response_format: jsonMode ? { type: 'json_object' } : undefined,
+        }),
+      })
+
+      if (response.ok) {
+        const data = (await response.json()) as any
+        const content = data.choices?.[0]?.message?.content
+        if (content) return content
+      } else {
+        logger.warn(`OpenRouter returned status ${response.status}. Falling back to alternative provider.`)
+      }
+    } catch (err) {
+      logger.warn('OpenRouter call error:', err)
     }
   }
 

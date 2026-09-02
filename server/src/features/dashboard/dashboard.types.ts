@@ -34,6 +34,21 @@ export interface ActivityFeedItemDto {
   createdBy?: string
 }
 
+export interface LeadPortalContactProfile {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  secondaryPhone?: string
+  address?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  propertyInterests?: string[]
+  dncStatus?: string
+  optedOutAt?: string
+}
+
 export interface LeadPortalDto {
   contactId: string
   assignedAgent?: {
@@ -41,6 +56,7 @@ export interface LeadPortalDto {
     email: string
     phone?: string
   }
+  contactProfile?: LeadPortalContactProfile
   deals: Array<{
     id: string
     title: string

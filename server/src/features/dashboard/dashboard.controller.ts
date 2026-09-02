@@ -63,3 +63,13 @@ export const getLeadPortal = async (req: Request, res: Response) => {
   }
 }
 
+export const updateLeadPortalProfile = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as IUser
+    const data = await dashboardService.updateLeadPortalProfile(user, req.body)
+    sendSuccess(res, data, 'Client profile updated successfully')
+  } catch (error: any) {
+    sendError(res, error.message)
+  }
+}
+

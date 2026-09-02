@@ -42,7 +42,7 @@ export const ReactivationCampaigns: React.FC<ReactivationCampaignsProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     targetSegment: 'Cold Leads (90+ Days Inactive)',
-    channel: 'sms',
+    channel: 'whatsapp',
     dormantDaysThreshold: 90,
     messageTemplate:
       'Hi {{firstName}}, are you still looking for homes in {{city}}, or have your plans shifted? We just had new off-market listings hit our desk this morning!',
@@ -57,7 +57,7 @@ export const ReactivationCampaigns: React.FC<ReactivationCampaignsProps> = ({
       setFormData({
         name: '',
         targetSegment: 'Cold Leads (90+ Days Inactive)',
-        channel: 'sms',
+        channel: 'whatsapp',
         dormantDaysThreshold: 90,
         messageTemplate:
           'Hi {{firstName}}, are you still looking for homes in {{city}}, or have your plans shifted? We just had new off-market listings hit our desk this morning!',
@@ -314,7 +314,6 @@ export const ReactivationCampaigns: React.FC<ReactivationCampaignsProps> = ({
                     onChange={(e) => setFormData({ ...formData, channel: e.target.value })}
                     className="w-full p-2.5 rounded-xl bg-background border border-border/70 focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    <option value="sms">SMS Text</option>
                     <option value="whatsapp">WhatsApp Cloud</option>
                     <option value="email">Email</option>
                   </select>

@@ -17,10 +17,13 @@ export function LoginPage() {
   const [login, { isLoading }] = useLoginMutation()
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const { isAuthenticated } = useAppSelector((state) => state.auth)
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth)
 
   // Redirect if already authenticated
   if (isAuthenticated) {
+    if (user?.role === 'lead') {
+      return <Navigate to="/portal" replace />
+    }
     return <Navigate to="/dashboard" replace />
   }
 
@@ -39,7 +42,11 @@ export function LoginPage() {
       const result = await login({ email, password }).unwrap()
       dispatch(setCredentials(result))
       toast.success(`Welcome back, ${result.user.firstName}!`)
-      navigate('/dashboard')
+      if (result.user.role === 'lead') {
+        navigate('/portal')
+      } else {
+        navigate('/dashboard')
+      }
     } catch (err: any) {
       const message = err?.data?.message || 'Invalid email or password. Please try again.'
       toast.error(message)

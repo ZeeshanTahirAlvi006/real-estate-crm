@@ -53,6 +53,8 @@ export interface DealResponseDto {
   priority: DealPriority
   daysInStage: number
   stageEnteredAt: string
+  isConvertedToEscrow?: boolean
+  transactionId?: string
   notes: string
   createdAt: string
   updatedAt: string
@@ -96,6 +98,8 @@ export const formatDealDto = (deal: IDeal, stageName?: string): DealResponseDto 
   priority: deal.priority,
   daysInStage: Math.floor((Date.now() - (deal.stageEnteredAt?.getTime() || Date.now())) / 86400000),
   stageEnteredAt: deal.stageEnteredAt?.toISOString() || new Date().toISOString(),
+  isConvertedToEscrow: deal.isConvertedToEscrow || false,
+  transactionId: deal.transactionId?.toString(),
   notes: deal.notes || '',
   createdAt: deal.createdAt.toISOString(),
   updatedAt: deal.updatedAt.toISOString(),

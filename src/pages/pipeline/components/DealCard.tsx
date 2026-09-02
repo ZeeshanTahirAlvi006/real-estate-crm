@@ -4,9 +4,6 @@ import type { Deal } from '@/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { PhoneIcon } from '@heroicons/react/24/outline'
-import { useAppDispatch } from '@/store/hooks'
-import { openDialer, startDialingSession } from '@/store/slices/dialerSlice'
 import { cn } from '@/lib/utils'
 
 interface DealCardProps {
@@ -24,7 +21,6 @@ const priorityConfig: Record<string, { label: string; class: string }> = {
 export function DealCard({ deal, onClick }: DealCardProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const dispatch = useAppDispatch()
 
   useEffect(() => {
     if (!ref.current) return
@@ -35,22 +31,6 @@ export function DealCard({ deal, onClick }: DealCardProps) {
       onDrop: () => setIsDragging(false),
     })
   }, [deal.id])
-
-  const handleCall = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    dispatch(openDialer({ lineCount: 1 }))
-    dispatch(
-      startDialingSession({
-        targets: [
-          {
-            id: deal.contactId,
-            name: deal.contactName,
-            phone: '+1 (555) 234-5678',
-          },
-        ],
-      })
-    )
-  }
 
   const p = priorityConfig[deal.priority] || priorityConfig.medium
   const initials = deal.assignedAgentName?.split(' ').map((n) => n[0]).join('') || '?'
@@ -70,18 +50,17 @@ export function DealCard({ deal, onClick }: DealCardProps) {
             <p className="text-sm font-semibold leading-tight truncate text-foreground group-hover:text-primary transition-colors">
               {deal.contactName}
             </p>
-            <button
-              type="button"
-              onClick={handleCall}
-              title={`Call ${deal.contactName}`}
-              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-primary/10 hover:text-primary text-muted-foreground"
-            >
-              <PhoneIcon className="h-3.5 w-3.5" />
-            </button>
           </div>
-          <Badge variant="outline" className={cn('text-[10px] shrink-0 ml-2', p.class)}>
-            {p.label}
-          </Badge>
+          <div className="flex items-center gap-1 shrink-0 ml-2">
+            {deal.isConvertedToEscrow && (
+              <Badge variant="outline" className="text-[10px] bg-emerald-500/15 text-emerald-500 border-emerald-500/30 font-bold px-1.5 py-0">
+                In Escrow
+              </Badge>
+            )}
+            <Badge variant="outline" className={cn('text-[10px]', p.class)}>
+              {p.label}
+            </Badge>
+          </div>
         </div>
         <p className="mt-1 text-xs text-muted-foreground truncate">{deal.propertyAddress}</p>
         <div className="mt-3 flex items-center justify-between">

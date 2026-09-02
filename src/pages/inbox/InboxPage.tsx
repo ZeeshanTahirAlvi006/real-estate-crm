@@ -13,8 +13,6 @@ import { StartConversationModal } from './components/StartConversationModal'
 import { WhatsAppBroadcastModal } from './components/WhatsAppBroadcastModal'
 import { CopilotDrawer } from '@/components/ai-copilot/CopilotDrawer'
 import { useSocket } from '@/providers/SocketProvider'
-import { useAppDispatch } from '@/store/hooks'
-import { openDialer, startDialingSession } from '@/store/slices/dialerSlice'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChatBubbleLeftRightIcon, PlusIcon, MegaphoneIcon } from '@heroicons/react/24/outline'
@@ -22,7 +20,6 @@ import type { ChannelType } from '@/types/communication'
 import { toast } from 'sonner'
 
 export function InboxPage() {
-  const dispatch = useAppDispatch()
   const { socket } = useSocket()
 
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
@@ -108,22 +105,6 @@ export function InboxPage() {
     }
   }
 
-  const handleOpenDialerForContact = () => {
-    if (!selectedConversation) return
-    dispatch(openDialer({ lineCount: 1 }))
-    dispatch(
-      startDialingSession({
-        targets: [
-          {
-            id: selectedConversation.contactId,
-            name: selectedConversation.contactName,
-            phone: selectedConversation.contactPhone,
-          },
-        ],
-      })
-    )
-  }
-
   const handleOpenCopilot = () => {
     setIsCopilotOpen(true)
   }
@@ -169,7 +150,6 @@ export function InboxPage() {
           quickTemplates={quickTemplates}
           onSendMessage={handleSendMessage}
           onOpenCopilot={handleOpenCopilot}
-          onOpenDialer={handleOpenDialerForContact}
           isSending={isSending || loadingMessages}
         />
       ) : (
@@ -205,7 +185,6 @@ export function InboxPage() {
       {selectedConversation && (
         <ContactInfoPane
           conversation={selectedConversation}
-          onOpenDialerForContact={handleOpenDialerForContact}
           onOpenCopilot={handleOpenCopilot}
         />
       )}

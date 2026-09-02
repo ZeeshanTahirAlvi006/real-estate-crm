@@ -9,6 +9,7 @@ export interface IUser extends Document {
   password?: string
   role: UserRole
   brokerageId: mongoose.Types.ObjectId
+  contactId?: mongoose.Types.ObjectId
   phone?: string
   avatarUrl?: string
   timezone?: string
@@ -63,6 +64,10 @@ const userSchema = new Schema<IUser>(
       ref: 'Brokerage',
       required: [true, 'Brokerage ID is required'],
       index: true,
+    },
+    contactId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Contact',
     },
     phone: {
       type: String,

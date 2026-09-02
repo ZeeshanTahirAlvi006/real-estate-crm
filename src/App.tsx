@@ -23,11 +23,14 @@ import { AiIsaPage } from '@/pages/ai-isa/AiIsaPage'
 import { ContactsPage } from '@/pages/contacts/ContactsPage'
 import { ContactDetailPage } from '@/pages/contacts/ContactDetailPage'
 import { PipelinePage } from '@/pages/pipeline/PipelinePage'
+import { TransactionsPage } from '@/pages/transactions/TransactionsPage'
+import { TransactionDetailPage } from '@/pages/transactions/TransactionDetailPage'
 import { SmartListsPage } from '@/pages/smart-lists/SmartListsPage'
 import { DataHealthPage } from '@/pages/data-health/DataHealthPage'
 import { LeadIngestionPage } from '@/pages/leads/LeadIngestionPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { LeadPortalPage } from '@/pages/portal/LeadPortalPage'
+import { PortalSettingsPage } from '@/pages/portal/PortalSettingsPage'
 
 function ThemedToaster() {
   const { resolvedTheme } = useTheme()
@@ -68,6 +71,7 @@ function App() {
                   }
                 >
                   <Route path="/portal" element={<LeadPortalPage />} />
+                  <Route path="/portal/settings" element={<PortalSettingsPage />} />
                 </Route>
 
                 {/* Protected App Routes */}
@@ -85,6 +89,8 @@ function App() {
                   <Route path="/contacts" element={<ContactsPage />} />
                   <Route path="/contacts/:id" element={<ContactDetailPage />} />
                   <Route path="/pipeline" element={<PipelinePage />} />
+                  <Route path="/transactions" element={<TransactionsPage />} />
+                  <Route path="/transactions/:id" element={<TransactionDetailPage />} />
                   <Route path="/smart-lists" element={<SmartListsPage />} />
                   <Route path="/data-health" element={<DataHealthPage />} />
                   <Route path="/lead-ingestion" element={<LeadIngestionPage />} />

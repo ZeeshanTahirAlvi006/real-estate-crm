@@ -31,6 +31,7 @@ import { notificationRoutes } from './features/notifications/notification.routes
 import { chatbotRoutes, complianceRoutes } from './features/ai-chatbot/chatbot.routes.js'
 import smartListRoutes from './features/smart-lists/smartList.routes.js'
 import dashboardRoutes from './features/dashboard/dashboard.routes.js'
+import { transactionRoutes } from './features/transactions/transaction.routes.js'
 import { initializeDefaultFeatureFlags } from './models/FeatureFlag.js'
 import { startScheduler, stopScheduler } from './jobs/scheduler.js'
 import { imapListenerService } from './features/communication/imap.listener.js'
@@ -105,6 +106,7 @@ export const createApp = (): Express => {
   app.use('/api/compliance', complianceRoutes)
   app.use('/api/smart-lists', smartListRoutes)
   app.use('/api/dashboard', dashboardRoutes)
+  app.use('/api/transactions', transactionRoutes)
 
   // 9. 404 Catch-All Handler
   app.use((_req: Request, res: Response) => {

@@ -1,53 +1,24 @@
 import React from 'react'
 import type { ConversationThread } from '@/types/communication'
 import {
-  useOptOutContactMutation,
-  useOptBackInContactMutation,
-} from '@/store/api/communicationApi'
-import {
   PhoneIcon,
   EnvelopeIcon,
   ShieldCheckIcon,
-  ExclamationTriangleIcon,
   TagIcon,
   BuildingOfficeIcon,
   SparklesIcon,
-  NoSymbolIcon,
-  CheckCircleIcon,
 } from '@heroicons/react/24/outline'
-import { toast } from 'sonner'
 
 interface ContactInfoPaneProps {
   conversation: ConversationThread
-  onOpenDialerForContact: () => void
+  onOpenDialerForContact?: () => void
   onOpenCopilot: () => void
 }
 
 export const ContactInfoPane: React.FC<ContactInfoPaneProps> = ({
   conversation,
-  onOpenDialerForContact,
   onOpenCopilot,
 }) => {
-  const [optOut, { isLoading: isOptingOut }] = useOptOutContactMutation()
-  const [optBackIn, { isLoading: isOptingIn }] = useOptBackInContactMutation()
-
-  const handleToggleOptOut = async () => {
-    try {
-      if (conversation.dncStatus === 'opted_out') {
-        await optBackIn({ contactId: conversation.contactId }).unwrap()
-        toast.success('Contact re-consented to receive communications')
-      } else {
-        await optOut({
-          contactId: conversation.contactId,
-          reason: 'Manual agent request in Inbox',
-        }).unwrap()
-        toast.warning('Contact marked as OPTED OUT (TCPA Guard Active)')
-      }
-    } catch (err: any) {
-      toast.error(err?.data?.message || 'Failed to update TCPA consent')
-    }
-  }
-
   const contactInitials = (conversation.contactName || 'Lead')
     .split(' ')
     .filter(Boolean)
@@ -72,7 +43,17 @@ export const ContactInfoPane: React.FC<ContactInfoPaneProps> = ({
 
         {/* Lead Score Badge */}
         <div className="flex items-center gap-2 pt-1">
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-bold border ${
+              (conversation.leadScore ?? 50) >= 80
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                : (conversation.leadScore ?? 50) >= 60
+                  ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                  : (conversation.leadScore ?? 50) >= 40
+                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+            }`}
+          >
             Lead Score: {conversation.leadScore ?? 50}/100
           </span>
         </div>
@@ -80,14 +61,22 @@ export const ContactInfoPane: React.FC<ContactInfoPaneProps> = ({
 
       {/* Quick Action Buttons */}
       <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={onOpenDialerForContact}
-          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground font-semibold text-xs transition-colors"
-        >
-          <PhoneIcon className="w-4 h-4" />
-          <span>Call Lead</span>
-        </button>
+        {conversation.contactPhone ? (
+          <a
+            href={`https://wa.me/${conversation.contactPhone.replace(/\D/g, '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-600 text-emerald-600 hover:text-white font-semibold text-xs transition-colors"
+            title="Open WhatsApp Voice Call & Chat"
+          >
+            <PhoneIcon className="w-3.5 h-3.5" />
+            <span>WhatsApp Call</span>
+          </a>
+        ) : (
+          <div className="flex items-center justify-center py-2 px-3 rounded-xl bg-muted/40 text-muted-foreground text-xs">
+            No Phone
+          </div>
+        )}
 
         <button
           type="button"
@@ -99,55 +88,26 @@ export const ContactInfoPane: React.FC<ContactInfoPaneProps> = ({
         </button>
       </div>
 
-      {/* TCPA & Compliance Status */}
-      <div className="space-y-2.5 bg-muted/30 p-3.5 rounded-xl border border-border/60">
+      {/* Client Communication Consent (Read-only status) */}
+      <div className="space-y-2 bg-muted/30 p-3.5 rounded-xl border border-border/60">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <ShieldCheckIcon className={`w-4 h-4 ${isOptedOut ? 'text-rose-500' : 'text-emerald-500'}`} />
-            <span>TCPA Compliance</span>
+            <span>Client Consent</span>
           </h4>
           <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isOptedOut ? 'bg-rose-500/10 text-rose-600' : 'bg-emerald-500/10 text-emerald-600'
-              }`}
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              isOptedOut ? 'bg-rose-500/10 text-rose-600' : 'bg-emerald-500/10 text-emerald-600'
+            }`}
           >
-            {isOptedOut ? 'OPTED OUT' : 'CLEAN'}
+            {isOptedOut ? 'OPTED OUT' : 'OPTED IN'}
           </span>
         </div>
-
-        <div className="text-xs space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Outbound Status:</span>
-            {isOptedOut ? (
-              <span className="font-semibold text-destructive flex items-center gap-1">
-                <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Blocked (TCPA)
-              </span>
-            ) : (
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">Allowed</span>
-            )}
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleToggleOptOut}
-          disabled={isOptingOut || isOptingIn}
-          className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${isOptedOut
-              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/20'
-              : 'bg-rose-500/10 text-rose-600 border-rose-500/30 hover:bg-rose-500/20'
-            }`}
-        >
-          {isOptedOut ? (
-            <>
-              <CheckCircleIcon className="w-3.5 h-3.5" />
-              <span>{isOptingIn ? 'Re-consenting...' : 'Re-Consent Contact (Opt Back In)'}</span>
-            </>
-          ) : (
-            <>
-              <NoSymbolIcon className="w-3.5 h-3.5" />
-              <span>{isOptingOut ? 'Opting out...' : 'Manual TCPA Opt-Out'}</span>
-            </>
-          )}
-        </button>
+        <p className="text-[11px] text-muted-foreground">
+          {isOptedOut
+            ? 'Client opted out of automated messaging via STOP keyword or VIP Portal.'
+            : 'Client has granted consent to receive property alerts and advisor updates.'}
+        </p>
       </div>
 
       {/* Contact Details */}

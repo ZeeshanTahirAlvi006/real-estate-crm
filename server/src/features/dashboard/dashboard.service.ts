@@ -158,19 +158,38 @@ export const getLeadPortal = async (user: IUser): Promise<LeadPortalDto> => {
     throw new AppError('Only leads can access the lead portal', 403)
   }
 
-  // Match the lead User email to a Contact record
-  const contact = await Contact.findOne({
-    email: user.email,
-    brokerageId: user.brokerageId,
-    isDeleted: false
-  }).lean()
+  // 1. Match by contactId if present on User
+  let contact: any = null
+  if (user.contactId) {
+    contact = await Contact.findOne({ _id: user.contactId, isDeleted: false }).lean()
+  }
+
+  // 2. Match by email
+  if (!contact && user.email) {
+    contact = await Contact.findOne({
+      email: new RegExp(`^${user.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
+      isDeleted: false,
+    }).lean()
+  }
+
+  // 3. Match by Name if email differs
+  if (!contact && user.firstName && user.lastName) {
+    contact = await Contact.findOne({
+      firstName: new RegExp(`^${user.firstName.trim()}$`, 'i'),
+      lastName: new RegExp(`^${user.lastName.trim()}$`, 'i'),
+      isDeleted: false,
+    }).lean()
+  }
 
   if (!contact) {
-    throw new AppError('Contact record not found for this user account', 404)
+    return {
+      contactId: '',
+      deals: [],
+    }
   }
 
   let assignedAgent = undefined
-  if (contact.assignedAgentId) {
+  if (contact?.assignedAgentId) {
     const agent = await User.findById(contact.assignedAgentId).lean()
     if (agent) {
       assignedAgent = {
@@ -181,19 +200,91 @@ export const getLeadPortal = async (user: IUser): Promise<LeadPortalDto> => {
     }
   }
 
-  const deals = await Deal.find({
-    contactId: contact._id,
-    isDeleted: false
-  }).lean()
+  const deals = contact
+    ? await Deal.find({
+        contactId: contact._id,
+        isDeleted: false,
+      }).lean()
+    : []
 
   return {
-    contactId: contact._id.toString(),
+    contactId: contact ? contact._id.toString() : '',
     assignedAgent,
-    deals: deals.map(d => ({
+    contactProfile: contact
+      ? {
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          email: contact.email,
+          phone: contact.phone,
+          secondaryPhone: contact.secondaryPhone,
+          address: contact.address,
+          city: contact.city,
+          state: contact.state,
+          zipCode: contact.zipCode,
+          propertyInterests: contact.propertyInterests || [],
+          dncStatus: contact.dncStatus || 'clean',
+          optedOutAt: contact.optedOutAt ? contact.optedOutAt.toISOString() : undefined,
+        }
+      : {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phone: user.phone || '',
+        },
+    deals: deals.map((d) => ({
       id: d._id.toString(),
       title: d.propertyAddress,
       value: d.dealValue,
       stage: d.stageId ? d.stageId.toString() : 'none',
     })),
   }
+}
+
+export const updateLeadPortalProfile = async (
+  user: IUser,
+  input: {
+    firstName?: string
+    lastName?: string
+    phone?: string
+    secondaryPhone?: string
+    address?: string
+    city?: string
+    state?: string
+    zipCode?: string
+    propertyInterests?: string[]
+    dncStatus?: 'clean' | 'opted_out'
+  }
+): Promise<LeadPortalDto> => {
+  if (user.role !== 'lead') {
+    throw new AppError('Only leads can access client portal settings', 403)
+  }
+
+  if (input.firstName) user.firstName = input.firstName.trim()
+  if (input.lastName) user.lastName = input.lastName.trim()
+  if (input.phone) user.phone = input.phone.trim()
+  await user.save()
+
+  let contact = user.contactId ? await Contact.findById(user.contactId) : null
+  if (!contact && user.email) {
+    contact = await Contact.findOne({ email: user.email.toLowerCase(), isDeleted: false })
+  }
+
+  if (contact) {
+    if (input.firstName) contact.firstName = input.firstName.trim()
+    if (input.lastName) contact.lastName = input.lastName.trim()
+    if (input.phone) contact.phone = input.phone.trim()
+    if (input.secondaryPhone !== undefined) contact.secondaryPhone = input.secondaryPhone
+    if (input.address !== undefined) contact.address = input.address
+    if (input.city !== undefined) contact.city = input.city
+    if (input.state !== undefined) contact.state = input.state
+    if (input.zipCode !== undefined) contact.zipCode = input.zipCode
+    if (input.propertyInterests !== undefined) contact.propertyInterests = input.propertyInterests
+    if (input.dncStatus !== undefined) {
+      contact.dncStatus = input.dncStatus
+      contact.optedOutAt = input.dncStatus === 'opted_out' ? new Date() : undefined
+    }
+    await contact.save()
+  }
+
+  return getLeadPortal(user)
 }

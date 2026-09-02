@@ -8,6 +8,7 @@ import {
   addNote,
   getActivities,
   bulkAction,
+  getPortalInvite,
 } from './contact.controller.js'
 import { authenticate } from '../../middleware/authenticate.js'
 import { authorize } from '../../middleware/authorize.js'
@@ -63,5 +64,9 @@ router.post('/:id/notes', validate(addNoteSchema), addNote)
 
 // Get paginated activity timeline for contact
 router.get('/:id/activities', getActivities)
+
+// VIP Lead Portal invitation generation and WhatsApp details
+router.get('/:id/portal-invite', getPortalInvite)
+router.post('/:id/portal-invite', getPortalInvite)
 
 export const contactRoutes = router

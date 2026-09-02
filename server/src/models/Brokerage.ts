@@ -61,7 +61,7 @@ const brokerageSchema = new Schema<IBrokerage>(
     },
     whatsappConfig: {
       wabaId: { type: String, trim: true },
-      phoneNumberId: { type: String, trim: true, sparse: true },
+      phoneNumberId: { type: String, trim: true },
       displayPhoneNumber: { type: String, trim: true },
       accessTokenEncrypted: { type: String, select: false },
       qualityRating: {

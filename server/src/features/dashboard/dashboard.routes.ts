@@ -13,5 +13,6 @@ router.get('/leads-over-time', dashboardController.getLeadsOverTime)
 router.get('/pipeline-summary', dashboardController.getPipelineSummary)
 router.get('/activity-feed', dashboardController.getActivityFeed)
 router.get('/lead-portal', dashboardController.getLeadPortal)
+router.patch('/lead-portal/profile', dashboardController.updateLeadPortalProfile)
 
 export default router

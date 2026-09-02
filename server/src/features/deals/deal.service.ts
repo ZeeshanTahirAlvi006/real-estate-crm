@@ -79,33 +79,32 @@ export const createDeal = async (
   // Validate pipeline exists and belongs to brokerage
   const pipeline = await Pipeline.findById(data.pipelineId)
   if (!pipeline) throw new AppError('Pipeline not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyBrokerageAccess(caller, pipeline.brokerageId)) {
-    throw new AppError('Access denied to this pipeline', HTTP_STATUS.FORBIDDEN)
+
+  // Enforce brokerage restriction: Users (including Super Admins) cannot create deals in someone else's brokerage
+  if (caller.brokerageId && caller.brokerageId.toString() !== pipeline.brokerageId.toString()) {
+    throw new AppError('You cannot create deals in someone else\'s brokerage. The selected pipeline belongs to another brokerage.', HTTP_STATUS.FORBIDDEN)
   }
 
-  const targetBrokerageId = pipeline.brokerageId
+  const targetBrokerageId = caller.brokerageId || pipeline.brokerageId
 
   // Validate stage exists in the pipeline
   const stage = pipeline.stages.find((s) => s._id.toString() === data.stageId)
   if (!stage) throw new AppError('Stage not found in this pipeline', HTTP_STATUS.BAD_REQUEST)
 
-  // Validate contact exists
+  // Validate contact exists and belongs to caller's brokerage
   const contact = await Contact.findById(data.contactId)
   if (!contact) throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
+  if (caller.brokerageId && contact.brokerageId.toString() !== caller.brokerageId.toString()) {
+    throw new AppError('The selected contact does not belong to your brokerage', HTTP_STATUS.BAD_REQUEST)
+  }
 
-  // Validate assigned agent exists and is active
+  // Validate assigned agent exists, is active, and belongs to caller's brokerage
   const agent = await User.findById(data.assignedAgentId)
   if (!agent || !agent.isActive) {
     throw new AppError('Assigned agent not found or inactive', HTTP_STATUS.BAD_REQUEST)
   }
-
-  const isBrokerageMatch =
-    agent.brokerageId.toString() === targetBrokerageId.toString() ||
-    agent.role === USER_ROLES.SUPER_ADMIN ||
-    caller.role === USER_ROLES.SUPER_ADMIN
-
-  if (!isBrokerageMatch) {
-    throw new AppError('Assigned agent does not belong to the selected pipeline brokerage', HTTP_STATUS.BAD_REQUEST)
+  if (caller.brokerageId && agent.brokerageId.toString() !== caller.brokerageId.toString()) {
+    throw new AppError('Assigned agent does not belong to your brokerage', HTTP_STATUS.BAD_REQUEST)
   }
 
   const deal = await Deal.create({

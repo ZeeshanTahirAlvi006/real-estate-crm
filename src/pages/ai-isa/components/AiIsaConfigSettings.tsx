@@ -211,8 +211,8 @@ export const AiIsaConfigSettings: React.FC = () => {
               <h4 className="text-sm font-bold text-foreground">Inbound Auto-Reply Channels</h4>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              {(['sms', 'whatsapp', 'email'] as const).map((channel) => {
+            <div className="grid grid-cols-2 gap-2">
+              {(['whatsapp', 'email'] as const).map((channel) => {
                 const isSelected = formData.autoReplyChannels?.includes(channel)
                 return (
                   <button
@@ -224,7 +224,7 @@ export const AiIsaConfigSettings: React.FC = () => {
                         : 'bg-muted/20 border-border/60 text-muted-foreground hover:bg-muted/40'
                       }`}
                   >
-                    <span className="uppercase text-[11px] tracking-wider">{channel}</span>
+                    <span className="capitalize text-xs tracking-wider">{channel === 'whatsapp' ? 'WhatsApp' : 'Email'}</span>
                     <span className="text-[10px] font-normal opacity-80">
                       {isSelected ? 'Enabled' : 'Disabled'}
                     </span>

@@ -1200,9 +1200,9 @@ server/src/jobs/reactivation.job.ts
 
 ---
 
-### Sprint 14 — Communication Hub (Email/SMS Abstraction + Opt-Out)
+### Sprint 14 — Communication Hub (WhatsApp Cloud API + Email + Opt-Out)
 
-**Goal:** Communication provider abstraction layer, opt-out engine, DNC check stubs.
+**Goal:** Communication provider abstraction layer, WhatsApp & Email focus, opt-out engine, DNC check stubs.
 
 #### Files Created:
 ```
@@ -1212,18 +1212,20 @@ server/src/features/communication/comm.routes.ts
 server/src/features/communication/comm.validators.ts
 server/src/features/communication/comm.types.ts
 server/src/features/communication/providers/email.provider.ts
-server/src/features/communication/providers/sms.provider.ts
 server/src/features/communication/providers/whatsapp.provider.ts
-server/src/features/communication/providers/voice.provider.ts
+server/src/features/communication/providers/sms.provider.ts (Backend)
+server/src/features/communication/providers/voice.provider.ts (Backend)
 ```
 
 #### Key Deliverables:
 - **Provider abstraction pattern:**
   - `ICommunicationProvider` interface: `send(to, message, options)`, `getStatus(messageId)`, `handleWebhook(payload)`
-  - Email provider: SendGrid adapter (configured later) + mock provider for demo
-  - SMS provider: Twilio adapter + mock provider
-  - WhatsApp provider: Meta Cloud API adapter + mock provider
-  - Voice provider: Twilio Voice adapter + mock provider
+  - Email provider: Nodemailer with zero-card Ethereal sandbox + SMTP adapter
+  - WhatsApp provider: Meta Cloud API adapter
+  - SMS & Voice providers: Twilio adapters with zero-card developer simulation mode (Backend)
+- **Frontend Focus:**
+  - Real-time WhatsApp Cloud API and Email (SMTP/IMAP) are the primary frontend channels.
+  - SMS and cellular voice controls are scoped out from frontend UI components for a streamlined, WhatsApp-first experience.
 - **Opt-out engine:**
   - Auto-detect STOP/UNSUBSCRIBE/QUIT/CANCEL/OPT-OUT in inbound messages
   - Immediately set contact's dncStatus = 'opted_out'
@@ -1231,33 +1233,34 @@ server/src/features/communication/providers/voice.provider.ts
   - `POST /api/communication/opt-out` — manual opt-out
   - `POST /api/communication/opt-back-in` — re-consent (with double-opt-in)
 - **DNC check stubs:**
-  - `POST /api/compliance/dnc-check` — check phone against DNC registry (mock for now, real FTC API later)
+  - `POST /api/compliance/dnc-check` — check phone against DNC registry
   - Pre-send middleware: checks DNC status before any outbound
 - Communication endpoints:
-  - `POST /api/communication/send` — unified send (email/sms/whatsapp)
+  - `POST /api/communication/send` — unified send (whatsapp/email)
   - `GET /api/communication/templates` — quick reply templates CRUD
 
 #### Acceptance Criteria:
-- [x] Send via any channel routes through correct provider
-- [x] Mock provider logs to console + creates message record
+- [x] Send via WhatsApp and Email routes through correct provider
+- [x] Mock and developer sandbox modes log to console + create message records
 - [x] "STOP" inbound auto-sets dncStatus and blocks future sends
 - [x] DNC check prevents sending to flagged numbers
-- [x] Providers swappable via config (no code changes)
+- [x] Frontend UI focuses on WhatsApp and Email without cellular SMS/Voice clutter
 
 ---
 
-### Sprint 15 — Dialer Backend + Call Logging
+### Sprint 15 — Dialer Backend & Telephony Architecture ⚙️ (Backend Infrastructure)
 
-**Goal:** WebRTC dialer backend, call session management, recording stubs, call disposition logging.
+**Goal:** WebRTC & telephony backend models, queue management, call disposition logging, and voicemail drop library.
 
 #### Files Created:
 ```
 server/src/models/CallLog.ts
+server/src/models/DialerQueueItem.ts
+server/src/models/VoicemailDrop.ts
 server/src/features/dialer/dialer.controller.ts
 server/src/features/dialer/dialer.service.ts
 server/src/features/dialer/dialer.routes.ts
 server/src/features/dialer/dialer.validators.ts
-server/src/features/dialer/dialer.socket.ts
 server/src/features/dialer/dialer.types.ts
 ```
 
@@ -1266,63 +1269,53 @@ server/src/features/dialer/dialer.types.ts
   - `GET /api/dialer/queue` — get dialer queue (contacts to call, ordered by lead score)
   - `POST /api/dialer/queue` — add contacts to queue
   - `DELETE /api/dialer/queue/:contactId` — remove from queue
-  - `POST /api/dialer/queue/smart-populate` — auto-populate from smart list
-- Call session endpoints:
-  - `POST /api/dialer/call` — initiate call (generates Twilio token or mock)
+- Call session endpoints & logging:
+  - `POST /api/dialer/call` — initiate call (generates Twilio token or sandbox call)
   - `POST /api/dialer/call/:id/end` — end call with disposition
-  - `POST /api/dialer/call/:id/voicemail-drop` — drop pre-recorded voicemail
-  - `GET /api/dialer/token` — get Twilio client token for WebRTC
-- Call logging:
   - `CallLog` model: contactId, duration, direction, disposition, recordingUrl, transcript, sentiment, agentName
   - `GET /api/dialer/call-logs` — paginated call history
-  - `GET /api/dialer/call-logs/:id` — call detail with transcript
 - Voicemail drops:
   - `GET/POST/DELETE /api/dialer/voicemail-drops` — manage pre-recorded voicemails
-- WebSocket events for real-time call state updates
+- *Note:* Frontend cellular dialer floating bar, parallel modals, and `/dialer` page route are scoped out in favor of WhatsApp and Email communication.
 
 #### Acceptance Criteria:
-- [ ] Queue ordered by lead score (highest first)
-- [ ] Call disposition logged with correct duration
-- [ ] Voicemail drops stored and selectable
-- [ ] WebSocket broadcasts call state changes to dialer UI
-- [ ] Mock mode works without Twilio credentials
+- [x] Queue ordered by lead score (highest first)
+- [x] Call disposition logged with correct duration
+- [x] Voicemail drops stored and selectable in backend
+- [x] Sandbox mode works without telecom credentials
 
 ---
 
-### Sprint 16 — WhatsApp Integration + Advanced Dialer Features
+### Sprint 16 — WhatsApp Cloud API + Broadcast Engine
 
-**Goal:** WhatsApp Cloud API integration, 3/5-line parallel dialer logic, local presence, transcription stubs.
+**Goal:** Meta WhatsApp Cloud API integration, automated webhook app subscription, template management, and broadcast campaigns.
 
 #### Key Deliverables:
 - WhatsApp Cloud API:
-  - Webhook receiver for inbound WhatsApp messages
-  - Template message management (text, media, interactive)
-  - Broadcast list management
-  - Media handling (images, documents, voice notes)
-  - Route inbound WhatsApp → conversation thread → notification
-- Advanced dialer:
-  - Multi-line session management (3 and 5 line modes)
-  - Local presence: select outbound caller ID from pool matching lead's area code
-  - Call transcription integration stub (Deepgram/AssemblyAI adapter)
-  - AI call summary generation post-call (uses Mistral)
+  - Webhook receiver for inbound WhatsApp messages with automated WABA subscription (`POST /{WABA_ID}/subscribed_apps`)
+  - Template message management (text, interactive buttons)
+  - WhatsApp broadcast lists (`WhatsAppBroadcast.ts`, `WhatsAppBroadcastModal.tsx`)
+  - Route inbound WhatsApp → conversation thread → real-time Socket.IO notification
+- Multi-Turn AI ISA Qualification:
+  - Sequential 5-pillar conversational qualification over WhatsApp
+  - Dynamic budget/timeline override support
 - Frontend updates:
-  - WhatsApp conversation thread in inbox
-  - Multi-line dialer UI wired to real backend
+  - WhatsApp conversation thread in Unified Inbox
+  - Self-service broker credentials modal in AI ISA settings
 
 #### Acceptance Criteria:
-- [ ] WhatsApp inbound webhook creates conversation + notifies agent
-- [ ] Template messages send via WhatsApp Cloud API (or mock)
-- [ ] 3-line dialer queues 3 contacts simultaneously
-- [ ] Post-call AI summary generated from transcript
-- [ ] Local presence selects matching area code from phone pool
+- [x] WhatsApp inbound webhook creates conversation + notifies agent
+- [x] Template messages send via WhatsApp Cloud API
+- [x] Broadcast campaigns send to contact batches
+- [x] Real-time two-way messaging works seamlessly with mobile devices
 
 ---
 
-### Sprint 17 — Transaction Engine
+### Sprint 17 — Transaction Engine & Closing Milestones ✅ COMPLETE
 
-**Goal:** Deal → transaction conversion, milestone checklists, document management.
+**Goal:** Deal → transaction conversion, milestone checklists, document management, and client portal live tracking.
 
-#### Files Created:
+#### Files Created / Implemented:
 ```
 server/src/models/Transaction.ts
 server/src/models/Document.ts
@@ -1331,31 +1324,42 @@ server/src/features/transactions/transaction.service.ts
 server/src/features/transactions/transaction.routes.ts
 server/src/features/transactions/transaction.validators.ts
 server/src/features/transactions/transaction.types.ts
+server/src/features/transactions/transaction.templates.ts
+src/types/transaction.ts
+src/store/api/transactionsApi.ts
+src/pages/transactions/TransactionsPage.tsx
+src/pages/transactions/TransactionDetailPage.tsx
+src/pages/transactions/components/MilestoneTracker.tsx
+src/pages/transactions/components/DocumentUploadModal.tsx
+src/pages/transactions/components/ConvertDealModal.tsx
+src/pages/contacts/components/SharePortalModal.tsx
+src/pages/portal/PortalSettingsPage.tsx
 ```
 
 #### Key Deliverables:
-- `Transaction` model: dealId, contactId, type (buyer/seller), milestones[], documents[], status, closingDate, brokerageId
+- `Transaction` model: `dealId`, `contactId`, `type` (buyer/seller), `milestones[]`, `documents[]`, `status`, `closingDate`, `brokerageId` with compound multi-tenant indexes.
 - Default milestone templates:
-  - Buyer: Offer → Under Contract → Inspection → Appraisal → Title Clear → Closing
-  - Seller: Listing → Showings → Offer Received → Under Contract → Closing
-- Transaction endpoints:
-  - `POST /api/transactions/from-deal/:dealId` — convert closed-won deal to transaction
-  - `GET /api/transactions` — list transactions
-  - `GET /api/transactions/:id` — detail with milestones + documents
-  - `PATCH /api/transactions/:id/milestones/:milestoneId` — update milestone (complete/skip)
-  - `POST /api/transactions/:id/documents` — upload document
-- Document management:
-  - Upload to S3 / local storage
-  - Document types: contract, disclosure, inspection report, appraisal, title commitment
-  - `GET /api/transactions/:id/documents` — list documents
-  - `DELETE /api/transactions/:id/documents/:docId` — remove document
-- Lead portal: leads can view their transaction milestones + download documents
+  - Buyer: Offer → Under Contract → Inspection → Appraisal → Title Clear → Closing (9 milestone sequence with default contingency day offsets).
+  - Seller: Listing → Showings → Offer Received → Under Contract → Closing (8 milestone sequence).
+- Transaction endpoints (`/api/transactions`):
+  - `POST /api/transactions/from-deal/:dealId` — 1-click convert closed-won or under-contract deal to escrow transaction.
+  - `GET /api/transactions` — list multi-tenant transactions with volume metrics and status filters.
+  - `GET /api/transactions/:id` — master hub with milestones + documents + financials + title partner.
+  - `PATCH /api/transactions/:id/milestones/:milestoneId` — atomic update milestone (complete/skip/in_progress) with auto-computed progress percentage.
+  - `POST /api/transactions/:id/documents` — upload/attach categorized document with client portal visibility toggle.
+  - `DELETE /api/transactions/:id/documents/:docId` — safe remove document.
+  - `GET /api/transactions/portal` — client portal endpoint returning scoped live closing milestones and visible documents.
+- Auto VIP Lead Portal Provisioning:
+  - Auto-provisions active `User` record with role `lead` on contact creation/ingestion.
+  - 1-click `SharePortalModal` generating formatted WhatsApp invitation links.
+- Client Portal Settings:
+  - `/portal/settings` with personal profile editing, TCPA self-service consent, search criteria, and password change.
 
 #### Acceptance Criteria:
-- [ ] Closed-won deal auto-generates transaction with default milestones
-- [ ] Milestone completion updates transaction progress percentage
-- [ ] Documents uploaded and retrievable
-- [ ] Lead can view their own transaction progress
+- [x] Closed-won / under-contract deal auto-generates transaction with default milestones
+- [x] Milestone completion updates transaction progress percentage atomically
+- [x] Documents uploaded, categorized, client-visibility controlled, and retrievable
+- [x] Client portal live view and dedicated settings command center fully operational
 
 ---
 

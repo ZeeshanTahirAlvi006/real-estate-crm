@@ -18,25 +18,34 @@ import {
 } from './inbox.types.js'
 
 // Format DTOs
-export const formatConversationDto = (c: IConversation): ConversationDto => ({
-  id: c._id.toString(),
-  contactId: c.contactId.toString(),
-  contactName: c.contactName,
-  contactPhone: c.contactPhone || '',
-  contactEmail: c.contactEmail,
-  contactAvatar: c.contactAvatar,
-  assignedAgentId: c.assignedAgentId?.toString(),
-  assignedAgentName: c.assignedAgentName,
-  lastMessageText: c.lastMessageText,
-  lastMessageAt: c.lastMessageAt ? c.lastMessageAt.toISOString() : new Date().toISOString(),
-  lastChannel: c.lastChannel,
-  unreadCount: c.unreadCount || 0,
-  aiIsaEnabled: c.aiIsaEnabled !== false,
-  status: c.status || 'active',
-  tags: c.tags || [],
-  createdAt: c.createdAt ? c.createdAt.toISOString() : new Date().toISOString(),
-  updatedAt: c.updatedAt ? c.updatedAt.toISOString() : new Date().toISOString(),
-})
+export const formatConversationDto = (c: any): ConversationDto => {
+  const contact = typeof c.contactId === 'object' && c.contactId ? c.contactId : null
+  const contactIdStr = contact?._id ? contact._id.toString() : (c.contactId ? c.contactId.toString() : '')
+  const leadScore = contact?.leadScore ?? c.leadScore ?? 50
+  const dncStatus = contact?.dncStatus ?? c.dncStatus ?? 'clean'
+
+  return {
+    id: c._id ? c._id.toString() : c.id,
+    contactId: contactIdStr,
+    contactName: c.contactName,
+    contactPhone: c.contactPhone || contact?.phone || '',
+    contactEmail: c.contactEmail || contact?.email,
+    contactAvatar: c.contactAvatar,
+    assignedAgentId: c.assignedAgentId?.toString(),
+    assignedAgentName: c.assignedAgentName,
+    lastMessageText: c.lastMessageText || '',
+    lastMessageAt: c.lastMessageAt ? (typeof c.lastMessageAt === 'string' ? c.lastMessageAt : new Date(c.lastMessageAt).toISOString()) : new Date().toISOString(),
+    lastChannel: c.lastChannel || 'whatsapp',
+    unreadCount: c.unreadCount || 0,
+    aiIsaEnabled: c.aiIsaEnabled !== false,
+    status: c.status || 'active',
+    tags: c.tags || [],
+    leadScore,
+    dncStatus,
+    createdAt: c.createdAt ? (typeof c.createdAt === 'string' ? c.createdAt : new Date(c.createdAt).toISOString()) : new Date().toISOString(),
+    updatedAt: c.updatedAt ? (typeof c.updatedAt === 'string' ? c.updatedAt : new Date(c.updatedAt).toISOString()) : new Date().toISOString(),
+  }
+}
 
 export const formatMessageDto = (m: IMessage): MessageDto => ({
   id: m._id.toString(),
@@ -103,7 +112,11 @@ export const listConversations = async (
   }
 
   const [conversations, total] = await Promise.all([
-    Conversation.find(filter).sort({ lastMessageAt: -1 }).limit(Number(query.limit) || 50).lean(),
+    Conversation.find(filter)
+      .populate('contactId', 'leadScore dncStatus email phone')
+      .sort({ lastMessageAt: -1 })
+      .limit(Number(query.limit) || 50)
+      .lean(),
     Conversation.countDocuments(filter),
   ])
 
@@ -347,10 +360,13 @@ export const startConversation = async (
     conv.lastMessageAt = new Date()
     await conv.save()
 
-    emitNewMessage(formatMessageDto(msg), formatConversationDto(conv))
+    emitNewMessage(
+      formatMessageDto(msg),
+      formatConversationDto({ ...conv.toObject(), contactId: contact })
+    )
   }
 
-  return formatConversationDto(conv)
+  return formatConversationDto({ ...conv.toObject(), contactId: contact })
 }
 
 // 7. AI ISA Response Simulation Engine

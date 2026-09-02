@@ -14,6 +14,8 @@ export interface ConversationDto {
   aiIsaEnabled: boolean
   status: 'active' | 'archived' | 'snoozed'
   tags: string[]
+  leadScore?: number
+  dncStatus?: string
   createdAt: string
   updatedAt: string
 }

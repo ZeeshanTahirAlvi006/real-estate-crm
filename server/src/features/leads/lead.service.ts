@@ -32,7 +32,7 @@ import {
   ParsedLead,
   RoutingResult,
 } from './lead.types.js'
-import { formatContactDto } from '../contacts/contact.service.js'
+import { formatContactDto, provisionLeadPortalUser } from '../contacts/contact.service.js'
 import { ContactResponseDto } from '../contacts/contact.types.js'
 import { emitNewLead } from '../../config/socket.js'
 import { pushNotification } from '../notifications/notification.service.js'
@@ -1087,6 +1087,13 @@ export const ingestLead = async (
         ['isNew', 'true'],
       ]),
     })
+
+    // Auto-provision VIP Lead Portal account
+    try {
+      await provisionLeadPortalUser(contact, { firstName: 'PropPulse', lastName: 'System', brokerageId } as any)
+    } catch {
+      // Non-blocking
+    }
   }
 
   // 4. Route lead to agent

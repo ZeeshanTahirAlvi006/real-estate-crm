@@ -1,8 +1,6 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, Navigate } from 'react-router-dom'
 import { Sidebar } from '@/components/sidebar/Sidebar'
 import { TopBar } from '@/components/topbar/TopBar'
-import { ParallelDialerModal } from '@/components/dialer/ParallelDialerModal'
-import { MiniDialerBar } from '@/components/dialer/MiniDialerBar'
 import { HelpGuideFloatingButton } from '@/components/help/HelpGuideFloatingButton'
 import { FeatureMaintenanceOverlay } from '@/components/shared/FeatureMaintenanceOverlay'
 import { useAppSelector } from '@/store/hooks'
@@ -10,6 +8,12 @@ import { cn } from '@/lib/utils'
 
 export function AppLayout() {
   const sidebarCollapsed = useAppSelector((state) => state.ui.sidebarCollapsed)
+  const user = useAppSelector((state) => state.auth.user)
+
+  // Redirect leads directly to client portal
+  if (user?.role === 'lead') {
+    return <Navigate to="/portal" replace />
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -26,10 +30,6 @@ export function AppLayout() {
           <FeatureMaintenanceOverlay />
         </main>
       </div>
-
-      {/* Global Telephony & Dialer Components */}
-      <ParallelDialerModal />
-      <MiniDialerBar />
 
       {/* Context-Aware Floating Help & Feature Guide */}
       <HelpGuideFloatingButton />

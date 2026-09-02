@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import {
   SparklesIcon,
-  PhoneIcon,
   DocumentChartBarIcon,
   GiftIcon,
   HomeModernIcon,
@@ -9,8 +8,6 @@ import {
   ArrowTrendingUpIcon,
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
-import { useAppDispatch } from '@/store/hooks'
-import { openDialer, startDialingSession } from '@/store/slices/dialerSlice'
 import { MicroCmaModal } from './MicroCmaModal'
 import { toast } from 'sonner'
 
@@ -68,35 +65,19 @@ const mockSellerRadarLeads: SellerRadarLead[] = [
     id: 's-4',
     name: 'David & Karen Miller',
     phone: '+1 (555) 902-3341',
-    address: '512 Oak Ridge Trail, Round Rock TX 78681',
-    propensityScore: 85,
-    estimatedValue: 560000,
-    equityAmount: 310000,
-    yearsOwned: 6.5,
-    mortgageRate: '3.75%',
-    keySignal: 'Relocation Tax Registry Match • School District Change',
+    address: '5120 River Road, Austin TX 78734',
+    propensityScore: 86,
+    estimatedValue: 920000,
+    equityAmount: 610000,
+    yearsOwned: 8.5,
+    mortgageRate: '3.45%',
+    keySignal: 'Significant Equity Spike (+44%) • Empty Nester Life Event',
   },
 ]
 
 export const SellerRadarTab: React.FC = () => {
-  const dispatch = useAppDispatch()
   const [selectedCmaLead, setSelectedCmaLead] = useState<SellerRadarLead | null>(null)
   const [isCmaOpen, setIsCmaOpen] = useState(false)
-
-  const handleCallLead = (lead: SellerRadarLead) => {
-    dispatch(openDialer({ lineCount: 1 }))
-    dispatch(
-      startDialingSession({
-        targets: [
-          {
-            id: lead.id,
-            name: lead.name,
-            phone: lead.phone,
-          },
-        ],
-      })
-    )
-  }
 
   const handleOpenCma = (lead: SellerRadarLead) => {
     setSelectedCmaLead(lead)
@@ -104,7 +85,7 @@ export const SellerRadarTab: React.FC = () => {
   }
 
   const handleSendAnniversaryUpdate = (lead: SellerRadarLead) => {
-    toast.success(`Home Anniversary Equity Update dispatched via SMS & Email to ${lead.name}`)
+    toast.success(`Home Anniversary Equity Update prepared for ${lead.name}`)
   }
 
   return (
@@ -216,7 +197,7 @@ export const SellerRadarTab: React.FC = () => {
                   className="text-xs h-8"
                 >
                   <GiftIcon className="w-3.5 h-3.5 mr-1 text-amber-500" />
-                  Anniversary Equity SMS
+                  Equity Update
                 </Button>
 
                 <Button
@@ -231,11 +212,10 @@ export const SellerRadarTab: React.FC = () => {
 
                 <Button
                   size="sm"
-                  onClick={() => handleCallLead(lead)}
-                  className="text-xs h-8 shadow-xs"
+                  onClick={() => window.open(`https://wa.me/${lead.phone.replace(/\D/g, '')}`, '_blank')}
+                  className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
                 >
-                  <PhoneIcon className="w-3.5 h-3.5 mr-1" />
-                  Call Homeowner
+                  WhatsApp
                 </Button>
               </div>
             </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { PlusIcon, MagnifyingGlassIcon, PhoneIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, MagnifyingGlassIcon, PencilSquareIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,12 +11,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useGetContactsQuery, useCreateContactMutation, useDeleteContactMutation } from '@/store/api/contactsApi'
-import { useAppDispatch } from '@/store/hooks'
-import { openDialer, startDialingSession } from '@/store/slices/dialerSlice'
+import {
+  useGetContactsQuery,
+  useCreateContactMutation,
+  useUpdateContactMutation,
+  useDeleteContactMutation,
+} from '@/store/api/contactsApi'
 import { ContactForm } from './components/ContactForm'
+import { SharePortalModal } from './components/SharePortalModal'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { cn } from '@/lib/utils'
+import type { Contact, PortalCredentials } from '@/types'
 
 function scoreColor(score: number) {
   if (score >= 80) return 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
@@ -30,35 +35,43 @@ export function ContactsPage() {
   const [sourceFilter, setSourceFilter] = useState('all')
   const [page, setPage] = useState(1)
   const [showCreate, setShowCreate] = useState(false)
+  const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [portalModalContact, setPortalModalContact] = useState<Contact | null>(null)
+  const [portalModalCredentials, setPortalModalCredentials] = useState<PortalCredentials | null>(null)
 
   const { data, isLoading } = useGetContactsQuery({ search, page, limit: 25, source: sourceFilter })
   const [createContact] = useCreateContactMutation()
+  const [updateContact] = useUpdateContactMutation()
   const [deleteContact, { isLoading: deleting }] = useDeleteContactMutation()
   const navigate = useNavigate()
-  const dispatch = useAppDispatch()
-
-  const handleCallContact = (e: React.MouseEvent, c: { id: string; firstName: string; lastName: string; phone: string }) => {
-    e.stopPropagation()
-    dispatch(openDialer({ lineCount: 1 }))
-    dispatch(
-      startDialingSession({
-        targets: [{ id: c.id, name: `${c.firstName} ${c.lastName}`, phone: c.phone }],
-      })
-    )
-  }
 
   const handleCreate = async (formData: Record<string, unknown>) => {
     try {
-      await createContact(formData).unwrap()
-      toast.success('Contact created successfully')
+      const created = await createContact(formData).unwrap()
+      toast.success('Contact created & VIP Portal provisioned!')
       setShowCreate(false)
+      if (created) {
+        setPortalModalContact(created)
+        setPortalModalCredentials(created.portalCredentials || null)
+      }
     } catch (err: any) {
       if (err?.status === 409) {
         toast.error('Contact exists: A contact with matching information already exists')
       } else {
         toast.error('Failed to create contact')
       }
+    }
+  }
+
+  const handleUpdate = async (formData: Record<string, unknown>) => {
+    if (!editingContact) return
+    try {
+      await updateContact({ id: editingContact.id, data: formData }).unwrap()
+      toast.success('Contact updated successfully')
+      setEditingContact(null)
+    } catch (err: any) {
+      toast.error(err?.data?.message || 'Failed to update contact')
     }
   }
 
@@ -92,7 +105,7 @@ export function ContactsPage() {
           <Input placeholder="Search contacts..." value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} className="pl-9" />
         </div>
         <Select value={sourceFilter} onValueChange={v => { if (v) setSourceFilter(v); setPage(1) }}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Lead Source" /></SelectTrigger>
+          <SelectTrigger className="w-45"><SelectValue placeholder="Lead Source" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Sources</SelectItem>
             <SelectItem value="Zillow">Zillow</SelectItem>
@@ -113,7 +126,7 @@ export function ContactsPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
-                <TableHead className="w-[250px]">Name</TableHead>
+                <TableHead className="w-62.5">Name</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Source</TableHead>
@@ -158,12 +171,41 @@ export function ContactsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-primary hover:bg-primary/10 hover:text-primary"
-                          onClick={(e) => handleCallContact(e, c)}
-                          title={`Call ${c.firstName}`}
+                          className="text-foreground/80 hover:bg-muted hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEditingContact(c)
+                          }}
+                          title={`Edit ${c.firstName}`}
                         >
-                          <PhoneIcon className="h-4 w-4 mr-1" />
-                          Call
+                          <PencilSquareIcon className="w-3.5 h-3.5 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-700"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setPortalModalContact(c)
+                            setPortalModalCredentials(c.portalCredentials || null)
+                          }}
+                          title={`Share VIP Portal with ${c.firstName} via WhatsApp`}
+                        >
+                          <SparklesIcon className="w-3.5 h-3.5 mr-1" />
+                          VIP Portal
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-primary hover:bg-primary/10 hover:text-primary"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate('/inbox')
+                          }}
+                          title={`Message ${c.firstName}`}
+                        >
+                          Message
                         </Button>
                         <Button
                           variant="ghost"
@@ -197,11 +239,40 @@ export function ContactsPage() {
         </div>
       )}
 
+      {/* Share VIP Portal Modal */}
+      <SharePortalModal
+        open={!!portalModalContact}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPortalModalContact(null)
+            setPortalModalCredentials(null)
+          }
+        }}
+        contact={portalModalContact}
+        initialCredentials={portalModalCredentials}
+      />
+
       {/* Create dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>Add New Contact</DialogTitle></DialogHeader>
           <ContactForm onSubmit={handleCreate} onCancel={() => setShowCreate(false)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog open={!!editingContact} onOpenChange={(open) => !open && setEditingContact(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Contact — {editingContact?.firstName} {editingContact?.lastName}</DialogTitle>
+          </DialogHeader>
+          {editingContact && (
+            <ContactForm
+              contact={editingContact}
+              onSubmit={handleUpdate}
+              onCancel={() => setEditingContact(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

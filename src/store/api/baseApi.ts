@@ -73,6 +73,8 @@ export const baseApi = createApi({
     'WhatsAppTemplates',
     'WhatsAppBroadcasts',
     'WhatsAppConfig',
+    'Portal',
+    'Activities',
   ],
   endpoints: () => ({}),
 })

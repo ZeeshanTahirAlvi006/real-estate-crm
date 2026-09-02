@@ -1,6 +1,7 @@
 import { Contact, IContact } from '../../models/Contact.js'
 import { Activity, IActivity } from '../../models/Activity.js'
-import { IUser } from '../../models/User.js'
+import { User, IUser } from '../../models/User.js'
+import { Brokerage } from '../../models/Brokerage.js'
 import {
   ContactResponseDto,
   ActivityResponseDto,
@@ -9,6 +10,7 @@ import {
   AddNoteInput,
   BulkContactActionInput,
   ListContactsQuery,
+  PortalCredentials,
 } from './contact.types.js'
 import { getPagination } from '../../utils/pagination.js'
 import { escapeRegExp } from '../../utils/sanitizer.js'
@@ -18,7 +20,11 @@ import { logAuditEvent } from '../../utils/auditLogger.js'
 import mongoose from 'mongoose'
 
 // Format Contact Mongoose document into DTO
-export const formatContactDto = (contact: IContact, agentName?: string): ContactResponseDto => ({
+export const formatContactDto = (
+  contact: IContact,
+  agentName?: string,
+  credentials?: PortalCredentials
+): ContactResponseDto => ({
   id: contact._id.toString(),
   firstName: contact.firstName,
   lastName: contact.lastName,
@@ -38,6 +44,10 @@ export const formatContactDto = (contact: IContact, agentName?: string): Contact
   notes: contact.notes,
   propertyInterests: contact.propertyInterests || [],
   socialLinks: contact.socialLinks,
+  portalUserId: contact.portalUserId?.toString(),
+  portalEnabled: contact.portalEnabled ?? false,
+  portalAccessEmail: contact.portalAccessEmail || contact.email || '',
+  portalCredentials: credentials,
   createdAt: contact.createdAt.toISOString(),
   updatedAt: contact.updatedAt.toISOString(),
   lastContactedAt: contact.lastContactedAt?.toISOString(),
@@ -185,7 +195,109 @@ const checkDuplicateContact = async (
   }
 }
 
-// Create a new contact and auto-log initial creation activity
+// Automatically provision a VIP Client Portal User account for a contact
+export const provisionLeadPortalUser = async (
+  contact: IContact,
+  caller: IUser,
+  customPassword?: string
+): Promise<PortalCredentials> => {
+  const brokerageId = contact.brokerageId
+
+  // Determine portal login email
+  let portalEmail = (contact.email || '').trim().toLowerCase()
+  if (!portalEmail) {
+    const cleanDigits = (contact.phone || '').replace(/\D/g, '')
+    portalEmail = `client.${cleanDigits || contact._id.toString()}@portal.proppulse.com`
+  }
+
+  // Generate temporary password
+  const tempPassword = customPassword || `Client!${Math.floor(1000 + Math.random() * 9000)}`
+
+  // Check if a user account already exists with this contactId or email
+  let portalUser = await User.findOne({
+    $or: [{ contactId: contact._id }, { email: portalEmail }],
+  })
+
+  if (portalUser) {
+    if (!portalUser.contactId) portalUser.contactId = contact._id
+    portalUser.password = tempPassword
+    portalUser.mustChangePassword = true
+    portalUser.isActive = true
+    await portalUser.save()
+  } else {
+    portalUser = await User.create({
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      email: portalEmail,
+      password: tempPassword,
+      role: USER_ROLES.LEAD,
+      brokerageId,
+      contactId: contact._id,
+      phone: contact.phone,
+      isActive: true,
+      mustChangePassword: true,
+    })
+  }
+
+  // Update contact with portal linkage
+  contact.portalUserId = portalUser._id
+  contact.portalEnabled = true
+  contact.portalAccessEmail = portalEmail
+  await contact.save()
+
+  // Fetch brokerage details for branded message
+  const brokerage = await Brokerage.findById(brokerageId)
+  const brokerageName = brokerage?.name || 'PropPulse Real Estate'
+  const agentName = `${caller.firstName} ${caller.lastName}`.trim() || 'Your Dedicated Advisor'
+
+  // Construct URLs
+  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+  const portalUrl = `${baseUrl}/portal`
+  const loginUrl = `${baseUrl}/login`
+
+  // Format professional WhatsApp invite message
+  const whatsappInviteMessage = `Assalam-o-Alaikum ${contact.firstName}! 👋
+
+Welcome to *${brokerageName}*. 
+
+We have activated your private *VIP Client Portal*! You can now track everything in one secure place:
+🏡 *Curated Property Matches* & MLS proposals
+📋 *Live Transaction Milestones* & Escrow closing progress
+📄 *Closing Disclosures & Documents* available for 1-click download
+💬 *Direct VIP Advisor Access*
+
+🌐 *Access Your Portal:* ${portalUrl}
+📧 *Login Email:* ${portalEmail}
+🔑 *Temporary Password:* ${tempPassword}
+
+Feel free to reply directly here on WhatsApp if you have any questions!
+— *${agentName}* | ${brokerageName}`
+
+  const cleanPhone = (contact.phone || '').replace(/\D/g, '')
+  const whatsappShareUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsappInviteMessage)}`
+
+  // Log activity
+  await Activity.create({
+    contactId: contact._id,
+    brokerageId,
+    type: 'system',
+    description: `VIP Client Portal auto-provisioned for ${contact.firstName} ${contact.lastName} (${portalEmail})`,
+    createdBy: caller._id,
+    createdByName: `${caller.firstName} ${caller.lastName}`.trim(),
+  })
+
+  return {
+    portalUserId: portalUser._id.toString(),
+    portalEmail,
+    temporaryPassword: tempPassword,
+    portalUrl,
+    loginUrl,
+    whatsappInviteMessage,
+    whatsappShareUrl,
+  }
+}
+
+// Create a new contact and auto-log initial creation activity + auto-provision VIP portal
 export const createContact = async (
   input: CreateContactInput,
   caller: IUser,
@@ -231,7 +343,36 @@ export const createContact = async (
     userAgent,
   })
 
-  return formatContactDto(contact, caller.role === USER_ROLES.AGENT ? `${caller.firstName} ${caller.lastName}` : undefined)
+  // Automatically provision VIP Lead Portal account
+  let credentials: PortalCredentials | undefined
+  try {
+    credentials = await provisionLeadPortalUser(contact, caller)
+  } catch (err: any) {
+    // Non-blocking portal provisioning fallback
+  }
+
+  const agentName = caller.role === USER_ROLES.AGENT ? `${caller.firstName} ${caller.lastName}` : undefined
+  return formatContactDto(contact, agentName, credentials)
+}
+
+// Retrieve or regenerate VIP Portal invite credentials for a contact
+export const getOrGeneratePortalInvite = async (
+  contactId: string,
+  caller: IUser,
+  customPassword?: string
+): Promise<PortalCredentials> => {
+  const contact = await Contact.findOne({
+    _id: contactId,
+    brokerageId: caller.brokerageId,
+    isDeleted: false,
+  })
+
+  if (!contact) {
+    throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
+  }
+
+  verifyContactAccess(contact, caller)
+  return await provisionLeadPortalUser(contact, caller, customPassword)
 }
 
 // Verify caller permission to view/modify a specific contact

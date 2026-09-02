@@ -13,6 +13,8 @@ export type ActivityType =
   | 'lead_routed'
   | 'lead_escalated'
   | 'deal_created'
+  | 'deal_stage_changed'
+  | 'transaction_created'
   | 'contact_merged'
 
 export interface IActivity extends Document {
@@ -43,7 +45,23 @@ const activitySchema = new Schema<IActivity>(
     },
     type: {
       type: String,
-      enum: ['call', 'email', 'sms', 'note', 'stage_change', 'whatsapp', 'meeting', 'system', 'lead_reinquiry', 'lead_routed', 'lead_escalated', 'deal_created', 'contact_merged'],
+      enum: [
+        'call',
+        'email',
+        'sms',
+        'note',
+        'stage_change',
+        'whatsapp',
+        'meeting',
+        'system',
+        'lead_reinquiry',
+        'lead_routed',
+        'lead_escalated',
+        'deal_created',
+        'deal_stage_changed',
+        'transaction_created',
+        'contact_merged',
+      ],
       required: [true, 'Activity type is required'],
       index: true,
     },

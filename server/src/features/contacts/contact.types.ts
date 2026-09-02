@@ -1,6 +1,16 @@
 import { ContactStatus, ISocialLinks } from '../../models/Contact.js'
 import { ActivityType } from '../../models/Activity.js'
 
+export interface PortalCredentials {
+  portalUserId: string
+  portalEmail: string
+  temporaryPassword?: string
+  portalUrl: string
+  loginUrl: string
+  whatsappInviteMessage: string
+  whatsappShareUrl: string
+}
+
 export interface ContactResponseDto {
   id: string
   firstName: string
@@ -21,6 +31,10 @@ export interface ContactResponseDto {
   notes?: string
   propertyInterests: string[]
   socialLinks?: ISocialLinks
+  portalUserId?: string
+  portalEnabled?: boolean
+  portalAccessEmail?: string
+  portalCredentials?: PortalCredentials
   createdAt: string
   updatedAt: string
   lastContactedAt?: string

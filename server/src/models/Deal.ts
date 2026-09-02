@@ -13,6 +13,8 @@ export interface IDeal extends Document {
   assignedAgentName: string // denormalized
   priority: DealPriority
   stageEnteredAt: Date // when deal entered current stage
+  isConvertedToEscrow?: boolean
+  transactionId?: mongoose.Types.ObjectId
   notes: string
   brokerageId: mongoose.Types.ObjectId
   createdBy: mongoose.Types.ObjectId
@@ -77,6 +79,15 @@ const dealSchema = new Schema<IDeal>(
     stageEnteredAt: {
       type: Date,
       default: Date.now,
+    },
+    isConvertedToEscrow: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    transactionId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Transaction',
     },
     notes: {
       type: String,

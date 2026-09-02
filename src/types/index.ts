@@ -1,5 +1,15 @@
 import type { UserRole } from './auth'
 
+export interface PortalCredentials {
+  portalUserId: string
+  portalEmail: string
+  temporaryPassword?: string
+  portalUrl: string
+  loginUrl: string
+  whatsappInviteMessage: string
+  whatsappShareUrl: string
+}
+
 // ── Contact ──────────────────────────────────────────
 export interface Contact {
   id: string
@@ -25,6 +35,10 @@ export interface Contact {
     facebook?: string
     instagram?: string
   }
+  portalUserId?: string
+  portalEnabled?: boolean
+  portalAccessEmail?: string
+  portalCredentials?: PortalCredentials
   createdAt: string
   updatedAt: string
   lastContactedAt?: string
@@ -234,6 +248,8 @@ export interface Deal {
   priority: DealPriority
   daysInStage: number
   stageEnteredAt?: string
+  isConvertedToEscrow?: boolean
+  transactionId?: string
   notes?: string
   createdAt: string
   updatedAt: string

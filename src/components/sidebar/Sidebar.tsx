@@ -2,16 +2,15 @@ import {
   HomeIcon,
   UserGroupIcon,
   RectangleStackIcon,
+  DocumentCheckIcon,
   FunnelIcon,
   SignalIcon,
   ShieldCheckIcon,
   Cog6ToothIcon,
   ChevronLeftIcon,
-
   ChevronRightIcon,
   ArrowRightStartOnRectangleIcon,
   ChatBubbleLeftRightIcon,
-  PhoneIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
@@ -43,8 +42,8 @@ const mainNavItems: NavItemDef[] = [
   { to: '/dashboard', icon: <HomeIcon className="h-5 w-5" />, label: 'Dashboard', badge: 'Live', badgeVariant: 'live', permission: 'viewDashboard' },
   { to: '/contacts', icon: <UserGroupIcon className="h-5 w-5" />, label: 'Contacts', badge: 'Live', badgeVariant: 'live', permission: 'manageContacts' },
   { to: '/pipeline', icon: <RectangleStackIcon className="h-5 w-5" />, label: 'Pipeline', badge: 'Live', badgeVariant: 'live', featureKey: 'deals_pipeline', permission: 'managePipeline' },
-  { to: '/dialer', icon: <PhoneIcon className="h-5 w-5" />, label: 'Parallel Dialer', badge: 'Live', badgeVariant: 'live', featureKey: 'dialer', permission: 'manageContacts' },
-  { to: '/inbox', icon: <ChatBubbleLeftRightIcon className="h-5 w-5" />, label: 'Inbox', badge: 'Sprint 12', featureKey: 'ai_chatbot', permission: 'manageContacts' },
+  { to: '/transactions', icon: <DocumentCheckIcon className="h-5 w-5" />, label: 'Transactions', badge: 'Sprint 17', badgeVariant: 'live', permission: 'managePipeline' },
+  { to: '/inbox', icon: <ChatBubbleLeftRightIcon className="h-5 w-5" />, label: 'Inbox', badge: 'Live', badgeVariant: 'live', featureKey: 'ai_chatbot', permission: 'manageContacts' },
   { to: '/smart-lists', icon: <FunnelIcon className="h-5 w-5" />, label: 'Smart Lists', badge: 'Sprint 10', permission: 'manageSmartLists' },
 ]
 

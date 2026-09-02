@@ -3,24 +3,22 @@ import type { Deal, Pipeline, PipelineStage } from '@/types'
 import {
   XMarkIcon,
   PhoneIcon,
-  ChatBubbleLeftRightIcon,
   CheckCircleIcon,
   CalculatorIcon,
   BuildingOfficeIcon,
+  BuildingOffice2Icon,
   CalendarIcon,
   TrashIcon,
   PencilSquareIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   ClockIcon,
-
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { useAppDispatch } from '@/store/hooks'
-import { openDialer, startDialingSession } from '@/store/slices/dialerSlice'
 import { useGetContactActivityQuery } from '@/store/api/contactsApi'
+import { ConvertDealModal } from '@/pages/transactions/components/ConvertDealModal'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -55,9 +53,9 @@ export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
   onRequestStageMove,
   onOpenCalculator,
 }) => {
-  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const [checklist, setChecklist] = useState(defaultChecklist)
+  const [convertOpen, setConvertOpen] = useState(false)
 
   const { data: activities = [] } = useGetContactActivityQuery(deal?.contactId || '', {
     skip: !deal?.contactId,
@@ -70,21 +68,6 @@ export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
   const currentStage = sortedStages[currentStageIndex]
   const nextStage = currentStageIndex >= 0 && currentStageIndex < sortedStages.length - 1 ? sortedStages[currentStageIndex + 1] : null
   const prevStage = currentStageIndex > 0 ? sortedStages[currentStageIndex - 1] : null
-
-  const handleCall = () => {
-    dispatch(openDialer({ lineCount: 1 }))
-    dispatch(
-      startDialingSession({
-        targets: [
-          {
-            id: deal.contactId,
-            name: deal.contactName,
-            phone: '+1 (555) 234-5678',
-          },
-        ],
-      })
-    )
-  }
 
   const toggleChecklistItem = (id: string) => {
     setChecklist((prev) =>
@@ -229,23 +212,55 @@ export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
           </div>
         )}
 
-        {/* Quick Communication Actions */}
-        <div className="grid grid-cols-2 gap-2">
-          <Button size="sm" onClick={handleCall} className="shadow-xs font-semibold">
-            <PhoneIcon className="w-4 h-4 mr-1.5" />
-            Call Client
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              navigate('/inbox')
-              onClose()
-            }}
-          >
-            <ChatBubbleLeftRightIcon className="w-4 h-4 mr-1.5" />
-            Send SMS / Email
-          </Button>
+        {/* Quick Communication Actions & Escrow Conversion */}
+        <div className="space-y-2">
+          {deal.isConvertedToEscrow ? (
+            <Button
+              size="sm"
+              onClick={() => {
+                navigate('/transactions')
+                onClose()
+              }}
+              className="w-full shadow-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+            >
+              <CheckCircleIcon className="w-4 h-4" />
+              <span>In Escrow • View Milestone Hub</span>
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => setConvertOpen(true)}
+              className="w-full shadow-xs font-semibold bg-primary text-primary-foreground gap-1.5"
+            >
+              <BuildingOffice2Icon className="w-4 h-4" />
+              <span>Open Escrow & Track Closing</span>
+            </Button>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                navigate('/inbox')
+                onClose()
+              }}
+              className="shadow-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+              title="Open WhatsApp Voice Call & Chat"
+            >
+              <PhoneIcon className="w-4 h-4 mr-1.5" />
+              WhatsApp Call
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigate('/inbox')
+                onClose()
+              }}
+            >
+              Open Inbox Thread
+            </Button>
+          </div>
         </div>
 
         {/* Property & Agent Details */}
@@ -384,6 +399,15 @@ export const DealDetailDrawer: React.FC<DealDetailDrawerProps> = ({
           Close
         </Button>
       </div>
+
+      {/* Convert to Escrow Transaction Modal */}
+      {deal && (
+        <ConvertDealModal
+          deal={deal}
+          open={convertOpen}
+          onOpenChange={setConvertOpen}
+        />
+      )}
     </div>
   )
 }

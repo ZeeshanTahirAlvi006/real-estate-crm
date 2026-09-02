@@ -1,5 +1,5 @@
 import { baseApi } from './baseApi'
-import type { Contact, ActivityItem } from '@/types'
+import type { Contact, ActivityItem, PortalCredentials } from '@/types'
 
 interface ApiResponse<T> {
   success: boolean
@@ -90,6 +90,21 @@ export const contactsApi = baseApi.injectEndpoints({
       query: (contactId) => `/contacts/${contactId}/activities`,
       transformResponse: (response: ApiResponse<ActivityItem[]>) => response.data || [],
     }),
+
+    getPortalInvite: builder.query<PortalCredentials, string>({
+      query: (contactId) => `/contacts/${contactId}/portal-invite`,
+      transformResponse: (response: ApiResponse<PortalCredentials>) => response.data,
+    }),
+
+    generatePortalInvite: builder.mutation<PortalCredentials, { contactId: string; customPassword?: string }>({
+      query: ({ contactId, customPassword }) => ({
+        url: `/contacts/${contactId}/portal-invite`,
+        method: 'POST',
+        body: { customPassword },
+      }),
+      transformResponse: (response: ApiResponse<PortalCredentials>) => response.data,
+      invalidatesTags: (_result, _error, { contactId }) => [{ type: 'ContactDetail', id: contactId }],
+    }),
   }),
 })
 
@@ -100,4 +115,6 @@ export const {
   useUpdateContactMutation,
   useDeleteContactMutation,
   useGetContactActivityQuery,
+  useGetPortalInviteQuery,
+  useGeneratePortalInviteMutation,
 } = contactsApi

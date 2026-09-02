@@ -35,10 +35,9 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   onOpenBroadcast,
 }) => {
   const channelTabs = [
-    { id: 'all', label: 'All Channels' },
+    { id: 'all', label: 'All' },
     { id: 'whatsapp', label: 'WhatsApp' },
-    { id: 'sms', label: 'SMS' },
-    { id: 'email', label: 'Email' },
+    { id: 'email', label: 'Gmail' },
   ]
 
   const formatTimestamp = (dateStr: string) => {
@@ -213,7 +212,17 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                        (thread.leadScore ?? 50) >= 80
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                          : (thread.leadScore ?? 50) >= 60
+                            ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                            : (thread.leadScore ?? 50) >= 40
+                              ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                              : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
+                      }`}
+                    >
                       Score {thread.leadScore ?? 50}
                     </span>
                     {(thread.unreadCount || 0) > 0 && (

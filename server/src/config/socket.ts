@@ -162,3 +162,21 @@ export const emitNewLead = (lead: any, brokerageId: string, assignedAgentId?: st
     io.to(`user:${assignedAgentId}`).emit('lead:assigned', { lead })
   }
 }
+
+// Emit transaction created
+export const emitTransactionCreated = (transaction: any, brokerageId: string, assignedAgentId?: string) => {
+  if (!io) return
+  io.to(`brokerage:${brokerageId}`).emit('transaction:created', { transaction })
+  if (assignedAgentId) {
+    io.to(`user:${assignedAgentId}`).emit('transaction:assigned', { transaction })
+  }
+}
+
+// Emit transaction updated
+export const emitTransactionUpdated = (transaction: any, brokerageId: string, assignedAgentId?: string) => {
+  if (!io) return
+  io.to(`brokerage:${brokerageId}`).emit('transaction:updated', { transaction })
+  if (assignedAgentId) {
+    io.to(`user:${assignedAgentId}`).emit('transaction:updated', { transaction })
+  }
+}

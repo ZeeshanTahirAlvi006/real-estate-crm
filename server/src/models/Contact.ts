@@ -35,6 +35,9 @@ export interface IContact extends Document {
   inquiryCount: number
   dncStatus?: 'clean' | 'dnc_federal' | 'dnc_state' | 'opted_out' | 'unverified'
   optedOutAt?: Date
+  portalUserId?: mongoose.Types.ObjectId
+  portalEnabled?: boolean
+  portalAccessEmail?: string
   isDeleted: boolean
   createdAt: Date
   updatedAt: Date
@@ -166,6 +169,20 @@ const contactSchema = new Schema<IContact>(
       type: Number,
       default: 1,
       min: 1,
+    },
+    portalUserId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
+    portalEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    portalAccessEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
     },
     isDeleted: {
       type: Boolean,

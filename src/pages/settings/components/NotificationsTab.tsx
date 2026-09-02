@@ -7,14 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 export function NotificationsTab() {
   const [prefs, setPrefs] = useState([
-    { type: 'new_lead', label: 'New Inbound Lead Assigned', email: true, push: true, sms: false },
-    { type: 'stage_change', label: 'Pipeline Stage Change', email: true, push: true, sms: false },
-    { type: 'data_health', label: 'Data Cleanliness & Duplicate Alerts', email: true, push: false, sms: false },
-    { type: 'team_activity', label: 'Team Member Call & Note Logs', email: false, push: true, sms: false },
-    { type: 'system', label: 'Security & Maintenance Broadcasts', email: true, push: false, sms: false },
+    { type: 'new_lead', label: 'New Inbound Lead Assigned', email: true, push: true },
+    { type: 'stage_change', label: 'Pipeline Stage Change', email: true, push: true },
+    { type: 'data_health', label: 'Data Cleanliness & Duplicate Alerts', email: true, push: false },
+    { type: 'team_activity', label: 'Team Member Note Logs & Updates', email: false, push: true },
+    { type: 'system', label: 'Security & Maintenance Broadcasts', email: true, push: false },
   ])
 
-  const togglePref = (type: string, channel: 'email' | 'push' | 'sms') => {
+  const togglePref = (type: string, channel: 'email' | 'push') => {
     setPrefs(prev => prev.map(p => p.type === type ? { ...p, [channel]: !p[channel] } : p))
   }
 
@@ -34,9 +34,8 @@ export function NotificationsTab() {
             <TableHeader>
               <TableRow className="bg-muted/30">
                 <TableHead>Notification Event</TableHead>
-                <TableHead className="text-center w-24">Email</TableHead>
-                <TableHead className="text-center w-24">Push</TableHead>
-                <TableHead className="text-center w-24">SMS</TableHead>
+                <TableHead className="text-center w-28">Email</TableHead>
+                <TableHead className="text-center w-28">Push / In-App</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -48,9 +47,6 @@ export function NotificationsTab() {
                   </TableCell>
                   <TableCell className="text-center">
                     <Switch checked={p.push} onCheckedChange={() => togglePref(p.type, 'push')} />
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Switch checked={p.sms} onCheckedChange={() => togglePref(p.type, 'sms')} />
                   </TableCell>
                 </TableRow>
               ))}

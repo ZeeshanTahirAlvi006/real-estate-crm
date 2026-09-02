@@ -1,20 +1,29 @@
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate, NavLink, useLocation } from 'react-router-dom'
 import { useTheme } from '@/providers/ThemeProvider'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { SunIcon, MoonIcon, ArrowRightStartOnRectangleIcon, SparklesIcon } from '@heroicons/react/24/outline'
+import {
+  SunIcon,
+  MoonIcon,
+  ArrowRightStartOnRectangleIcon,
+  SparklesIcon,
+  Cog6ToothIcon,
+  HomeIcon,
+} from '@heroicons/react/24/outline'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import { useLogoutMutation } from '@/store/api/authApi'
 import { baseApi } from '@/store/api/baseApi'
 import { ROLE_LABELS, ROLE_COLORS } from '@/constants/roles'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
 export function PortalLayout() {
   const { resolvedTheme, setTheme } = useTheme()
   const user = useAppSelector((state) => state.auth.user)
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const [logoutMutation] = useLogoutMutation()
 
   const toggleTheme = () => {
@@ -40,27 +49,75 @@ export function PortalLayout() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Client Portal Header */}
       <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold shadow-md shadow-primary/20">
-            <SparklesIcon className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-foreground tracking-tight">
-                {user?.brokerageName || 'PropPulse OS'}
-              </span>
-              <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
-                Client Portal
-              </Badge>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold shadow-md shadow-primary/20">
+              <SparklesIcon className="h-5 w-5" />
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Real Estate Client Experience
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-foreground tracking-tight">
+                  {user?.brokerageName || 'PropPulse OS'}
+                </span>
+                <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                  Client Portal
+                </Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Real Estate Client Experience
+              </p>
+            </div>
           </div>
+
+          {/* Navigation Tabs */}
+          <nav className="hidden sm:flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/80 text-xs">
+            <NavLink
+              to="/portal"
+              end
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all',
+                  isActive
+                    ? 'bg-background text-foreground shadow-xs font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )
+              }
+            >
+              <HomeIcon className="w-3.5 h-3.5" />
+              <span>My Journey</span>
+            </NavLink>
+            <NavLink
+              to="/portal/settings"
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all',
+                  isActive
+                    ? 'bg-background text-foreground shadow-xs font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )
+              }
+            >
+              <Cog6ToothIcon className="w-3.5 h-3.5" />
+              <span>Settings</span>
+            </NavLink>
+          </nav>
         </div>
 
         {/* User profile and Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/portal/settings')}
+            className={cn(
+              'h-9 w-9 text-muted-foreground hover:text-foreground sm:hidden',
+              location.pathname === '/portal/settings' && 'text-primary bg-primary/10'
+            )}
+            title="Settings"
+          >
+            <Cog6ToothIcon className="h-5 w-5" />
+          </Button>
+
           <Button
             variant="ghost"
             size="icon"

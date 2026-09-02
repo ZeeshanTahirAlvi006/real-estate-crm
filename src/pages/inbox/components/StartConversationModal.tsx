@@ -49,7 +49,7 @@ export const StartConversationModal: React.FC<StartConversationModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
-  const [selectedChannel, setSelectedChannel] = useState<ChannelType>('sms')
+  const [selectedChannel, setSelectedChannel] = useState<ChannelType>('whatsapp')
   const [initialMessage, setInitialMessage] = useState('')
 
   // Debounce search query
@@ -65,7 +65,7 @@ export const StartConversationModal: React.FC<StartConversationModalProps> = ({
     if (!open) {
       setSearchTerm('')
       setSelectedContact(null)
-      setSelectedChannel('sms')
+      setSelectedChannel('whatsapp')
       setInitialMessage('')
     }
   }, [open])
@@ -89,10 +89,12 @@ export const StartConversationModal: React.FC<StartConversationModalProps> = ({
   const handleSelectContact = (contact: Contact) => {
     setSelectedContact(contact)
     // Smart default channel based on available info
-    if (!contact.phone && contact.email) {
+    if (contact.phone) {
+      setSelectedChannel('whatsapp')
+    } else if (contact.email) {
       setSelectedChannel('email')
     } else {
-      setSelectedChannel('sms')
+      setSelectedChannel('whatsapp')
     }
   }
 
@@ -281,25 +283,7 @@ export const StartConversationModal: React.FC<StartConversationModalProps> = ({
             <label className="text-xs font-bold text-foreground uppercase tracking-wider">
               2. Select Channel
             </label>
-            <div className="grid grid-cols-3 gap-3">
-              {/* SMS Option */}
-              <button
-                type="button"
-                onClick={() => setSelectedChannel('sms')}
-                className={`p-3 rounded-xl border text-left transition-all flex flex-col gap-1.5 ${selectedChannel === 'sms'
-                    ? 'border-primary bg-primary/10 shadow-xs ring-1 ring-primary'
-                    : 'border-border/80 bg-card hover:bg-muted/30'
-                  }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-foreground">SMS</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
-                    Direct Text
-                  </span>
-                </div>
-                <span className="text-[11px] text-muted-foreground">Mobile text delivery</span>
-              </button>
-
+            <div className="grid grid-cols-2 gap-3">
               {/* WhatsApp Option */}
               <button
                 type="button"
@@ -338,9 +322,9 @@ export const StartConversationModal: React.FC<StartConversationModalProps> = ({
             </div>
 
             {/* Validation warning hints */}
-            {selectedContact && selectedChannel !== 'email' && !selectedContact.phone && (
+            {selectedContact && selectedChannel === 'whatsapp' && !selectedContact.phone && (
               <p className="text-xs text-destructive flex items-center gap-1 font-medium">
-                ⚠️ Warning: {selectedContact.firstName} does not have a phone number saved.
+                ⚠️ Warning: {selectedContact.firstName} does not have a phone number saved for WhatsApp.
               </p>
             )}
             {selectedContact && selectedChannel === 'email' && !selectedContact.email && (

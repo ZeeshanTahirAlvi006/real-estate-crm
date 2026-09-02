@@ -8,6 +8,7 @@ import {
   addContactNote,
   getContactActivities,
   bulkUpdateContacts,
+  getOrGeneratePortalInvite,
 } from './contact.service.js'
 import { sendSuccess, sendPaginated } from '../../utils/apiResponse.js'
 import { HTTP_STATUS } from '../../utils/constants.js'
@@ -115,6 +116,19 @@ export const bulkAction = async (req: Request, res: Response, next: NextFunction
     const { clientIp, userAgent } = getClientMeta(req)
     const result = await bulkUpdateContacts(req.body, req.user, clientIp, userAgent)
     sendSuccess(res, result, `Bulk action applied to ${result.updatedCount} contact(s)`, HTTP_STATUS.OK)
+  } catch (error) {
+    next(error)
+  }
+}
+
+// GET or POST /api/contacts/:id/portal-invite
+export const getPortalInvite = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user) return
+    const id = req.params.id as string
+    const customPassword = req.body?.customPassword
+    const invite = await getOrGeneratePortalInvite(id, req.user, customPassword)
+    sendSuccess(res, invite, 'VIP Portal invitation generated successfully', HTTP_STATUS.OK)
   } catch (error) {
     next(error)
   }

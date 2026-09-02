@@ -43,6 +43,21 @@ export interface LeadPortalDeal {
   stage: string
 }
 
+export interface LeadPortalContactProfile {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  secondaryPhone?: string
+  address?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  propertyInterests?: string[]
+  dncStatus?: string
+  optedOutAt?: string
+}
+
 export interface LeadPortalData {
   contactId: string
   assignedAgent?: {
@@ -50,6 +65,7 @@ export interface LeadPortalData {
     email: string
     phone?: string
   }
+  contactProfile?: LeadPortalContactProfile
   deals: LeadPortalDeal[]
 }
 
@@ -96,6 +112,16 @@ export const dashboardApi = baseApi.injectEndpoints({
       transformResponse: (response: ApiResponse<LeadPortalData>) => response.data,
       providesTags: ['Contacts', 'Deals'],
     }),
+
+    updateLeadPortalProfile: builder.mutation<LeadPortalData, Partial<LeadPortalContactProfile>>({
+      query: (data) => ({
+        url: '/dashboard/lead-portal/profile',
+        method: 'PATCH',
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<LeadPortalData>) => response.data,
+      invalidatesTags: ['Contacts'],
+    }),
   }),
 })
 
@@ -106,4 +132,5 @@ export const {
   useGetPipelineSummaryQuery,
   useGetActivityFeedQuery,
   useGetLeadPortalQuery,
+  useUpdateLeadPortalProfileMutation,
 } = dashboardApi

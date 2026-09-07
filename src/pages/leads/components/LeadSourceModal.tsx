@@ -21,8 +21,8 @@ import {
   useCreateLeadSourceMutation,
   useUpdateLeadSourceMutation,
 } from '@/store/api/leadsApi'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { toast } from 'sonner'
-import { PlusIcon, TrashIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
 import type { LeadSource, LeadSourceType } from '@/types'
 
 interface LeadSourceModalProps {
@@ -32,13 +32,13 @@ interface LeadSourceModalProps {
 }
 
 const SOURCE_OPTIONS: { type: LeadSourceType; label: string; icon: string; desc: string }[] = [
-  { type: 'zillow', label: 'Zillow Premier Agent', icon: '🔵', desc: 'Inbound buyer & seller webhooks' },
-  { type: 'realtor', label: 'Realtor.com Leads', icon: '🔴', desc: 'Listing inquiry payloads' },
-  { type: 'meta_ads', label: 'Meta Lead Ads (FB/IG)', icon: '🟣', desc: 'Instant Form submissions' },
-  { type: 'google_ads', label: 'Google Ads', icon: '🟢', desc: 'Click-to-lead & form extensions' },
-  { type: 'website', label: 'Website Capture Widget', icon: '🌐', desc: 'Public embeddable capture form' },
-  { type: 'webhook', label: 'Custom Universal Webhook', icon: '⚡', desc: 'Generic JSON payload receiver' },
-  { type: 'manual', label: 'Manual Intake', icon: '📝', desc: 'Direct agent/staff lead input' },
+  { type: 'zillow', label: 'Zillow', icon: 'home', desc: 'Inbound buyer webhooks' },
+  { type: 'realtor', label: 'Realtor.com', icon: 'apartment', desc: 'Listing inquiry payloads' },
+  { type: 'meta_ads', label: 'Meta Ads', icon: 'campaign', desc: 'Instant form leads' },
+  { type: 'google_ads', label: 'Google Ads', icon: 'ads_click', desc: 'Search ad leads' },
+  { type: 'website', label: 'Website Widget', icon: 'language', desc: 'Embeddable capture form' },
+  { type: 'webhook', label: 'Universal Webhook', icon: 'webhook', desc: 'Generic JSON receiver' },
+  { type: 'manual', label: 'Manual Intake', icon: 'edit_note', desc: 'Direct agent input' },
 ]
 
 export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
@@ -91,7 +91,7 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) {
-      toast.error('Please enter a source name')
+      toast.error('Source name is required')
       return
     }
 
@@ -113,7 +113,7 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
             config: { fieldMapping: mappingObj },
           },
         }).unwrap()
-        toast.success(`Lead source "${name}" updated!`)
+        toast.success(`Source "${name}" updated!`)
       } else {
         await createSource({
           name: name.trim(),
@@ -121,7 +121,7 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
           isActive,
           config: { fieldMapping: mappingObj },
         }).unwrap()
-        toast.success(`Lead source "${name}" created with secure webhook credentials!`)
+        toast.success(`Source "${name}" created!`)
       }
       onOpenChange(false)
     } catch (err: any) {
@@ -133,20 +133,20 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold">
-            {leadSource ? 'Edit Lead Source' : 'Connect New Lead Source'}
+          <DialogTitle className="text-base font-bold text-[#273338] dark:text-white">
+            {leadSource ? 'Edit Lead Source' : 'Connect Lead Source'}
           </DialogTitle>
-          <p className="text-xs text-muted-foreground">
-            Configure integration endpoints, webhook security, and parameter mappings for incoming leads.
+          <p className="text-xs text-[#75887E] dark:text-[#A0B2A6]">
+            Configure webhook credentials and parameter mappings.
           </p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {/* Source Provider Type */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">Source Provider</Label>
+            <Label className="text-xs font-semibold text-[#273338] dark:text-white">Source Provider</Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {SOURCE_OPTIONS.map((opt) => (
                 <button
@@ -158,17 +158,17 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
                       setName(opt.label)
                     }
                   }}
-                  className={`flex flex-col items-start p-2.5 rounded-xl border text-left transition-all ${
+                  className={`flex flex-col items-start p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                     type === opt.type
-                      ? 'border-primary bg-primary/10 shadow-xs ring-1 ring-primary'
-                      : 'border-border/70 hover:bg-muted/40'
+                      ? 'border-[#9CB080] bg-[#9CB080]/15 ring-1 ring-[#9CB080]'
+                      : 'border-[#D8E2D6] dark:border-[#618764]/40 hover:bg-[#EDF2EB]/50 dark:hover:bg-[#1A2E26]'
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className="text-base">{opt.icon}</span>
-                    <span className="font-semibold text-xs text-foreground truncate">{opt.label}</span>
+                    <MaterialIcon name={opt.icon} size={16} className="text-[#2B5748] dark:text-[#9CB080]" />
+                    <span className="font-bold text-xs text-[#273338] dark:text-white truncate">{opt.label}</span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{opt.desc}</span>
+                  <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] mt-0.5 line-clamp-1">{opt.desc}</span>
                 </button>
               ))}
             </div>
@@ -176,34 +176,34 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
 
           {/* Source Name */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">Source Label / Identifier</Label>
+            <Label className="text-xs font-semibold text-[#273338] dark:text-white">Source Name</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Zillow Austin Premier Ads"
+              placeholder="e.g. Zillow Premier"
               required
-              className="h-9 text-xs"
+              className="h-9 text-xs bg-white dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
             />
           </div>
 
           {/* Active Switch */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/60">
+          <div className="flex items-center justify-between p-3 rounded-xl bg-[#EDF2EB]/50 dark:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/40">
             <div>
-              <Label className="text-xs font-semibold">Active & Ingesting</Label>
-              <p className="text-[11px] text-muted-foreground">
-                When enabled, incoming webhook payloads to this source will be accepted and processed.
+              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Active Ingestion</Label>
+              <p className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+                Incoming webhook payloads will be processed.
               </p>
             </div>
             <Switch checked={isActive} onCheckedChange={setIsActive} />
           </div>
 
           {/* Custom Field Mappings */}
-          <div className="space-y-2 pt-1 border-t border-border/60">
+          <div className="space-y-2 pt-1 border-t border-[#D8E2D6] dark:border-[#618764]/40">
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-xs font-semibold">Custom Field Mappings (Optional)</Label>
-                <p className="text-[11px] text-muted-foreground">
-                  Map non-standard webhook payload keys to CRM contact fields.
+                <Label className="text-xs font-semibold text-[#273338] dark:text-white">Field Mappings</Label>
+                <p className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+                  Map payload keys to contact fields.
                 </p>
               </div>
               <Button
@@ -211,10 +211,10 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={handleAddFieldMapping}
-                className="h-7 text-xs gap-1"
+                className="h-7 text-xs gap-1 border-[#D8E2D6] dark:border-[#618764]/60"
               >
-                <PlusIcon className="w-3.5 h-3.5" />
-                Add Mapping
+                <MaterialIcon name="add" size={14} />
+                <span>Add Field</span>
               </Button>
             </div>
 
@@ -225,26 +225,26 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
                     <Input
                       value={m.sourceKey}
                       onChange={(e) => handleUpdateMapping(idx, 'sourceKey', e.target.value)}
-                      placeholder="Incoming key (e.g. buyer_email)"
-                      className="h-8 text-xs font-mono flex-1"
+                      placeholder="Payload key (e.g. buyer_email)"
+                      className="h-8 text-xs font-mono flex-1 bg-white dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                     />
-                    <span className="text-muted-foreground text-xs font-bold">→</span>
+                    <span className="text-[#75887E] dark:text-[#A0B2A6] text-xs font-bold">→</span>
                     <Select
                       value={m.targetKey}
                       onValueChange={(val) => val && handleUpdateMapping(idx, 'targetKey', val)}
                     >
-                      <SelectTrigger className="h-8 text-xs flex-1">
+                      <SelectTrigger className="h-8 text-xs flex-1 bg-white dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white">
                         <SelectValue placeholder="CRM Field" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]">
                         <SelectItem value="firstName" className="text-xs">First Name</SelectItem>
                         <SelectItem value="lastName" className="text-xs">Last Name</SelectItem>
-                        <SelectItem value="email" className="text-xs">Email Address</SelectItem>
-                        <SelectItem value="phone" className="text-xs">Phone Number</SelectItem>
-                        <SelectItem value="propertyAddress" className="text-xs">Property Address</SelectItem>
-                        <SelectItem value="propertyPrice" className="text-xs">Property Price</SelectItem>
-                        <SelectItem value="zipCode" className="text-xs">ZIP Code</SelectItem>
-                        <SelectItem value="message" className="text-xs">Inquiry Message</SelectItem>
+                        <SelectItem value="email" className="text-xs">Email</SelectItem>
+                        <SelectItem value="phone" className="text-xs">Phone</SelectItem>
+                        <SelectItem value="propertyAddress" className="text-xs">Address</SelectItem>
+                        <SelectItem value="propertyPrice" className="text-xs">Price</SelectItem>
+                        <SelectItem value="zipCode" className="text-xs">ZIP</SelectItem>
+                        <SelectItem value="message" className="text-xs">Message</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button
@@ -252,32 +252,38 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
                       variant="ghost"
                       size="icon"
                       onClick={() => handleRemoveFieldMapping(idx)}
-                      className="h-8 w-8 text-destructive hover:bg-destructive/10 shrink-0"
+                      className="h-8 w-8 text-red-600 dark:text-red-400 hover:bg-red-500/10 shrink-0"
                     >
-                      <TrashIcon className="w-4 h-4" />
+                      <MaterialIcon name="delete" size={14} />
                     </Button>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/20 border border-dashed border-border/70 text-[11px] text-muted-foreground">
-                <InformationCircleIcon className="w-4 h-4 shrink-0 text-primary" />
-                <span>The universal parser auto-detects common field names (name, email, phone, address, price, notes) automatically.</span>
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#EDF2EB]/50 dark:bg-[#1A2E26] border border-dashed border-[#D8E2D6] dark:border-[#618764]/40 text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+                <MaterialIcon name="info" size={16} className="text-[#618764] shrink-0" />
+                <span>Common fields (name, email, phone, address, price, notes) are auto-parsed.</span>
               </div>
             )}
           </div>
 
-          <DialogFooter className="pt-3 border-t border-border/60">
+          <DialogFooter className="pt-3 border-t border-[#D8E2D6] dark:border-[#618764]/40">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
+              className="border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
             >
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={isLoading} className="font-semibold">
-              {isLoading ? 'Saving...' : leadSource ? 'Save Changes' : 'Create Lead Source'}
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isLoading}
+              className="bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs h-9 px-4"
+            >
+              {isLoading ? 'Saving...' : leadSource ? 'Save Changes' : 'Connect Source'}
             </Button>
           </DialogFooter>
         </form>
@@ -285,3 +291,5 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
     </Dialog>
   )
 }
+
+export default LeadSourceModal

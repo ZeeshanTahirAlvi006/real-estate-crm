@@ -19,12 +19,16 @@ import {
   fairHousingCheckSchema,
   dncCheckSchema,
 } from './chatbot.validators.js'
+import { objectionRoutes } from './objections/objection.routes.js'
 
 const chatbotRouter = Router()
 const complianceRouter = Router()
 
 chatbotRouter.use(authenticate, tenantScope)
 complianceRouter.use(authenticate, tenantScope)
+
+// Objection Handling Copilot Engine (Sprint 23)
+chatbotRouter.use('/objections', objectionRoutes)
 
 // 1. Lead Qualification Bot (Standard JSON & SSE Token Stream)
 chatbotRouter.post('/qualify', validate(qualifyLeadSchema), qualifyHandler)

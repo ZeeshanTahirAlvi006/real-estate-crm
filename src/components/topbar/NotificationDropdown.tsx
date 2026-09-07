@@ -74,14 +74,14 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-12 z-50 w-88 rounded-xl border border-border bg-popover shadow-2xl animate-in fade-in-0 zoom-in-95 overflow-hidden"
+      className="absolute right-0 top-12 z-50 w-88 rounded-xl border border-[#D8E2D6] dark:border-[#618764] bg-white dark:bg-[#254238] shadow-2xl shadow-black/40 animate-in fade-in-0 zoom-in-95 overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-popover">
+      <div className="flex items-center justify-between border-b border-[#D8E2D6] dark:border-[#618764]/40 px-4 py-3 bg-white dark:bg-[#254238]">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
+          <h3 className="text-sm font-bold text-[#273338] dark:text-white">Notifications</h3>
           {unreadNotifications.length > 0 && (
-            <Badge variant="destructive" className="h-5 px-1.5 text-[11px] font-semibold">
+            <Badge variant="destructive" className="h-5 px-1.5 text-[11px] font-bold bg-red-500 text-white">
               {unreadNotifications.length}
             </Badge>
           )}
@@ -92,7 +92,7 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
             variant="ghost"
             size="sm"
             onClick={handleMarkAllRead}
-            className="h-7 px-2 text-xs font-medium text-primary hover:text-primary/80"
+            className="h-7 px-2 text-xs font-bold text-[#2B5748] dark:text-[#9CB080] hover:text-[#273338] dark:hover:text-white cursor-pointer"
           >
             Mark all read
           </Button>
@@ -100,15 +100,15 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
       </div>
 
       {/* Tabs Filter */}
-      <div className="flex border-b border-border bg-muted/30 px-3 py-1.5 gap-2">
+      <div className="flex border-b border-[#D8E2D6] dark:border-[#618764]/40 bg-[#EDF2EB] dark:bg-[#1A2E26] px-3 py-1.5 gap-2">
         <button
           type="button"
           onClick={() => setFilter('unread')}
           className={cn(
-            'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+            'px-2.5 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer',
             filter === 'unread'
-              ? 'bg-background text-foreground shadow-xs font-semibold'
-              : 'text-muted-foreground hover:text-foreground'
+              ? 'bg-white dark:bg-[#254238] text-[#273338] dark:text-white shadow-xs border border-[#D8E2D6] dark:border-[#618764]/50'
+              : 'text-[#4A5D54] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white'
           )}
         >
           Unread ({unreadNotifications.length})
@@ -117,10 +117,10 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
           type="button"
           onClick={() => setFilter('all')}
           className={cn(
-            'px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+            'px-2.5 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer',
             filter === 'all'
-              ? 'bg-background text-foreground shadow-xs font-semibold'
-              : 'text-muted-foreground hover:text-foreground'
+              ? 'bg-white dark:bg-[#254238] text-[#273338] dark:text-white shadow-xs border border-[#D8E2D6] dark:border-[#618764]/50'
+              : 'text-[#4A5D54] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white'
           )}
         >
           All ({notifications.length})
@@ -128,16 +128,16 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
       </div>
 
       {/* Notification List (strictly 3 displayed) */}
-      <div className="max-h-72.5 overflow-y-auto divide-y divide-border/30">
+      <div className="max-h-72.5 overflow-y-auto divide-y divide-[#D8E2D6] dark:divide-[#618764]/30">
         {displayedNotifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 mb-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] mb-2">
               <CheckCircleIcon className="h-6 w-6" />
             </div>
-            <p className="text-sm font-semibold text-foreground">
+            <p className="text-sm font-bold text-[#273338] dark:text-white">
               {filter === 'unread' ? 'All caught up!' : 'No notifications'}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-xs text-[#4A5D54] dark:text-[#A0B2A6] mt-0.5">
               {filter === 'unread'
                 ? 'No unread notifications left in queue'
                 : 'Your notification list is empty'}
@@ -156,8 +156,8 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
                 }
               }}
               className={cn(
-                'group relative flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60 cursor-pointer',
-                !n.isRead && 'bg-primary/4'
+                'group relative flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] cursor-pointer',
+                !n.isRead && 'bg-[#9CB080]/5'
               )}
             >
               {/* Type Icon */}
@@ -177,15 +177,15 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
               {/* Text Body */}
               <div className="min-w-0 flex-1 overflow-hidden pr-7">
                 <div className="flex items-center gap-1.5">
-                  <p className="truncate text-sm font-semibold text-foreground">{n.title}</p>
+                  <p className="truncate text-sm font-bold text-[#273338] dark:text-white">{n.title}</p>
                   {!n.isRead && (
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#9CB080]" />
                   )}
                 </div>
-                <p className="line-clamp-2 text-xs text-muted-foreground mt-0.5 leading-snug">
+                <p className="line-clamp-2 text-xs text-[#4A5D54] dark:text-[#A0B2A6] mt-0.5 leading-snug">
                   {n.message}
                 </p>
-                <p className="mt-1 text-[11px] text-muted-foreground/60">{timeAgo(n.createdAt)}</p>
+                <p className="mt-1 text-[11px] text-[#75887E] dark:text-[#A0B2A6]/70">{timeAgo(n.createdAt)}</p>
               </div>
 
               {/* Action */}
@@ -195,12 +195,12 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
                     type="button"
                     title="Mark as read"
                     onClick={(e) => handleMarkSingleRead(e, n.id)}
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-muted/80 text-muted-foreground hover:bg-primary hover:text-primary-foreground focus:outline-hidden transition-all shadow-xs"
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EDF2EB] dark:bg-[#1A2E26] text-[#4A5D54] dark:text-[#A0B2A6] hover:bg-[#9CB080] hover:text-[#1A2E26] focus:outline-hidden transition-all shadow-xs cursor-pointer"
                   >
                     <CheckIcon className="h-3.5 w-3.5" />
                   </button>
                 ) : (
-                  <span className="text-[10px] font-medium text-muted-foreground/50 bg-muted/40 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-bold text-[#75887E] dark:text-[#A0B2A6] bg-[#EDF2EB] dark:bg-[#1A2E26] px-1.5 py-0.5 rounded">
                     Read
                   </span>
                 )}
@@ -209,6 +209,7 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
           ))
         )}
       </div>
+
 
       {/* Footer queue status if more than 3 items exist */}
       {sourceList.length > 3 && (

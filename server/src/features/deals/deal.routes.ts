@@ -7,6 +7,8 @@ import {
   update,
   moveStage,
   remove,
+  stageDealsHandler,
+  multipleStageDealsHandler,
 } from './deal.controller.js'
 import { authenticate } from '../../middleware/authenticate.js'
 import { authorize } from '../../middleware/authorize.js'
@@ -36,6 +38,10 @@ router.use(
 
 // Kanban view (must be above /:id to avoid route collision)
 router.get('/kanban/:pipelineId', kanban)
+
+// Stage-level deal fetching (must be above /:id to avoid route collision)
+router.get('/stage/:stageId', stageDealsHandler)
+router.get('/stages', multipleStageDealsHandler)
 
 // List deals with filters + pagination
 router.get('/', validate({ query: listDealsQuerySchema }), list)

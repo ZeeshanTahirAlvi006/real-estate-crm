@@ -83,7 +83,7 @@ export const dashboardApi = baseApi.injectEndpoints({
       providesTags: ['Contacts', 'Deals', 'DataHealth'],
     }),
 
-    getLeadSources: builder.query<LeadSourceStat[], void>({
+    getDashboardLeadSources: builder.query<LeadSourceStat[], void>({
       query: () => '/dashboard/lead-sources',
       transformResponse: (response: ApiResponse<LeadSourceStat[]>) => response.data || [],
       providesTags: ['Contacts', 'Leads'],
@@ -127,7 +127,7 @@ export const dashboardApi = baseApi.injectEndpoints({
 
 export const {
   useGetDashboardKpisQuery,
-  useGetLeadSourcesQuery,
+  useGetDashboardLeadSourcesQuery,
   useGetLeadsOverTimeQuery,
   useGetPipelineSummaryQuery,
   useGetActivityFeedQuery,

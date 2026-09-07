@@ -36,9 +36,22 @@ export const updateLeadSourceSchema = z
   .strict()
 
 export const listLeadSourcesQuerySchema = z.object({
-  search: z.string().trim().max(100).optional(),
-  type: z.string().trim().optional(),
-  isActive: z.string().trim().optional(),
+  search: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((val) => (val === 'undefined' || val === 'null' ? undefined : val)),
+  type: z
+    .string()
+    .trim()
+    .optional()
+    .transform((val) => (val === 'undefined' || val === 'null' || val === 'all' ? undefined : val)),
+  isActive: z
+    .string()
+    .trim()
+    .optional()
+    .transform((val) => (val === 'undefined' || val === 'null' ? undefined : val)),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(25),
   sortBy: z.enum(['name', 'type', 'leadCount', 'createdAt', 'updatedAt']).default('createdAt'),
@@ -160,8 +173,16 @@ export const updateRoutingRuleSchema = z
   .strict()
 
 export const listRoutingRulesQuerySchema = z.object({
-  type: z.string().trim().optional(),
-  isActive: z.string().trim().optional(),
+  type: z
+    .string()
+    .trim()
+    .optional()
+    .transform((val) => (val === 'undefined' || val === 'null' || val === 'all' ? undefined : val)),
+  isActive: z
+    .string()
+    .trim()
+    .optional()
+    .transform((val) => (val === 'undefined' || val === 'null' ? undefined : val)),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(25),
   sortBy: z.enum(['name', 'type', 'priority', 'createdAt', 'updatedAt']).default('priority'),

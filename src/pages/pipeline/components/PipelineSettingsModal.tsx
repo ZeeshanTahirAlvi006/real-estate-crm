@@ -11,15 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import {
-  PlusIcon,
-  TrashIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
-  CheckIcon,
-  ArrowPathIcon,
-  SparklesIcon,
-} from '@heroicons/react/24/outline'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import {
   useUpdatePipelineMutation,
   useAddStageMutation,
@@ -39,18 +31,18 @@ interface PipelineSettingsModalProps {
 }
 
 const PRESET_COLORS = [
+  '#9CB080', // Sage Green (Theme Primary)
+  '#618764', // Olive Forest Green (Theme Border)
+  '#2B5748', // Deep Pine Green (Theme Card)
+  '#273338', // Dark Charcoal Slate (Theme Background)
+  '#8CA070', // Sage hover
+  '#527355', // Forest dark
+  '#4A5D54', // Slate Green
+  '#75887E', // Muted green
+  '#A0B2A6', // Soft sage
   '#6366f1', // Indigo
-  '#8b5cf6', // Violet
-  '#ec4899', // Pink
-  '#06b6d4', // Cyan
   '#0ea5e9', // Sky
-  '#3b82f6', // Blue
-  '#10b981', // Emerald
-  '#22c55e', // Green
   '#f59e0b', // Amber
-  '#f97316', // Orange
-  '#ef4444', // Red
-  '#64748b', // Slate
 ]
 
 export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
@@ -245,7 +237,7 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
                   onClick={() => setIsAddingStage(true)}
                   className="h-8 text-xs gap-1 border-dashed"
                 >
-                  <PlusIcon className="w-3.5 h-3.5" />
+                  <MaterialIcon name="add" size={14} />
                   Add Stage
                 </Button>
               )}
@@ -317,7 +309,7 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
                           onClick={() => handleSaveStageEdit(stage.id)}
                           className="h-7 text-xs gap-1"
                         >
-                          <CheckIcon className="w-3.5 h-3.5" />
+                          <MaterialIcon name="check" size={14} />
                           Save Changes
                         </Button>
                       </div>
@@ -363,7 +355,7 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         title="Move Up"
                       >
-                        <ChevronUpIcon className="w-3.5 h-3.5" />
+                        <MaterialIcon name="keyboard_arrow_up" size={16} />
                       </Button>
                       <Button
                         size="icon"
@@ -373,7 +365,7 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         title="Move Down"
                       >
-                        <ChevronDownIcon className="w-3.5 h-3.5" />
+                        <MaterialIcon name="keyboard_arrow_down" size={16} />
                       </Button>
 
                       {/* Edit */}
@@ -395,7 +387,7 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
                         className="h-7 w-7 text-muted-foreground hover:text-red-500"
                         title="Delete Stage"
                       >
-                        <TrashIcon className="w-3.5 h-3.5" />
+                        <MaterialIcon name="delete" size={14} />
                       </Button>
                     </div>
                   </div>
@@ -410,7 +402,7 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
                 className="p-3.5 rounded-xl border border-primary/40 bg-card space-y-3 animate-in fade-in"
               >
                 <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
-                  <SparklesIcon className="w-4 h-4" />
+                  <MaterialIcon name="auto_awesome" size={16} />
                   <span>Add New Sequential Stage (Step #{sortedStages.length + 1})</span>
                 </div>
 
@@ -472,7 +464,7 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
                     disabled={addingStage || !newStageName.trim()}
                     className="h-7 text-xs gap-1"
                   >
-                    {addingStage ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <PlusIcon className="w-3 h-3" />}
+                    {addingStage ? <MaterialIcon name="progress_activity" size={14} className="animate-spin" /> : <MaterialIcon name="add" size={14} />}
                     Add Stage
                   </Button>
                 </div>
@@ -497,7 +489,7 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
               onClick={handleDeletePipeline}
               className="h-8 text-xs font-semibold gap-1 shrink-0"
             >
-              <TrashIcon className="w-3.5 h-3.5" />
+              <MaterialIcon name="delete" size={14} />
               Delete Pipeline
             </Button>
           </div>

@@ -24,7 +24,21 @@ const sanitizeAuditPayload = (obj?: Record<string, any>): Record<string, any> | 
   if (!obj || typeof obj !== 'object') return obj
 
   const sanitized: Record<string, any> = { ...obj }
-  const sensitiveKeys = ['password', 'currentPassword', 'newPassword', 'token', 'secret', 'encryptionKey']
+  const sensitiveKeys = [
+    'password',
+    'currentPassword',
+    'newPassword',
+    'token',
+    'secret',
+    'encryptionKey',
+    'apiKey',
+    'credentials',
+    'credentialsEncrypted',
+    'clientSecret',
+    'refreshToken',
+    'webhookUrl',
+    'accessToken',
+  ]
 
   for (const key of Object.keys(sanitized)) {
     if (sensitiveKeys.includes(key)) {

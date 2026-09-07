@@ -61,6 +61,12 @@ export interface MoveDealStagePayload {
   stageId: string
 }
 
+export interface GetKanbanArgs {
+  pipelineId: string
+  includeDeals?: boolean
+  stageId?: string
+}
+
 export const pipelineApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     //Pipelines 
@@ -139,8 +145,20 @@ export const pipelineApi = baseApi.injectEndpoints({
     }),
 
     // Kanban View 
-    getKanbanData: builder.query<KanbanResponse, string>({
-      query: (pipelineId) => `/deals/kanban/${pipelineId}`,
+    getKanbanData: builder.query<KanbanResponse, string | GetKanbanArgs>({
+      query: (arg) => {
+        if (typeof arg === 'string') {
+          return `/deals/kanban/${arg}`
+        }
+        const { pipelineId, includeDeals, stageId } = arg
+        const params: Record<string, any> = {}
+        if (includeDeals !== undefined) params.includeDeals = includeDeals
+        if (stageId) params.stageId = stageId
+        return {
+          url: `/deals/kanban/${pipelineId}`,
+          params,
+        }
+      },
       transformResponse: (response: ApiResponse<KanbanResponse>) => response.data,
       providesTags: ['Deals', 'Pipeline'],
     }),
@@ -195,6 +213,25 @@ export const pipelineApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Deals', 'Pipeline'],
     }),
+
+    // Stage-Level Deal Fetching
+    getStageDeals: builder.query<import('@/types').KanbanStage, { stageId: string; pipelineId: string }>({
+      query: ({ stageId, pipelineId }) => ({
+        url: `/deals/stage/${stageId}`,
+        params: { pipelineId },
+      }),
+      transformResponse: (response: ApiResponse<import('@/types').KanbanStage>) => response.data,
+      providesTags: ['Deals'],
+    }),
+
+    getMultipleStageDeals: builder.query<import('@/types').KanbanStage[], { stageIds: string[]; pipelineId: string }>({
+      query: ({ stageIds, pipelineId }) => ({
+        url: '/deals/stages',
+        params: { stageIds: stageIds.join(','), pipelineId },
+      }),
+      transformResponse: (response: ApiResponse<import('@/types').KanbanStage[]>) => response.data,
+      providesTags: ['Deals'],
+    }),
   }),
 })
 
@@ -209,10 +246,13 @@ export const {
   useReorderStagesMutation,
   useDeleteStageMutation,
   useGetKanbanDataQuery,
+  useLazyGetKanbanDataQuery,
   useGetDealsQuery,
   useGetDealQuery,
   useCreateDealMutation,
   useUpdateDealMutation,
   useMoveDealStageMutation,
   useDeleteDealMutation,
+  useLazyGetStageDealsQuery,
+  useLazyGetMultipleStageDealsQuery,
 } = pipelineApi

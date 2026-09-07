@@ -153,3 +153,75 @@
         background: oklch(0.5 0 0 / 50%);
     }
 }
+
+/* ── Hardware-Accelerated View Transition (Buttery Smooth Circular Reveal) ─── */
+::view-transition-group(root) {
+    animation-duration: 450ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+::view-transition-image-pair(root) {
+    isolation: auto;
+}
+
+/* Allow both layers to stack seamlessly without default cross-fades */
+::view-transition-old(root),
+::view-transition-new(root) {
+    mix-blend-mode: normal;
+    display: block;
+    height: 100%;
+}
+
+/* Ensure the old snapshot stays motionless underneath */
+::view-transition-old(root) {
+    animation: none;
+    z-index: 1;
+}
+
+/* The new snapshot expands over the top */
+::view-transition-new(root) {
+    z-index: 9999;
+    animation: circularReveal 450ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes circularReveal {
+    from {
+        clip-path: circle(0px at var(--theme-x, 50%) var(--theme-y, 50%));
+    }
+    to {
+        clip-path: circle(var(--theme-r, 150vmax) at var(--theme-x, 50%) var(--theme-y, 50%));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(root),
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none !important;
+    }
+}
+
+
+/* Synchronized fallback for browsers without View Transition API */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+    transition: background-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+        color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition-delay: 0s !important;
+}
+
+@keyframes cascadeReveal {
+    0% {
+        opacity: 0;
+        transform: translateY(-14px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

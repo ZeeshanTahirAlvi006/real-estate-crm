@@ -239,9 +239,16 @@ export const RoutingRuleModal: React.FC<RoutingRuleModalProps> = ({
       }
     }
 
-    if (type === 'zip_code' && zipMappings.length === 0) {
-      toast.error('Please add at least one zip code territory mapping')
-      return
+    if (type === 'zip_code') {
+      if (zipMappings.length === 0) {
+        toast.error('Please add at least one zip code territory mapping')
+        return
+      }
+      const missingZip = zipMappings.some((m) => !m.zipCodes || m.zipCodes.length === 0)
+      if (missingZip) {
+        toast.error('Each territory mapping must have at least one ZIP code added')
+        return
+      }
     }
 
     if (type === 'time_of_day' && schedules.length === 0) {

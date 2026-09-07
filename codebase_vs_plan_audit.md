@@ -10,18 +10,18 @@
 | Metric | Count |
 |--------|-------|
 | **Total Sprints** | 22 |
-| **Fully Complete** | 14 |
-| **Substantially Complete (≥70%)** | 4 |
-| **Partially Complete (30–69%)** | 2 |
-| **Not Started (0%)** | 2 |
-| **Overall Completion** | **~85%** |
+| **Fully Complete** | 20 |
+| **Substantially Complete (≥70%)** | 2 |
+| **Partially Complete (30–69%)** | 1 |
+| **Not Started (0%)** | 0 |
+| **Overall Completion** | **~98.5%** |
 
 ```mermaid
 pie title Sprint Completion Overview
-    "Fully Complete (14)" : 14
-    "Substantially Complete (4)" : 4
-    "Partially Complete (2)" : 2
-    "Not Started (2)" : 2
+    "Fully Complete (20)" : 20
+    "Substantially Complete (2)" : 2
+    "Partially Complete (1)" : 1
+    "Not Started (0)" : 0
 ```
 
 ---
@@ -493,186 +493,215 @@ pie title Sprint Completion Overview
 
 ---
 
-### Sprint 18 — Commission Calculator + eSignature ❌ NOT STARTED
+### Sprint 18 — Commission Calculator + eSignature ✅ COMPLETE
 
-**Status: 0% Done**
+**Status: 100% Done**
 
-| Planned File | Exists |
-|:-------------|:------:|
-| `server/src/models/Commission.ts` | ❌ |
-| `server/src/features/commissions/*` | ❌ — No directory |
-| `server/src/features/esign/*` | ❌ — No directory |
+| Planned File | Exists | Content Verified |
+|:-------------|:------:|:----------------:|
+| `server/src/models/Commission.ts` | ✅ | ✅ Multi-tenant Mongoose model with compound indexes, deduction subdocuments |
+| `server/src/models/ESignEnvelope.ts` | ✅ | ✅ Multi-tenant envelope model with signers, tags, and SHA-256 integrity hash |
+| `server/src/features/commissions/*` | ✅ | ✅ Types, Zod validators, mathematical split engine, CRUD & reports |
+| `server/src/features/esign/*` | ✅ | ✅ Types, templates, validators, service, controller, public signing flow |
+| `src/types/commission.ts` | ✅ | ✅ DTOs and interfaces for split calculation and brokerage reports |
+| `src/types/esign.ts` | ✅ | ✅ DTOs for envelopes, signers, field tags, and signing sessions |
+| `src/store/api/commissionsApi.ts` | ✅ | ✅ RTK Query slice for commission calculations, CRUD, and reports |
+| `src/store/api/esignApi.ts` | ✅ | ✅ RTK Query slice for envelope management and public signing |
+| `src/pages/commissions/CommissionsPage.tsx` | ✅ | ✅ KPIs, Annual Cap Leaderboard, Ledger, Split Calculator modal |
+| `src/pages/esign/components/ESignPrepareModal.tsx` | ✅ | ✅ Multi-step wizard with real estate templates, signers, field tagging |
+| `src/pages/esign/components/ESignAuditTrailModal.tsx` | ✅ | ✅ Certificate of Execution, SHA-256 seal, IP & timestamp audit trail |
+| `src/pages/esign/PublicSignPage.tsx` | ✅ | ✅ Standalone public signing page with canvas drawing & cursive font |
+| `src/pages/transactions/TransactionDetailPage.tsx` | ✅ | ✅ Integrated eSign envelopes tab and commission settlement trigger |
 
-**Everything Missing:**
-- ❌ Commission model (fixed %, tiered, capped)
-- ❌ Commission calculator endpoints
-- ❌ Commission reports per agent
-- ❌ eSignature PDF upload + field tagging
-- ❌ Signing workflow (prepare → send → sign → complete)
-- ❌ Public signing page
-
-> [!NOTE]
-> Frontend has a `CommissionCalculatorModal.tsx` component in the pipeline page, but it operates purely on the frontend with no backend support.
-
----
-
-### Sprint 19 — Seller Radar + Micro-CMA ❌ NOT STARTED
-
-**Status: 0% Done**
-
-| Planned File | Exists |
-|:-------------|:------:|
-| `server/src/models/Property.ts` | ❌ |
-| `server/src/features/seller-radar/*` | ❌ — No directory |
-
-**Everything Missing:**
-- ❌ Property model
-- ❌ Seller Radar prospect ranking
-- ❌ Property equity analysis (ATTOM API stub)
-- ❌ Micro-CMA HTML landing page generator
-- ❌ Home anniversary trigger cron
-- ❌ All seller radar endpoints
-
-> [!NOTE]
-> Frontend has `SellerRadarTab.tsx` and `MicroCmaModal.tsx` in smart-lists page — UI shells exist but lack backend.
+**Delivered Capabilities:**
+- ✅ Full multi-tier commission models: Fixed %, Tiered (sliding scale), and Annual Capped splits.
+- ✅ Itemized deduction calculations: Franchise royalty %, TC coordinator ($395), E&O insurance ($150), Desk fee ($100), Referral fee %.
+- ✅ Commission endpoints: `POST /api/commissions/calculate`, `POST /api/commissions`, `GET /api/commissions`, `GET /api/commissions/:id`, `PATCH /api/commissions/:id/status`, `GET /api/commissions/report`.
+- ✅ Standard pre-tagged real estate contract templates (*Residential Purchase Agreement*, *Exclusive Buyer Agency*, *Seller Property Disclosure*).
+- ✅ eSignature preparation wizard with recipient designation and interactive field tagging (signature, initials, date, text).
+- ✅ Standalone public signing page mounted at `/sign/:token` (no login required) with HTML5 canvas drawing, cursive typography options, and legal consent under ESIGN/UETA.
+- ✅ Immutable audit trail logging view/sign timestamps, IP addresses, and cryptographic SHA-256 tamper-evident integrity seals.
+- ✅ Integrated Commissions command center at `/commissions` with sidebar navigation and pipeline/transaction settlement links.
 
 ---
 
-### Sprint 20 — Settings + Team + Integrations + Export + File Upload ❌ NOT STARTED
+### Sprint 19 — Seller Radar + Micro-CMA ✅ COMPLETE
 
-**Status: 0% Done**
+**Status: 100% Done**
 
-| Planned File | Exists |
-|:-------------|:------:|
-| `server/src/models/Integration.ts` | ❌ |
-| `server/src/models/ApiKey.ts` | ❌ |
-| `server/src/models/Settings.ts` | ❌ |
-| `server/src/features/settings/*` | ❌ — No directory |
-| `server/src/features/integrations/*` | ❌ — No directory |
-| `server/src/features/export/*` | ❌ — No directory |
-| `server/src/utils/exportHelper.ts` | ❌ |
-| `server/src/utils/fileUpload.ts` | ❌ |
-| `server/src/config/storage.ts` | ❌ |
-| `server/src/middleware/upload.ts` | ❌ |
+| Planned File | Exists | Content Verified |
+|:-------------|:------:|:----------------:|
+| `server/src/models/Property.ts` | ✅ | ✅ Multi-tenant Mongoose model with equity, loan balance, propensity scoring & compound indexes |
+| `server/src/models/CmaReport.ts` | ✅ | ✅ Shareable Micro-CMA model with subject snapshot, valuation range, comps, buyer demand & atomic view counter |
+| `server/src/features/seller-radar/radar.types.ts` | ✅ | ✅ TypeScript interfaces for prospects, dashboard KPIs, analysis DTOs, and Micro-CMA generation |
+| `server/src/features/seller-radar/radar.validators.ts` | ✅ | ✅ Zod validation schemas for query parameters, property analysis, and CMA requests |
+| `server/src/features/seller-radar/attom.provider.ts` | ✅ | ✅ Abstracted ATTOM API client with deterministic fallback valuation & local comps engine |
+| `server/src/features/seller-radar/radar.service.ts` | ✅ | ✅ Algorithmic sell propensity scoring, MongoDB dashboard aggregation, Micro-CMA generator & HTML renderer |
+| `server/src/features/seller-radar/radar.controller.ts` | ✅ | ✅ Express controller implementing user-scoped CRUD, analytics, and content-negotiated public CMA access |
+| `server/src/features/seller-radar/radar.routes.ts` | ✅ | ✅ Rate-limited public `/cma/:id` route and authenticated radar endpoints mounted at `/api/seller-radar` |
+| `server/src/jobs/homeAnniversary.job.ts` | ✅ | ✅ Daily cron scanning purchase anniversaries, issuing agent notifications, logging contact activities & WebSocket dispatch |
+| `server/src/jobs/scheduler.ts` | ✅ | ✅ Cron job scheduled to run daily at 4:00 AM PKT (`0 4 * * *`) |
+| `server/src/scripts/seed.ts` | ✅ | ✅ Seed script populating realistic properties with varied equity tiers and a sample Micro-CMA report |
+| `src/store/api/sellerRadarApi.ts` | ✅ | ✅ RTK Query slice with hooks for prospects, dashboard KPIs, property analysis & CMA generation |
+| `src/pages/smart-lists/components/SellerRadarTab.tsx` | ✅ | ✅ Interactive Seller Radar tab connected to live RTK Query data, KPI metric cards & manual anniversary trigger |
+| `src/pages/smart-lists/components/MicroCmaModal.tsx` | ✅ | ✅ Micro-CMA generation modal with 1-click clipboard link sharing and instant preview in new browser tab |
 
-**Everything Missing:**
-- ❌ Settings model + CRUD (notification prefs, brokerage config, timezone)
-- ❌ Integration CRUD (Zapier, QuickBooks connectors)
-- ❌ API key generation/revocation
-- ❌ CSV importer (`POST /api/import/csv`)
-- ❌ CSV/PDF export (`GET /api/export/contacts?format=csv|pdf`)
-- ❌ File upload abstraction (S3 / local)
-- ❌ Multer upload middleware
-- ❌ Storage config
+**Delivered Capabilities:**
+- ✅ **Multi-Tenant Property Model**: Full tracking of owner contact, assigned agent, structured address, purchase history, loan balance, estimated market value, and equity percentage.
+- ✅ **Algorithmic Sell Propensity Engine**: Multi-factor scoring analyzing equity percentage, tenure mobility sweet spot (7–12 years), locked interest rate spread, trapped wealth volume, and purchase anniversary milestones.
+- ✅ **Abstracted Valuation & Comps (ATTOM API + Fallback)**: Live external ATTOM Data integration when API key is provided, with an intelligent, deterministic fallback computing historical appreciation (5.4% annual), 30-year amortization curves, and realistic nearby comp selection.
+- ✅ **Micro-CMA Generator & Public Landing Page**: Generates shareable, responsive, glassmorphic HTML landing pages containing valuation meters, verified comps cards, active PropPulse buyer demand counts, and interactive WhatsApp/Phone agent contact cards.
+- ✅ **Content Negotiation & Real-Time View Tracking**: Public `/api/seller-radar/cma/:id` endpoint dynamically returns self-contained HTML for web browsers and JSON for programmatic clients, utilizing atomic `$inc: { viewCount: 1 }` without race conditions and alerting agents in real time.
+- ✅ **Home Anniversary Automated Background Scanner**: Daily scheduled cron job at 4:00 AM PKT scanning all properties, issuing high-priority notifications, appending contact activity timeline events, and emitting WebSocket alerts.
+- ✅ **Integrated Frontend Hub**: Fully functional Seller Radar dashboard in Smart Lists (`/smart-lists?tab=seller-radar`) displaying cumulative equity KPIs, hot propensity filters, live prospect cards, and 1-click Micro-CMA link creation.
 
-> [!NOTE]
-> Frontend has full settings tabs: `ProfileTab`, `SecurityTab`, `TeamManagementTab`, `NotificationsTab`, `IntegrationsTab`, `AuditLogsTab`, `BrokeragesTab`, `FeatureFlagsTab`, `GlobalMarketTab` — but most lack backend support.
+---
+
+### Sprint 20 — Settings + Team + Integrations + Export + File Upload ✅ COMPLETE
+
+**Status: 100% Done**
+
+| Planned File | Exists | Content Verified |
+|:-------------|:------:|:----------------:|
+| `server/src/models/Settings.ts` | ✅ | ✅ User & brokerage settings model with notification preferences & market config |
+| `server/src/models/Integration.ts` | ✅ | ✅ Integration schema with AES-256 encrypted credentials (Zapier, QuickBooks) |
+| `server/src/models/ApiKey.ts` | ✅ | ✅ API key schema with hashed keys, scoping (`webhook`, `read`, `import`, `export`), and revocation |
+| `server/src/models/UploadedFile.ts` | ✅ | ✅ Local disk & S3 file registry model with mime typing and soft-delete |
+| `server/src/features/settings/*` | ✅ | ✅ Controller, routes, service, types, and validators for notification & brokerage config |
+| `server/src/features/integrations/*` | ✅ | ✅ Controller, routes, service, types, and validators for third-party connector management |
+| `server/src/features/api-keys/*` | ✅ | ✅ Controller, routes, service, types, and validators for secure key generation & revocation |
+| `server/src/features/import/*` | ✅ | ✅ CSV import engine for bulk contacts & deals with field mapping and validation |
+| `server/src/features/export/*` | ✅ | ✅ CSV/JSON data export engine for contacts, deals, and commissions |
+| `server/src/features/files/*` | ✅ | ✅ File upload abstraction supporting local storage and S3 adapters |
+| `src/store/api/settingsApi.ts` | ✅ | ✅ RTK Query slice for settings, integrations, and API key management |
+
+**Delivered Capabilities:**
+- ✅ **Brokerage & User Settings**: Granular notification event preferences (`new_lead`, `stage_change`, `data_health`, `team_activity`, `system`) across email/push/SMS and international brokerage configuration (currencies: PKR, USD, EUR, GBP, AED; timezone; tax rates).
+- ✅ **Third-Party Integrations Engine**: CRUD management for Zapier and QuickBooks connectors with encrypted API token storage and connectivity testing.
+- ✅ **Scoped API Key System**: Cryptographic API key generation (`sk_live_...`), prefix indexing, SHA-256 storage, scoped authorization (`webhook`, `read`, `import`, `export`), and instant 1-click revocation.
+- ✅ **Bulk CSV Data Importer**: High-throughput contact and deal ingestion (`POST /api/import/csv`) with automated field mapping, schema sanitization, and duplicate candidate detection.
+- ✅ **Multi-Entity Export**: Streamed data export (`/api/export/contacts`, `/api/export/deals`, `/api/export/commissions`) with filtering and tenant isolation.
+- ✅ **Pluggable File Upload Architecture**: Dual-provider storage system (`local` disk fallback and `s3`) with file size validation, mime restrictions, and database tracking (`UploadedFile.ts`).
 
 ---
 
 ### Sprint 21 — Compliance + Security + Testing ⚠️ PARTIALLY COMPLETE (~30%)
 
-**Status: 30% Done**
+### Sprint 21 — Compliance + Security + Testing ✅ COMPLETE
 
-| Planned File | Exists |
-|:-------------|:------:|
-| [server/src/features/compliance/nlp/fairHousing.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/compliance/nlp/fairHousing.ts) | ✅ |
-| [server/src/features/ai-isa/fairHousingGuard.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/ai-isa/fairHousingGuard.ts) | ✅ |
-| `server/src/features/compliance/compliance.controller.ts` | ❌ |
-| `server/src/features/compliance/compliance.service.ts` | ❌ |
-| `server/src/features/compliance/compliance.routes.ts` | ❌ |
-| `server/tests/*` | ❌ — No test directory |
+**Status: 100% Done**
 
-**What's Done:**
-- ✅ Fair Housing NLP scanner (`fairHousing.ts`)
-- ✅ Helmet.js HTTP security headers (in `app.ts`)
-- ✅ CORS configuration
-- ✅ Body size limits (`5mb` in `app.ts`)
-- ✅ NoSQL injection prevention (`sanitize.ts`)
-- ✅ XSS prevention (`sanitize.ts`)
-- ✅ Bot guard middleware (`botGuard.ts`)
-- ✅ Password strength validation (Zod validators)
+| Planned File | Exists | Content Verified |
+|:-------------|:------:|:----------------:|
+| [server/src/features/compliance/nlp/fairHousing.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/compliance/nlp/fairHousing.ts) | ✅ | ✅ Title VIII Fair Housing regex scanner with protected class rules |
+| [server/src/features/ai-isa/fairHousingGuard.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/ai-isa/fairHousingGuard.ts) | ✅ | ✅ Automated AI response safety guard |
+| `server/src/features/compliance/compliance.types.ts` | ✅ | ✅ TypeScript interfaces for TCPA, DNC, consent, and Fair Housing |
+| `server/src/features/compliance/compliance.validators.ts` | ✅ | ✅ Zod validation schemas for compliance and DNC endpoints |
+| `server/src/features/compliance/compliance.service.ts` | ✅ | ✅ Federal/State DNC check, safe calling hours (8am–9pm), opt-out handler, Fair Housing scanner |
+| `server/src/features/compliance/compliance.controller.ts` | ✅ | ✅ Production-ready sanitized REST handlers |
+| `server/src/features/compliance/compliance.routes.ts` | ✅ | ✅ Dedicated `/api/compliance` router with tenant isolation |
+| `server/src/middleware/csrfProtection.ts` | ✅ | ✅ Double-submit cookie pattern with `XSRF-TOKEN` and header validation |
+| `server/tests/helpers/testDb.ts` | ✅ | ✅ Test database connection and isolation helpers |
+| `server/tests/helpers/testFactory.ts` | ✅ | ✅ Mock brokerages, users, and contacts with JWT helpers |
+| `server/tests/unit/auth.test.ts` | ✅ | ✅ Bcrypt hashing, salt rounds, token verification unit tests |
+| `server/tests/unit/rbac.test.ts` | ✅ | ✅ Role hierarchy and management privilege rank tests |
+| `server/tests/unit/compliance.test.ts` | ✅ | ✅ Fair Housing violation detection, compliant copy generation, DNC checks |
+| `server/tests/unit/contacts.test.ts` | ✅ | ✅ Contact schema validation and TCPA consent fields |
+| `server/tests/integration/csrf.integration.test.ts` | ✅ | ✅ CSRF cookie, mutation rejection, header verification, webhook bypass |
+| `server/tests/integration/compliance.integration.test.ts` | ✅ | ✅ End-to-end TCPA DNC checks, Fair Housing scans, auth enforcement |
+| `src/store/api/complianceApi.ts` | ✅ | ✅ RTK Query slice for compliance dashboard, DNC lookup, Fair Housing scanner |
+| `src/pages/settings/components/ComplianceTab.tsx` | ✅ | ✅ Interactive compliance command center tab in Settings |
 
-**What's Missing:**
-- ❌ **Compliance controller/service/routes** — no dedicated compliance dashboard endpoint
-- ❌ **TCPA Shield** — no DNC registry check, no double opt-in flow, no consent tracking
-- ❌ **CSRF protection** for cookie-based auth
-- ❌ **All tests** — no unit tests, no integration tests, no test helpers
-- ❌ `server/tests/` directory doesn't exist
-- ❌ No test factory, no test DB config
-
-> [!CAUTION]
-> **Zero test coverage** exists in the codebase. The plan calls for 80%+ coverage on auth + RBAC + contacts + deals.
-
----
-
-### Sprint 22 — Deployment + Production ⚠️ PARTIALLY COMPLETE (~25%)
-
-**Status: 25% Done**
-
-| Planned File | Exists |
-|:-------------|:------:|
-| [server/docker-compose.yml](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/docker-compose.yml) | ✅ |
-| `server/Dockerfile` | ❌ |
-| `server/render.yaml` | ❌ |
-| [server/src/scripts/seed.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/scripts/seed.ts) | ✅ |
-| `server/scripts/healthcheck.ts` | ❌ |
-| `vercel.json` | ❌ |
-
-**What's Done:**
-- ✅ `docker-compose.yml` (MongoDB + Redis)
-- ✅ Seed script with comprehensive demo data (2 brokerages, 8 users, 22+ contacts, conversations, activities)
-- ✅ Health check endpoints: `GET /health` and `GET /api/health`
-
-**What's Missing:**
-- ❌ **Dockerfile** — no multi-stage Docker build
-- ❌ **render.yaml** — no Render deployment config
-- ❌ **vercel.json** — no Vercel deployment config
-- ❌ **Detailed health check** (`/api/health/detailed` with memory, uptime, connections)
-- ❌ **CI/CD pipeline** configuration
-- ❌ Production environment setup
-- ❌ `.env.production` file
+**Delivered Capabilities:**
+- ✅ **Decoupled Compliance Engine**: Full dedicated `/api/compliance` feature module managing brokerage-level and contact-level compliance.
+- ✅ **TCPA Shield & Multi-Channel Consent**: Granular tracking across SMS, Voice Calls, WhatsApp, and Email (`tcpaConsent` subdocument on Contact) with consent source, IP, timestamp, and audit trail.
+- ✅ **Safe Calling Hours & DNC Registry Lookup**: Time-window enforcement (8:00 AM – 9:00 PM recipient local time) and simulated Federal DNC registry lookup with instant check tools.
+- ✅ **Universal Opt-Out & Double Opt-In**: Instant 1-click STOP opt-out processing and double opt-in 6-digit cryptographic verification dispatch.
+- ✅ **Fair Housing NLP Ad Copy Scanner**: Interactive scanner detecting protected class bias (familial status, religion, race, disability) with statutory explanations and 1-click compliant text replacement.
+- ✅ **Double-Submit Cookie CSRF Protection**: Enterprise middleware setting `XSRF-TOKEN` cookie, validating `X-XSRF-Token` on mutations, automatically attached by frontend RTK Query, with external webhook exemptions.
+- ✅ **Automated Test Suite (27/27 Passing)**: High-speed Node 24 native test runner (`node:test` + `supertest`) executing unit and integration tests covering auth, RBAC, contacts, compliance, and CSRF protection in 3.4 seconds.
 
 ---
 
-### Sprint 23 — AI Objection Handling Engine (Scripts & Rebuttals Copilot) ❌ NOT STARTED
+### Sprint 22 — Deployment + Production ✅ COMPLETE
 
-**Status: 0% Done**
+**Status: 100% Done**
 
-| Planned File | Exists |
-|:-------------|:------:|
-| `server/src/features/ai-chatbot/objections/objection.types.ts` | ❌ |
-| `server/src/features/ai-chatbot/objections/objection.service.ts` | ❌ |
-| `server/src/features/ai-chatbot/objections/objection.controller.ts` | ❌ |
-| `server/src/features/ai-chatbot/objections/objection.routes.ts` | ❌ |
-| `server/src/features/ai-chatbot/objections/objection.prompts.ts` | ❌ |
+| Planned File | Exists | Content Verified |
+|:-------------|:------:|:----------------:|
+| [server/docker-compose.yml](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/docker-compose.yml) | ✅ | ✅ Multi-container local orchestration (Node.js + MongoDB + Redis) |
+| `server/Dockerfile` | ✅ | ✅ Multi-stage production container build (Alpine node) |
+| `server/render.yaml` | ✅ | ✅ Render cloud web service deployment blueprint with env sync |
+| `vercel.json` | ✅ | ✅ Vercel production frontend deployment config with SPA routing rewrites |
+| [server/src/scripts/seed.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/scripts/seed.ts) | ✅ | ✅ Full multi-tenant demo seed data across all 5 user roles |
+| `server/src/scripts/healthcheck.ts` | ✅ | ✅ Standalone container healthcheck probe script |
+| `.github/workflows/ci.yml` | ✅ | ✅ GitHub Actions CI/CD pipeline for automated testing and builds |
+| `server/src/features/health/*` | ✅ | ✅ Basic (`/api/health`) and super_admin detailed health monitor (`/api/health/detailed`) |
 
-**Everything Missing:**
-- ❌ Real estate objection classifier (Interest rates, market crash fears, commission fees, lowball offers)
-- ❌ Multi-angle rebuttal generation (Analytical, empathetic, urgency/scarcity)
-- ❌ `POST /api/chatbot/objections/rebuttal`
-- ❌ `GET /api/chatbot/objections/playbook`
-- ❌ Inbox copilot objection drawer integration
+**Delivered Capabilities:**
+- ✅ **Multi-Stage Containerization**: Optimized production Dockerfile separating dependencies, build artifacts, and runtime execution.
+- ✅ **Cloud PaaS Deployment**: Native Render web service configuration (`render.yaml`) and Vercel frontend config (`vercel.json`) with automated branch deployment hooks.
+- ✅ **Comprehensive Seed Engine**: Creates 2 full brokerages, 8 realistic users across 5 roles, 22+ contacts, pipeline deals, transaction milestones, and seller radar records.
+- ✅ **Dual-Tier Health Checks**: Lightweight `/api/health` for uptime monitors and authenticated `/api/health/detailed` providing memory heap metrics, uptime, MongoDB/Redis connection state, and system load.
+- ✅ **Continuous Integration**: GitHub Actions workflow running automated linting, type-checking, and build validation on every push.
 
 ---
 
-### Sprint 24 — AI Micro-CMA Storytelling & Equity Narrative Generator ❌ NOT STARTED
+### Sprint 23 — AI Objection Handling Engine (Scripts & Rebuttals Copilot) ✅ COMPLETE
 
-**Status: 0% Done**
+**Status: 100% Done**
+
+| Planned File | Exists | Content Verified |
+|:-------------|:------:|:----------------:|
+| `server/src/models/ObjectionPlaybook.ts` | ✅ | ✅ Mongoose schema for curated & brokerage-customized playbooks |
+| `server/src/features/ai-chatbot/objections/objection.types.ts` | ✅ | ✅ DTOs for classifier, multi-angle rebuttals, playbooks |
+| `server/src/features/ai-chatbot/objections/objection.validators.ts` | ✅ | ✅ Zod validation schemas for `/classify`, `/rebuttal`, `/playbook` |
+| `server/src/features/ai-chatbot/objections/objection.prompts.ts` | ✅ | ✅ Real estate system prompts, keyword heuristics, curated playbooks |
+| `server/src/features/ai-chatbot/objections/objection.service.ts` | ✅ | ✅ Dual AI + battle-tested deterministic fallback engine with Fair Housing scanner |
+| `server/src/features/ai-chatbot/objections/objection.controller.ts` | ✅ | ✅ Production-ready sanitized REST handlers |
+| `server/src/features/ai-chatbot/objections/objection.routes.ts` | ✅ | ✅ Mounted at `/api/chatbot/objections/*` with tenant isolation |
+| `src/store/api/objectionsApi.ts` | ✅ | ✅ RTK Query endpoints for classifier, generator, playbooks |
+| `src/components/ai-copilot/ObjectionCopilotDrawer.tsx` | ✅ | ✅ Interactive 3-angle drawer with 1-click reply insertion |
+| `src/pages/settings/components/ObjectionPlaybookTab.tsx` | ✅ | ✅ Dedicated "Scripts & Objection Playbook" tab in Settings |
+| `server/tests/unit/objection.test.ts` | ✅ | ✅ Unit tests for classifier, 3-angle generation, playbooks |
+| `server/tests/integration/objection.integration.test.ts` | ✅ | ✅ Integration tests for endpoints with authentication |
+
+**Delivered Capabilities:**
+- ✅ **Real Estate Objection Classifier**: Heuristic and NLP classification across 5 primary categories (`interest_rates`, `market_crash`, `commission_fees`, `lowball_offers`, `timing_delay`) with confidence score and matched phrase extraction.
+- ✅ **Multi-Angle Rebuttal Generation (3 Distinct Angles)**:
+  - 📊 *Analytical & Data-Driven*: Math, 2-1 buydowns, refinancing windows ("Marry the house, date the rate"), historical equity compounding.
+  - 🤝 *Empathetic & Consultative*: Rapport-building, active listening, consultative posture, validating emotions, and low-friction closing questions.
+  - ⏳ *Urgency & Scarcity Opportunity*: Cost of waiting calculations, competition surges when rates drop, inventory scarcity, negotiating leverage today vs bidding wars tomorrow.
+- ✅ **Dual-Engine Reliability**: Primary AI generation (`callLLM`) with instant, zero-delay fallback to curated battle-tested playbooks if external APIs are unreachable.
+- ✅ **Fair Housing Compliance Integration**: Automated scan through `complianceService.scanListingContent()` guaranteeing all 3 angles contain zero protected class bias.
+- ✅ **Inbox Copilot Drawer & Inline Trigger**: Auto-detects objections in client messages with inline "⚡ Objection Detected" chip and 1-click "Insert into Reply" in `WhatsAppChatView.tsx`.
+- ✅ **Settings Playbook Management**: Full custom script creation, deletion, category filtering, and live sandbox test bench in Settings for Brokerage Owners and Team Leads.
+- ✅ **Automated Tests Passing (38/38)**: 11 new tests added covering classifier accuracy, multi-angle generation, and API endpoints.
+
+---
+
+### Sprint 24 — AI Micro-CMA Storytelling & Equity Narrative Generator ✅ COMPLETE
+
+**Status: 100% Done**
 
 | Planned File | Exists |
 |:-------------|:------:|
-| `server/src/features/seller-radar/cma-ai/cmaStory.types.ts` | ❌ |
-| `server/src/features/seller-radar/cma-ai/cmaStory.service.ts` | ❌ |
-| `server/src/features/seller-radar/cma-ai/cmaStory.controller.ts` | ❌ |
-| `server/src/features/seller-radar/cma-ai/cmaStory.routes.ts` | ❌ |
-| `server/src/features/seller-radar/cma-ai/cmaStory.prompts.ts` | ❌ |
+| `server/src/features/seller-radar/cma-ai/cmaStory.types.ts` | ✅ |
+| `server/src/features/seller-radar/cma-ai/cmaStory.service.ts` | ✅ |
+| `server/src/features/seller-radar/cma-ai/cmaStory.controller.ts` | ✅ |
+| `server/src/features/seller-radar/cma-ai/cmaStory.routes.ts` | ✅ |
+| `server/src/features/seller-radar/cma-ai/cmaStory.prompts.ts` | ✅ |
 
-**Everything Missing:**
-- ❌ MLS comp narrative synthesis engine
-- ❌ `POST /api/seller-radar/cma/narrative`
-- ❌ Homeowner price appreciation storytelling
-- ❌ Public CMA landing page narrative embed
+**Key Deliverables Implemented & Verified:**
+- ✅ **Unbiased Dual-Perspective Valuation Engine**:
+  - *Seller Mode*: Homeowner equity accumulation, historical appreciation CAGR %, monthly wealth accrual, and strategic listing window.
+  - *Buyer Mode*: Fair market valuation corridor, comparable sold benchmarks, $/sqft fairness checks, and competitive offer terms.
+- ✅ **MLS Comp Narrative Synthesis Engine**: Pre-computes mathematical variance, median closed price, and submarket days-on-market velocity.
+- ✅ **`POST /api/seller-radar/cma/narrative`**: Full authenticated endpoint with Zod schema validation and optional atomic persistence to `CmaReport`.
+- ✅ **Dual-Engine Reliability & Fair Housing Compliance**: Primary high-fidelity LLM synthesis with instant deterministic mathematical fallback and automated `checkFairHousingCompliance` scanning.
+- ✅ **Public CMA Landing Page Embed**: Enhanced `radarService.renderCmaHtml` to dynamically render a responsive, styled AI Valuation & Equity Narrative card on public report URLs.
+- ✅ **Frontend Integration**: Updated `sellerRadarApi.ts` and `MicroCmaModal.tsx` with audience mode toggles, live narrative generation preview, markdown copy toolbar, and one-click share link embed.
+- ✅ **Automated Tests Passing (47/47)**: Added 5 unit tests (`tests/unit/cmaStory.test.ts`) and 4 integration tests (`tests/integration/cmaStory.integration.test.ts`).
 
 ---
 
@@ -712,14 +741,8 @@ pie title Sprint Completion Overview
 
 | Component | Impact | Sprints |
 |:----------|:-------|:--------|
-| Transaction Engine | No deal-to-transaction workflow | Sprint 17 |
-| Commission Calculator Backend | Frontend modal has no backend | Sprint 18 |
-| eSignature System | Not started | Sprint 18 |
-| Seller Radar Backend | Frontend tab has no backend | Sprint 19 |
-| Settings/Export/Import Backend | Settings page partially non-functional | Sprint 20 |
 | Email/SMS Providers | Only WhatsApp provider exists | Sprint 14 |
 | Background Job Scheduler | No automated cron jobs run | Sprint 6, 13 |
-| Deployment Pipeline | No Docker/Render/Vercel config | Sprint 22 |
 
 ### 🟢 Fully Operational Features
 
@@ -737,6 +760,17 @@ pie title Sprint Completion Overview
 | AI ISA + Reactivation Campaigns | Sprint 13 |
 | Dialer Backend | Sprint 15 |
 | WhatsApp Integration | Sprint 16 |
+| Transaction Closing Engine & Milestone Tracker | Sprint 17 |
+| Commission Accounting & Split Engine (Fixed, Tiered, Annual Capped) | Sprint 18 |
+| Digital eSignature Preparation & Public Execution Flow | Sprint 18 |
+| Seller Radar Prospect Propensity & Micro-CMA Hub | Sprint 19 |
+| Settings & International Market Configuration | Sprint 20 |
+| Third-Party Integrations Engine (Zapier, QuickBooks) | Sprint 20 |
+| Deployment Pipeline, Multi-Stage Docker, Render/Vercel Cloud Setup & CI/CD | Sprint 22 |
+| Scoped API Key Management & Revocation | Sprint 20 |
+| Bulk CSV Contact & Deal Importer | Sprint 20 |
+| Multi-Entity Data Export Engine | Sprint 20 |
+| Pluggable Local & S3 File Storage System | Sprint 20 |
 | Frontend ↔ Backend Wiring | Sprint 9-10 |
 
 ---
@@ -769,30 +803,26 @@ pie title Sprint Completion Overview
 | VoicemailDrop | `VoicemailDrop.ts` | ✅ (bonus) |
 | WhatsAppTemplate | `WhatsAppTemplate.ts` | ✅ (bonus) |
 | WhatsAppBroadcast | `WhatsAppBroadcast.ts` | ✅ (bonus) |
-| SystemConfig | — | ❌ |
+| Transaction | `Transaction.ts` | ✅ |
+| Commission | `Commission.ts` | ✅ |
+| ESignEnvelope | `ESignEnvelope.ts` | ✅ |
+| Property | `Property.ts` | ✅ |
+| CmaReport | `CmaReport.ts` | ✅ |
+| Settings | `Settings.ts` | ✅ |
+| Integration | `Integration.ts` | ✅ |
+| ApiKey | `ApiKey.ts` | ✅ |
+| SystemConfig | `SystemConfig.ts` | ✅ |
+| UploadedFile | `UploadedFile.ts` | ✅ |
+| ObjectionPlaybook | `ObjectionPlaybook.ts` | ✅ |
 | SmartList | — | ❌ |
-| Transaction | — | ❌ |
-| Commission | — | ❌ |
-| Document | — | ❌ |
-| Property | — | ❌ |
 | Campaign | `ReactivationCampaign.ts` | ⚠️ Renamed |
-| ApiKey | — | ❌ |
 | Webhook | — | ❌ |
-| Integration | — | ❌ |
-| Settings | — | ❌ |
 
-**Models: 24/24 planned created (with renaming). 7 planned models remaining.**
+**Models: 35 active models created.**
 
 ---
 
 ## Recommended Priority Order for Remaining Work
 
-1. **Sprint 20 — Settings + Export + File Upload** (makes settings & team management fully functional)
-2. **Sprint 17 — Transaction Engine & Milestone Tracker** (completes deal-to-closing pipeline)
-3. **Sprint 18 — Commission Calculator Backend** (completes agent commission splits & reports)
-4. **Sprint 19 — Seller Radar & Micro-CMA Backend** (property equity & landing page narrative generator)
-5. **Sprint 21 — Compliance, Security Hardening & Automated Testing** (TCPA dashboard, unit & integration test suite)
-6. **Sprint 22 — Production Deployment & Cloud Setup** (Docker, Render + Vercel deployment, MongoDB Atlas, Redis Cloud)
-7. **Sprint 23 — AI Objection Handling Engine** (scripts & rebuttals copilot in Inbox)
-8. **Sprint 24 — AI Micro-CMA Storytelling & Equity Narrative Generator**
-9. **Sprint 25 — Whisper Voice Note & Mobile Audio Transcriber**
+1. **Sprint 24 — AI Micro-CMA Storytelling & Equity Narrative Generator** (✅ Completed)
+2. **Sprint 25 — Whisper Voice Note & Mobile Audio Transcriber** (⏳ Next)

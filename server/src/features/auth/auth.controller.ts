@@ -9,7 +9,7 @@ import {
   formatUserResponse,
 } from './auth.service.js'
 import { setAuthCookies, clearAuthCookies } from '../../utils/cookieHelper.js'
-import { sendSuccess } from '../../utils/apiResponse.js'
+import { sendSuccess, sendError } from '../../utils/apiResponse.js'
 import { HTTP_STATUS } from '../../utils/constants.js'
 import { Brokerage } from '../../models/Brokerage.js'
 
@@ -61,6 +61,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
 export const getMe = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!req.user) {
+      sendError(res, 'Unauthenticated session', HTTP_STATUS.UNAUTHORIZED)
       return
     }
     const brokerage = await Brokerage.findById(req.user.brokerageId)

@@ -75,53 +75,97 @@ export const listConversations = async (
   query: ListConversationsQuery,
   tenantFilter: Record<string, any>
 ): Promise<{ conversations: ConversationDto[]; total: number }> => {
-  const filter: Record<string, any> = { ...tenantFilter }
+  const conditions: Record<string, any>[] = []
 
-  if (query.channel && query.channel !== 'all') {
-    filter.lastChannel = query.channel
+  if (tenantFilter && Object.keys(tenantFilter).length > 0) {
+    conditions.push(tenantFilter)
   }
 
   if (query.status) {
-    filter.status = query.status
+    conditions.push({ status: query.status })
   }
 
   if (query.search?.trim()) {
     const searchRegex = new RegExp(query.search.trim(), 'i')
-    filter.$or = [
-      { contactName: searchRegex },
-      { contactPhone: searchRegex },
-      { contactEmail: searchRegex },
-      { lastMessageText: searchRegex },
-    ]
+    conditions.push({
+      $or: [
+        { contactName: searchRegex },
+        { contactPhone: searchRegex },
+        { contactEmail: searchRegex },
+        { lastMessageText: searchRegex },
+      ],
+    })
   }
 
   // If user is lead/client, they only see their own conversation
   if (caller.role === USER_ROLES.LEAD) {
-    filter.$or = [
-      { contactEmail: caller.email },
-      { contactPhone: caller.phone },
-    ]
+    conditions.push({
+      $or: [
+        { contactEmail: caller.email },
+        { contactPhone: caller.phone },
+      ],
+    })
   } else if (caller.role === USER_ROLES.AGENT) {
-    // If user is agent, they see conversations assigned to them or their brokerage
-    filter.$or = [
-      ...(filter.$or || []),
-      { assignedAgentId: caller._id },
-      { assignedAgentId: { $exists: false } },
-      { assignedAgentId: null },
-    ]
+    // If user is agent, they see conversations assigned to them or unassigned
+    conditions.push({
+      $or: [
+        { assignedAgentId: caller._id },
+        { assignedAgentId: { $exists: false } },
+        { assignedAgentId: null },
+      ],
+    })
   }
 
+  if (query.channel && query.channel !== 'all') {
+    const matchingMessageConvIds = await Message.distinct('conversationId', {
+      channel: query.channel,
+      ...(tenantFilter.brokerageId ? { brokerageId: tenantFilter.brokerageId } : {}),
+    })
+
+    conditions.push({
+      $or: [
+        { lastChannel: query.channel },
+        { _id: { $in: matchingMessageConvIds } },
+      ],
+    })
+  }
+
+  const finalFilter = conditions.length > 0 ? { $and: conditions } : {}
+
   const [conversations, total] = await Promise.all([
-    Conversation.find(filter)
+    Conversation.find(finalFilter)
       .populate('contactId', 'leadScore dncStatus email phone')
       .sort({ lastMessageAt: -1 })
       .limit(Number(query.limit) || 50)
       .lean(),
-    Conversation.countDocuments(filter),
+    Conversation.countDocuments(finalFilter),
   ])
 
+  // When filtered by a specific channel, populate lastMessageText and lastMessageAt with the latest message of that channel
+  const conversationDtos = await Promise.all(
+    (conversations as unknown as IConversation[]).map(async (c: any) => {
+      const dto = formatConversationDto(c)
+      if (query.channel && query.channel !== 'all') {
+        dto.lastChannel = query.channel as any
+        const lastChanMsg = await Message.findOne({
+          conversationId: c._id,
+          channel: query.channel,
+        })
+          .sort({ createdAt: -1 })
+          .lean()
+        if (lastChanMsg) {
+          dto.lastMessageText = lastChanMsg.body
+          dto.lastMessageAt = lastChanMsg.createdAt
+            ? new Date(lastChanMsg.createdAt).toISOString()
+            : dto.lastMessageAt
+        }
+      }
+      return dto
+    })
+  )
+
   return {
-    conversations: (conversations as unknown as IConversation[]).map(formatConversationDto),
+    conversations: conversationDtos,
     total,
   }
 }
@@ -131,7 +175,8 @@ export const getMessages = async (
   conversationId: string,
   caller: IUser,
   page: number = 1,
-  limit: number = 50
+  limit: number = 50,
+  channel?: string
 ): Promise<{ messages: MessageDto[]; total: number }> => {
   if (!mongoose.Types.ObjectId.isValid(conversationId)) {
     throw new AppError('Invalid conversation ID', HTTP_STATUS.BAD_REQUEST)
@@ -143,14 +188,19 @@ export const getMessages = async (
     throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
   }
 
+  const messageFilter: Record<string, any> = { conversationId: conv._id }
+  if (channel && channel !== 'all') {
+    messageFilter.channel = channel
+  }
+
   const skip = (page - 1) * limit
   const [messages, total] = await Promise.all([
-    Message.find({ conversationId: conv._id })
+    Message.find(messageFilter)
       .sort({ createdAt: 1 })
       .skip(skip)
       .limit(limit)
       .lean(),
-    Message.countDocuments({ conversationId: conv._id }),
+    Message.countDocuments(messageFilter),
   ])
 
   return {

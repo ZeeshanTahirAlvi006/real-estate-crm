@@ -13,14 +13,9 @@ import {
   SparklesIcon,
   DocumentDuplicateIcon,
   EnvelopeIcon,
-  ArchiveBoxIcon,
   TrashIcon,
-  StarIcon,
   ArrowUturnLeftIcon,
-  ShieldExclamationIcon,
 } from '@heroicons/react/24/outline'
-import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid'
-import { toast } from 'sonner'
 
 interface GmailThreadViewProps {
   conversation: ConversationThread
@@ -43,15 +38,16 @@ export const GmailThreadView: React.FC<GmailThreadViewProps> = ({
   const [subject] = useState(
     `Re: Property Inquiry & Consultation — ${conversation.contactName || 'Lead'}`
   )
-  const [isStarred, setIsStarred] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
   const [isFormattingBold, setIsFormattingBold] = useState(false)
   const [isFormattingItalic, setIsFormattingItalic] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  const emailMessages = messages.filter((m) => m.channel === 'email')
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [emailMessages.length])
 
   const handleSend = () => {
     if (!inputText.trim() || isSending) return
@@ -104,57 +100,13 @@ export const GmailThreadView: React.FC<GmailThreadViewProps> = ({
     <div className="flex flex-col flex-1 h-full bg-background text-foreground relative overflow-hidden font-sans">
       {/* Gmail Top Action Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border/70 bg-card/80 backdrop-blur-sm z-10 text-xs">
-        <div className="flex items-center gap-1 sm:gap-2">
-          <button
-            type="button"
-            onClick={() => setIsStarred(!isStarred)}
-            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-            title="Star email thread"
-          >
-            {isStarred ? (
-              <StarSolidIcon className="w-4 h-4 text-amber-400" />
-            ) : (
-              <StarIcon className="w-4 h-4" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => toast.info('Email thread archived')}
-            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-            title="Archive"
-          >
-            <ArchiveBoxIcon className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => toast.warning('Marked as spam')}
-            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-            title="Report Spam"
-          >
-            <ShieldExclamationIcon className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => toast.error('Email thread moved to trash')}
-            className="p-1.5 rounded-lg hover:bg-muted text-destructive/80 transition-colors"
-            title="Delete"
-          >
-            <TrashIcon className="w-4 h-4" />
-          </button>
-
-          <div className="h-4 w-px bg-border/80 mx-1 hidden sm:block" />
-
-          <div className="flex items-center gap-1.5 text-muted-foreground text-[11px] hidden sm:flex">
-            <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-semibold border border-primary/20">
-              Inbox
-            </span>
-            <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold border border-blue-500/20">
-              Gmail IMAP Sync
-            </span>
-          </div>
+        <div className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
+          <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-semibold border border-primary/20">
+            Inbox
+          </span>
+          <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold border border-blue-500/20">
+            Gmail IMAP Sync
+          </span>
         </div>
 
         {/* AI Copilot & Status */}
@@ -188,15 +140,24 @@ export const GmailThreadView: React.FC<GmailThreadViewProps> = ({
 
       {/* Gmail Email Messages Thread */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-background">
-        {messages.map((msg) => {
-          const isMe = msg.direction === 'outbound'
-          const isAI = msg.senderType === 'ai_isa'
+        {emailMessages.length === 0 ? (
+          <div className="text-center py-16 text-muted-foreground text-xs space-y-2">
+            <EnvelopeIcon className="w-10 h-10 mx-auto text-muted-foreground/40" />
+            <p className="font-semibold text-foreground text-sm">No email messages yet</p>
+            <p className="max-w-xs mx-auto text-muted-foreground">
+              Send an email to {conversation.contactEmail || conversation.contactName} using the compose box below.
+            </p>
+          </div>
+        ) : (
+          emailMessages.map((msg) => {
+            const isMe = msg.direction === 'outbound'
+            const isAI = msg.senderType === 'ai_isa'
 
-          return (
-            <div
-              key={msg.id}
-              className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden transition-all hover:border-border"
-            >
+            return (
+              <div
+                key={msg.id}
+                className="rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden transition-all hover:border-border"
+              >
               {/* Email Card Header */}
               <div className="p-4 bg-muted/20 border-b border-border/50 flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0">
@@ -257,7 +218,7 @@ export const GmailThreadView: React.FC<GmailThreadViewProps> = ({
               </div>
             </div>
           )
-        })}
+        }))}
         <div ref={messagesEndRef} />
       </div>
 

@@ -8,6 +8,20 @@ export interface ISocialLinks {
   instagram?: string
 }
 
+export interface ITcpaConsent {
+  sms: boolean
+  call: boolean
+  whatsapp: boolean
+  email: boolean
+  doubleOptInVerified: boolean
+  verificationCode?: string
+  verificationCodeExpiresAt?: Date
+  consentSource?: 'web_form' | 'lead_portal' | 'verbal' | 'inbound_sms' | 'written'
+  consentIp?: string
+  consentDate?: Date
+  optOutReason?: string
+}
+
 export interface IContact extends Document {
   firstName: string
   lastName: string
@@ -28,6 +42,7 @@ export interface IContact extends Document {
   propertyInterests: string[]
   socialLinks?: ISocialLinks
   lastContactedAt?: Date
+  nextFollowUpDate?: Date
   assignedAt?: Date
   isAcknowledged: boolean
   leadSourceId?: mongoose.Types.ObjectId
@@ -35,6 +50,7 @@ export interface IContact extends Document {
   inquiryCount: number
   dncStatus?: 'clean' | 'dnc_federal' | 'dnc_state' | 'opted_out' | 'unverified'
   optedOutAt?: Date
+  tcpaConsent?: ITcpaConsent
   portalUserId?: mongoose.Types.ObjectId
   portalEnabled?: boolean
   portalAccessEmail?: string
@@ -123,6 +139,23 @@ const contactSchema = new Schema<IContact>(
       type: Date,
       default: null,
     },
+    tcpaConsent: {
+      sms: { type: Boolean, default: true },
+      call: { type: Boolean, default: true },
+      whatsapp: { type: Boolean, default: true },
+      email: { type: Boolean, default: true },
+      doubleOptInVerified: { type: Boolean, default: false },
+      verificationCode: { type: String, select: false },
+      verificationCodeExpiresAt: { type: Date },
+      consentSource: {
+        type: String,
+        enum: ['web_form', 'lead_portal', 'verbal', 'inbound_sms', 'written'],
+        default: 'web_form',
+      },
+      consentIp: { type: String, trim: true },
+      consentDate: { type: Date, default: Date.now },
+      optOutReason: { type: String, trim: true },
+    },
     assignedAgentId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -149,6 +182,10 @@ const contactSchema = new Schema<IContact>(
     },
     lastContactedAt: {
       type: Date,
+    },
+    nextFollowUpDate: {
+      type: Date,
+      index: true,
     },
     assignedAt: {
       type: Date,
@@ -200,6 +237,7 @@ contactSchema.index({ brokerageId: 1, email: 1, isDeleted: 1 })
 contactSchema.index({ brokerageId: 1, phone: 1, isDeleted: 1 })
 contactSchema.index({ brokerageId: 1, assignedAgentId: 1, isDeleted: 1 })
 contactSchema.index({ brokerageId: 1, status: 1, isDeleted: 1 })
+contactSchema.index({ brokerageId: 1, nextFollowUpDate: 1 })
 
 export const Contact: Model<IContact> =
   mongoose.models.Contact || mongoose.model<IContact>('Contact', contactSchema)

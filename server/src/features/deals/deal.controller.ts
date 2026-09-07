@@ -7,6 +7,8 @@ import {
   deleteDeal,
   moveDealStage,
   getKanbanData,
+  getStageDeals,
+  getMultipleStageDeals,
 } from './deal.service.js'
 import { sendSuccess, sendPaginated } from '../../utils/apiResponse.js'
 import { HTTP_STATUS } from '../../utils/constants.js'
@@ -31,7 +33,14 @@ export const list = async (req: Request, res: Response, next: NextFunction): Pro
 export const kanban = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!req.user) return
-    const data = await getKanbanData(req.params.pipelineId as string, req.user, req.tenantFilter || {})
+    const stageId = req.query.stageId as string | undefined
+    const includeDeals = req.query.includeDeals !== undefined ? req.query.includeDeals !== 'false' : undefined
+    const data = await getKanbanData(
+      req.params.pipelineId as string,
+      req.user,
+      req.tenantFilter || {},
+      { stageId, includeDeals }
+    )
     sendSuccess(res, data, 'Kanban data retrieved successfully')
   } catch (error) { next(error) }
 }
@@ -82,5 +91,36 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
     const { clientIp, userAgent } = getClientMeta(req)
     await deleteDeal(req.params.id as string, req.user, clientIp, userAgent)
     sendSuccess(res, null, 'Deal archived successfully')
+  } catch (error) { next(error) }
+}
+
+// GET /api/deals/stage/:stageId — Fetch deals for a single stage
+export const stageDealsHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user) return
+    const pipelineId = req.query.pipelineId as string | undefined
+    const data = await getStageDeals(
+      req.params.stageId as string,
+      req.user,
+      req.tenantFilter || {},
+      pipelineId
+    )
+    sendSuccess(res, data, 'Stage deals retrieved successfully')
+  } catch (error) { next(error) }
+}
+
+// GET /api/deals/stages — Batch-fetch deals for multiple stages
+export const multipleStageDealsHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user) return
+    const stageIdsParam = req.query.stageIds as string | undefined
+    const pipelineId = req.query.pipelineId as string | undefined
+    if (!stageIdsParam) {
+      sendSuccess(res, [], 'No stage IDs provided')
+      return
+    }
+    const stageIds = stageIdsParam.split(',').map((id) => id.trim()).filter(Boolean)
+    const data = await getMultipleStageDeals(stageIds, req.user, req.tenantFilter || {}, pipelineId)
+    sendSuccess(res, data, 'Multiple stage deals retrieved successfully')
   } catch (error) { next(error) }
 }

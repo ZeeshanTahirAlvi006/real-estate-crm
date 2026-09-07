@@ -53,7 +53,7 @@ export const ConvertDealModal: React.FC<ConvertDealModalProps> = ({
   const [escrowOfficer, setEscrowOfficer] = useState('Sarah Jenkins')
   const [escrowOfficerEmail, setEscrowOfficerEmail] = useState('escrow@firstam-closing.com')
   const [escrowOfficerPhone, setEscrowOfficerPhone] = useState('+1 (555) 948-2910')
-  const [notes, setNotes] = useState('')
+  const [notes] = useState('')
 
   const handlePriceChange = (price: number) => {
     setPurchasePrice(price)
@@ -111,7 +111,7 @@ export const ConvertDealModal: React.FC<ConvertDealModalProps> = ({
               <Label htmlFor="tx-type" className="text-xs font-semibold">
                 Representation Type
               </Label>
-              <Select value={type} onValueChange={(v: TransactionType) => setType(v)}>
+              <Select value={type} onValueChange={(v) => v && setType(v as TransactionType)}>
                 <SelectTrigger id="tx-type">
                   <SelectValue placeholder="Representation" />
                 </SelectTrigger>

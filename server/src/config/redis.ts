@@ -102,4 +102,7 @@ export const cacheInvalidatePattern = async (pattern: string): Promise<void> => 
   }
 }
 
+export const getRedisClient = (): Redis | null => redisClient
+
 export { redisClient }
+

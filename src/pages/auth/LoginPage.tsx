@@ -48,7 +48,12 @@ export function LoginPage() {
         navigate('/dashboard')
       }
     } catch (err: any) {
-      const message = err?.data?.message || 'Invalid email or password. Please try again.'
+      let message = 'Invalid email or password. Please try again.'
+      if (err?.status === 'FETCH_ERROR' || err?.error?.includes('Failed to fetch') || err?.error?.includes('fetch')) {
+        message = 'Cannot connect to backend server. Make sure backend is running on port 5000.'
+      } else if (err?.data?.message) {
+        message = err.data.message
+      }
       toast.error(message)
     }
   }

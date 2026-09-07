@@ -24,6 +24,7 @@ export const DEFAULT_FEATURE_FLAGS = [
   { key: 'esign', name: 'eSignature & PDF Documents', isEnabled: true, description: 'Electronic signature workflows and PDF generation' },
   { key: 'seller_radar', name: 'Seller Radar & Micro-CMA', isEnabled: true, description: 'Predictive seller equity scanner and comparative market analysis' },
   { key: 'export', name: 'Data Export (CSV & PDF)', isEnabled: true, description: 'Export contacts, deals, and reports to CSV and PDF formats' },
+  { key: 'transcription', name: 'Whisper Voice Transcriber', isEnabled: true, description: 'Agent voice note audio transcription, entity extraction, and auto CRM updates' },
 ] as const
 
 const featureFlagSchema = new Schema<IFeatureFlag>(

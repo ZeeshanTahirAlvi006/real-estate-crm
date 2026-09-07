@@ -26,8 +26,8 @@ export function PortalLayout() {
   const location = useLocation()
   const [logoutMutation] = useLogoutMutation()
 
-  const toggleTheme = () => {
-    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+  const toggleTheme = (e: React.MouseEvent) => {
+    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark', e)
   }
 
   const handleLogout = async () => {

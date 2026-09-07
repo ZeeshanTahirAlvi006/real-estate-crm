@@ -32,6 +32,7 @@ interface StartConversationModalProps {
   onOpenChange: (open: boolean) => void
   onConversationCreated: (conversationId: string) => void
   quickTemplates?: QuickReplyTemplate[]
+  defaultChannel?: ChannelType
 }
 
 const scoreColor = (score: number) => {
@@ -45,11 +46,12 @@ export const StartConversationModal: React.FC<StartConversationModalProps> = ({
   onOpenChange,
   onConversationCreated,
   quickTemplates = [],
+  defaultChannel = 'whatsapp',
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
-  const [selectedChannel, setSelectedChannel] = useState<ChannelType>('whatsapp')
+  const [selectedChannel, setSelectedChannel] = useState<ChannelType>(defaultChannel)
   const [initialMessage, setInitialMessage] = useState('')
 
   // Debounce search query
@@ -65,10 +67,12 @@ export const StartConversationModal: React.FC<StartConversationModalProps> = ({
     if (!open) {
       setSearchTerm('')
       setSelectedContact(null)
-      setSelectedChannel('whatsapp')
+      setSelectedChannel(defaultChannel)
       setInitialMessage('')
+    } else {
+      setSelectedChannel(defaultChannel)
     }
-  }, [open])
+  }, [open, defaultChannel])
 
   // Fetch contacts matching search
   const { data: contactsData, isLoading: loadingContacts } = useGetContactsQuery(
@@ -88,13 +92,16 @@ export const StartConversationModal: React.FC<StartConversationModalProps> = ({
 
   const handleSelectContact = (contact: Contact) => {
     setSelectedContact(contact)
-    // Smart default channel based on available info
-    if (contact.phone) {
+    if (defaultChannel === 'email' && contact.email) {
+      setSelectedChannel('email')
+    } else if (defaultChannel === 'whatsapp' && contact.phone) {
+      setSelectedChannel('whatsapp')
+    } else if (contact.phone) {
       setSelectedChannel('whatsapp')
     } else if (contact.email) {
       setSelectedChannel('email')
     } else {
-      setSelectedChannel('whatsapp')
+      setSelectedChannel(defaultChannel)
     }
   }
 

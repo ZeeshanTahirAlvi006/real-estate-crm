@@ -8,16 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  CodeBracketIcon,
-  ClipboardIcon,
-  CheckIcon,
-  SparklesIcon,
-  GlobeAltIcon,
-  PaperAirplaneIcon,
-  CheckCircleIcon,
-  ArrowPathIcon,
-} from '@heroicons/react/24/outline'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { toast } from 'sonner'
 
 export function LeadCaptureWidgetTab() {
@@ -32,10 +23,10 @@ export function LeadCaptureWidgetTab() {
   const captureKey = currentSource?.captureKey || '00000000-0000-0000-0000-000000000000'
 
   // Customizer State
-  const [widgetTitle, setWidgetTitle] = useState('Schedule a Private Showing')
-  const [widgetSubtext, setWidgetSubtext] = useState('Connect with a local luxury specialist within minutes.')
-  const [buttonText, setButtonText] = useState('Request Private Tour')
-  const [accentColor, setAccentColor] = useState('#2563eb')
+  const [widgetTitle, setWidgetTitle] = useState('Schedule a Showing')
+  const [widgetSubtext, setWidgetSubtext] = useState('Connect with a local property specialist.')
+  const [buttonText, setButtonText] = useState('Request Tour')
+  const [accentColor, setAccentColor] = useState('#9CB080')
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null)
 
   // Live Test Form State
@@ -46,7 +37,7 @@ export function LeadCaptureWidgetTab() {
   const [testAddress, setTestAddress] = useState('800 Brazos St #400, Austin TX')
   const [testPrice, setTestPrice] = useState(750000)
   const [testZipCode, setTestZipCode] = useState('78701')
-  const [testMessage, setTestMessage] = useState('Pre-approved cash buyer looking to view this listing tomorrow.')
+  const [testMessage, setTestMessage] = useState('Pre-approved buyer looking to view this listing.')
   const [submissionResult, setSubmissionResult] = useState<{ contactId: string; isNew: boolean } | null>(null)
 
   const [captureLead, { isLoading: isSubmitting }] = useCaptureWidgetLeadMutation()
@@ -58,18 +49,18 @@ export function LeadCaptureWidgetTab() {
 <div id="proppulse-lead-widget" data-capture-key="${captureKey}"></div>
 <script src="${apiBaseUrl}/widget/lead-capture.js" async defer></script>`
 
-  const iframeEmbedCode = `<iframe 
-  src="${apiBaseUrl}/embed/lead-form?key=${captureKey}" 
-  width="100%" 
-  height="540" 
-  frameborder="0" 
-  style="border:none;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.08);"
+  const iframeEmbedCode = `<iframe
+  src="${apiBaseUrl}/widget/embed?key=${captureKey}&theme=auto"
+  width="100%"
+  height="460"
+  frameborder="0"
+  style="border-radius: 12px; overflow: hidden;"
 ></iframe>`
 
-  const handleCopy = (text: string, label: string) => {
-    navigator.clipboard.writeText(text)
+  const handleCopySnippet = (snippet: string, label: string) => {
+    navigator.clipboard.writeText(snippet)
     setCopiedSnippet(label)
-    toast.success(`${label} copied to clipboard!`)
+    toast.success(`${label} copied!`)
     setTimeout(() => setCopiedSnippet(null), 2000)
   }
 
@@ -87,40 +78,40 @@ export function LeadCaptureWidgetTab() {
         lastName: testLastName.trim(),
         email: testEmail.trim() || undefined,
         phone: testPhone.trim() || undefined,
-        propertyAddress: testAddress.trim() || undefined,
-        propertyPrice: Number(testPrice) || undefined,
-        zipCode: testZipCode.trim() || undefined,
-        message: testMessage.trim() || undefined,
+        propertyInterest: {
+          address: testAddress,
+          price: testPrice || undefined,
+          zipCode: testZipCode,
+        },
+        message: testMessage,
       }).unwrap()
 
+      toast.success('Inquiry captured!')
       setSubmissionResult(res)
-      toast.success(res.isNew ? 'New lead successfully captured & routed!' : 'Reinquiry touchpoint recorded!')
-    } catch (err: any) {
-      toast.error(err?.data?.message || 'Failed to capture lead')
+    } catch {
+      toast.error('Failed to submit inquiry')
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-muted/20 p-4 rounded-2xl border border-border/80">
+      {/* Banner / Source Selector */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-[#202B2F] p-4 rounded-xl border border-[#D8E2D6] dark:border-[#618764]/60">
         <div>
-          <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-            <GlobeAltIcon className="w-4 h-4 text-primary" />
-            <span>Public Website Lead Capture Widget</span>
+          <h3 className="font-bold text-sm text-[#273338] dark:text-white">
+            Capture Widget
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Embed high-converting, mobile-responsive inquiry forms on your brokerage website, landing pages, and single-property listings.
+          <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] mt-0.5">
+            Embeddable capture widget for landing pages and portals.
           </p>
         </div>
 
-        {/* Source Selector */}
-        <div className="flex items-center gap-2 shrink-0">
-          <Label className="text-xs font-semibold text-muted-foreground">Source Key:</Label>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs font-semibold text-[#4A5D54] dark:text-[#A0B2A6] shrink-0">Source:</Label>
           <select
-            value={selectedSourceId || defaultSource?.id || ''}
+            value={selectedSourceId}
             onChange={(e) => setSelectedSourceId(e.target.value)}
-            className="h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+            className="h-9 px-3 rounded-lg border border-[#D8E2D6] dark:border-[#618764]/60 bg-white dark:bg-[#1A2E26] text-xs font-medium text-[#273338] dark:text-white"
           >
             {sources.map((s) => (
               <option key={s.id} value={s.id}>
@@ -134,113 +125,131 @@ export function LeadCaptureWidgetTab() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Embed Code & Customizer (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Embed Snippets Card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <CodeBracketIcon className="w-4 h-4 text-primary" />
-                Embed Code Snippets
+          {/* 1. Embed Snippet Options */}
+          <Card className="bg-white dark:bg-[#254238] border-[#D8E2D6] dark:border-[#618764] rounded-xl shadow-xs">
+            <CardHeader className="pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/40">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-[#273338] dark:text-white">
+                <MaterialIcon name="code" size={18} className="text-[#618764]" />
+                <span>Embed Code</span>
               </CardTitle>
-              <CardDescription className="text-xs">
-                Copy and paste these snippets directly into WordPress, Webflow, Squarespace, or custom React websites.
+              <CardDescription className="text-xs text-[#75887E] dark:text-[#A0B2A6]">
+                Copy and paste this snippet into your website or CMS.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 text-xs">
-              {/* JavaScript Tag */}
+            <CardContent className="space-y-4 text-xs pt-4">
+              {/* Script tag option */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-xs text-foreground">Standard Script Tag (Recommended)</span>
+                  <span className="font-semibold text-[#273338] dark:text-white">JavaScript Widget</span>
                   <button
-                    onClick={() => handleCopy(scriptEmbedCode, 'Script Tag')}
-                    className="text-primary hover:underline text-[11px] font-semibold flex items-center gap-1"
+                    onClick={() => handleCopySnippet(scriptEmbedCode, 'JS Snippet')}
+                    className="text-[#2B5748] dark:text-[#9CB080] hover:underline font-bold text-xs flex items-center gap-1 cursor-pointer"
                   >
-                    {copiedSnippet === 'Script Tag' ? <CheckIcon className="w-3.5 h-3.5 text-emerald-500" /> : <ClipboardIcon className="w-3.5 h-3.5" />}
-                    <span>{copiedSnippet === 'Script Tag' ? 'Copied' : 'Copy Snippet'}</span>
+                    {copiedSnippet === 'JS Snippet' ? (
+                      <>
+                        <MaterialIcon name="check" size={13} className="text-[#618764]" />
+                        <span className="text-[#618764]">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <MaterialIcon name="content_copy" size={13} />
+                        <span>Copy Code</span>
+                      </>
+                    )}
                   </button>
                 </div>
-                <pre className="p-3 rounded-xl bg-muted/40 border border-border/70 font-mono text-[11px] overflow-x-auto text-muted-foreground">
+                <div className="p-3 rounded-lg bg-[#EDF2EB]/50 dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/50 font-mono text-[11px] select-all text-[#4A5D54] dark:text-[#A0B2A6] overflow-x-auto whitespace-pre">
                   {scriptEmbedCode}
-                </pre>
+                </div>
               </div>
 
-              {/* iFrame Embed */}
-              <div className="space-y-1.5">
+              {/* iframe option */}
+              <div className="space-y-1.5 pt-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-xs text-foreground">iFrame Embed</span>
+                  <span className="font-semibold text-[#273338] dark:text-white">iFrame Embed</span>
                   <button
-                    onClick={() => handleCopy(iframeEmbedCode, 'iFrame Code')}
-                    className="text-primary hover:underline text-[11px] font-semibold flex items-center gap-1"
+                    onClick={() => handleCopySnippet(iframeEmbedCode, 'iFrame Code')}
+                    className="text-[#2B5748] dark:text-[#9CB080] hover:underline font-bold text-xs flex items-center gap-1 cursor-pointer"
                   >
-                    {copiedSnippet === 'iFrame Code' ? <CheckIcon className="w-3.5 h-3.5 text-emerald-500" /> : <ClipboardIcon className="w-3.5 h-3.5" />}
-                    <span>{copiedSnippet === 'iFrame Code' ? 'Copied' : 'Copy Snippet'}</span>
+                    {copiedSnippet === 'iFrame Code' ? (
+                      <>
+                        <MaterialIcon name="check" size={13} className="text-[#618764]" />
+                        <span className="text-[#618764]">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <MaterialIcon name="content_copy" size={13} />
+                        <span>Copy Code</span>
+                      </>
+                    )}
                   </button>
                 </div>
-                <pre className="p-3 rounded-xl bg-muted/40 border border-border/70 font-mono text-[11px] overflow-x-auto text-muted-foreground">
+                <div className="p-3 rounded-lg bg-[#EDF2EB]/50 dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/50 font-mono text-[11px] select-all text-[#4A5D54] dark:text-[#A0B2A6] overflow-x-auto whitespace-pre">
                   {iframeEmbedCode}
-                </pre>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Widget Styling Customizer */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <SparklesIcon className="w-4 h-4 text-purple-500" />
-                Widget Text & Styling Controls
+          {/* 2. Style Customizer */}
+          <Card className="bg-white dark:bg-[#254238] border-[#D8E2D6] dark:border-[#618764] rounded-xl shadow-xs">
+            <CardHeader className="pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/40">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-[#273338] dark:text-white">
+                <MaterialIcon name="tune" size={18} className="text-[#618764]" />
+                <span>Customize Form</span>
               </CardTitle>
-              <CardDescription className="text-xs">
-                Customize titles, call-to-action text, and theme colors to match your brand.
+              <CardDescription className="text-xs text-[#75887E] dark:text-[#A0B2A6]">
+                Adjust headers, labels, and color theme.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 text-xs">
+            <CardContent className="space-y-4 text-xs pt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Widget Headline</Label>
+                  <Label className="text-xs font-semibold text-[#273338] dark:text-white">Form Title</Label>
                   <Input
                     value={widgetTitle}
                     onChange={(e) => setWidgetTitle(e.target.value)}
-                    className="h-8 text-xs"
+                    className="h-8 text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Submit Button CTA</Label>
+                  <Label className="text-xs font-semibold text-[#273338] dark:text-white">Button CTA</Label>
                   <Input
                     value={buttonText}
                     onChange={(e) => setButtonText(e.target.value)}
-                    className="h-8 text-xs"
+                    className="h-8 text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs font-semibold">Sub-headline / Promise</Label>
+                <Label className="text-xs font-semibold text-[#273338] dark:text-white">Subtitle</Label>
                 <Input
                   value={widgetSubtext}
                   onChange={(e) => setWidgetSubtext(e.target.value)}
-                  className="h-8 text-xs"
+                  className="h-8 text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Primary Accent Color</Label>
+                <Label className="text-xs font-semibold text-[#273338] dark:text-white">Accent Color</Label>
                 <div className="flex items-center gap-2">
-                  {['#2563eb', '#7c3aed', '#059669', '#dc2626', '#ea580c', '#0f172a'].map((color) => (
+                  {['#9CB080', '#618764', '#2B5748', '#273338', '#475569', '#059669'].map((color) => (
                     <button
                       key={color}
                       type="button"
                       onClick={() => setAccentColor(color)}
                       style={{ backgroundColor: color }}
-                      className={`w-7 h-7 rounded-full transition-transform ${
-                        accentColor === color ? 'scale-110 ring-2 ring-offset-2 ring-primary' : 'hover:scale-105'
+                      className={`w-7 h-7 rounded-full transition-transform cursor-pointer ${
+                        accentColor === color ? 'scale-110 ring-2 ring-offset-2 ring-[#9CB080]' : 'hover:scale-105'
                       }`}
                     />
                   ))}
                   <Input
                     value={accentColor}
                     onChange={(e) => setAccentColor(e.target.value)}
-                    className="h-8 w-24 font-mono text-xs ml-2"
+                    className="h-8 w-24 font-mono text-xs ml-2 bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                   />
                 </div>
               </div>
@@ -250,32 +259,32 @@ export function LeadCaptureWidgetTab() {
 
         {/* Right Column: Live Interactive Widget Preview (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
-          <Card className="border-border shadow-md overflow-hidden">
+          <Card className="border-[#D8E2D6] dark:border-[#618764] rounded-xl shadow-md overflow-hidden bg-white dark:bg-[#254238]">
             <div
-              className="p-5 text-white space-y-1"
+              className="p-5 space-y-1 transition-colors"
               style={{ backgroundColor: accentColor }}
             >
               <div className="flex items-center justify-between">
                 <Badge variant="secondary" className="bg-white/20 text-white border-0 text-[10px]">
-                  Live Test Sandbox
+                  Live Preview
                 </Badge>
-                <span className="text-[10px] text-white/80 font-mono">Public Form</span>
+                <span className="text-[10px] text-white/90 font-mono">Public Form</span>
               </div>
-              <h3 className="font-bold text-base">{widgetTitle}</h3>
-              <p className="text-xs text-white/80">{widgetSubtext}</p>
+              <h3 className="font-bold text-base text-white">{widgetTitle}</h3>
+              <p className="text-xs text-white/90">{widgetSubtext}</p>
             </div>
 
             <CardContent className="p-5">
               {submissionResult ? (
-                <div className="text-center py-8 space-y-3 animate-in fade-in duration-300">
-                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
-                    <CheckCircleIcon className="w-7 h-7" />
+                <div className="text-center py-8 space-y-3">
+                  <div className="w-12 h-12 rounded-xl bg-[#EDF2EB] dark:bg-[#1A2E26] text-[#2B5748] dark:text-[#9CB080] flex items-center justify-center mx-auto border border-[#D8E2D6] dark:border-[#618764]/50">
+                    <MaterialIcon name="check_circle" size={28} />
                   </div>
-                  <h4 className="font-bold text-sm text-foreground">Inquiry Received!</h4>
-                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                    Thank you! Your request has been securely processed and routed to an agent.
+                  <h4 className="font-bold text-sm text-[#273338] dark:text-white">Inquiry Received</h4>
+                  <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] max-w-xs mx-auto">
+                    Request securely processed and routed to an agent.
                   </p>
-                  <Badge variant="outline" className="font-mono text-[10px] py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                  <Badge variant="outline" className="font-mono text-[10px] py-0.5 bg-[#EDF2EB] dark:bg-[#202B2F] text-[#2B5748] dark:text-[#9CB080] border-[#D8E2D6] dark:border-[#618764]/50">
                     Contact ID: {submissionResult.contactId}
                   </Badge>
                   <div className="pt-2">
@@ -289,9 +298,9 @@ export function LeadCaptureWidgetTab() {
                         setTestEmail('')
                         setTestPhone('')
                       }}
-                      className="text-xs"
+                      className="text-xs border-[#D8E2D6] dark:border-[#618764]/60"
                     >
-                      Submit Another Test Lead
+                      Submit Another Lead
                     </Button>
                   </div>
                 </div>
@@ -299,88 +308,88 @@ export function LeadCaptureWidgetTab() {
                 <form onSubmit={handleLiveSubmit} className="space-y-3 text-xs">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[11px] font-semibold">First Name *</Label>
+                      <Label className="text-[11px] font-semibold text-[#273338] dark:text-white">First Name *</Label>
                       <Input
                         required
                         value={testFirstName}
                         onChange={(e) => setTestFirstName(e.target.value)}
                         placeholder="Jane"
-                        className="h-8 text-xs"
+                        className="h-8 text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[11px] font-semibold">Last Name *</Label>
+                      <Label className="text-[11px] font-semibold text-[#273338] dark:text-white">Last Name *</Label>
                       <Input
                         required
                         value={testLastName}
                         onChange={(e) => setTestLastName(e.target.value)}
                         placeholder="Doe"
-                        className="h-8 text-xs"
+                        className="h-8 text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[11px] font-semibold">Email Address</Label>
+                      <Label className="text-[11px] font-semibold text-[#273338] dark:text-white">Email Address</Label>
                       <Input
                         type="email"
                         value={testEmail}
                         onChange={(e) => setTestEmail(e.target.value)}
                         placeholder="jane@example.com"
-                        className="h-8 text-xs"
+                        className="h-8 text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[11px] font-semibold">Phone Number</Label>
+                      <Label className="text-[11px] font-semibold text-[#273338] dark:text-white">Phone Number</Label>
                       <Input
                         type="tel"
                         value={testPhone}
                         onChange={(e) => setTestPhone(e.target.value)}
                         placeholder="+1 (555) 000-0000"
-                        className="h-8 text-xs"
+                        className="h-8 text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-semibold">Property Interest Address</Label>
+                    <Label className="text-[11px] font-semibold text-[#273338] dark:text-white">Property Address</Label>
                     <Input
                       value={testAddress}
                       onChange={(e) => setTestAddress(e.target.value)}
-                      placeholder="e.g. 1200 S Congress Ave #402"
-                      className="h-8 text-xs"
+                      placeholder="e.g. 800 Brazos St #400"
+                      className="h-8 text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[11px] font-semibold">Price / Budget ($)</Label>
+                      <Label className="text-[11px] font-semibold text-[#273338] dark:text-white">Price / Budget ($)</Label>
                       <Input
                         type="number"
                         value={testPrice}
                         onChange={(e) => setTestPrice(Number(e.target.value) || 0)}
-                        className="h-8 font-mono text-xs"
+                        className="h-8 font-mono text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[11px] font-semibold">ZIP Code</Label>
+                      <Label className="text-[11px] font-semibold text-[#273338] dark:text-white">ZIP Code</Label>
                       <Input
                         value={testZipCode}
                         onChange={(e) => setTestZipCode(e.target.value)}
                         placeholder="78701"
-                        className="h-8 font-mono text-xs"
+                        className="h-8 font-mono text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-semibold">Special Requests / Message</Label>
+                    <Label className="text-[11px] font-semibold text-[#273338] dark:text-white">Message</Label>
                     <textarea
                       value={testMessage}
                       onChange={(e) => setTestMessage(e.target.value)}
                       rows={2}
-                      className="w-full rounded-md border border-border p-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full rounded-lg border border-[#D8E2D6] dark:border-[#618764]/60 bg-white dark:bg-[#202B2F] p-2 text-xs focus:outline-none focus:ring-1 focus:ring-[#9CB080] text-[#273338] dark:text-white"
                     />
                   </div>
 
@@ -388,17 +397,17 @@ export function LeadCaptureWidgetTab() {
                     type="submit"
                     disabled={isSubmitting}
                     style={{ backgroundColor: accentColor }}
-                    className="w-full text-white font-semibold text-xs h-9 gap-1.5 shadow-sm"
+                    className="w-full text-[#273338] font-bold text-xs h-9 gap-1.5 shadow-sm cursor-pointer"
                   >
                     {isSubmitting ? (
                       <>
-                        <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                        Submitting Inquiry...
+                        <MaterialIcon name="refresh" size={16} className="animate-spin" />
+                        <span>Submitting...</span>
                       </>
                     ) : (
                       <>
-                        <PaperAirplaneIcon className="w-3.5 h-3.5" />
-                        {buttonText}
+                        <MaterialIcon name="send" size={16} />
+                        <span>{buttonText}</span>
                       </>
                     )}
                   </Button>
@@ -411,3 +420,5 @@ export function LeadCaptureWidgetTab() {
     </div>
   )
 }
+
+export default LeadCaptureWidgetTab

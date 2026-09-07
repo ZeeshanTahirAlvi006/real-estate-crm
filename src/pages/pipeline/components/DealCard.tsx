@@ -4,6 +4,7 @@ import type { Deal } from '@/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { cn } from '@/lib/utils'
 
 interface DealCardProps {
@@ -11,11 +12,24 @@ interface DealCardProps {
   onClick?: () => void
 }
 
+// Strict plain colors from theme.ts (#9CB080, #618764, #2B5748, #273338)
 const priorityConfig: Record<string, { label: string; class: string }> = {
-  urgent: { label: 'Urgent', class: 'bg-red-500/15 text-red-500 border-red-500/30' },
-  high: { label: 'High', class: 'bg-amber-500/15 text-amber-500 border-amber-500/30' },
-  medium: { label: 'Medium', class: 'bg-blue-500/15 text-blue-500 border-blue-500/30' },
-  low: { label: 'Low', class: 'bg-muted text-muted-foreground' },
+  urgent: {
+    label: 'Urgent',
+    class: 'bg-[#9CB080] text-[#273338] border-[#9CB080] font-bold',
+  },
+  high: {
+    label: 'High',
+    class: 'bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border-[#9CB080]/50 font-semibold',
+  },
+  medium: {
+    label: 'Medium',
+    class: 'bg-[#618764]/15 text-[#2B5748] dark:text-[#E2ECE4] border-[#618764]/40 font-medium',
+  },
+  low: {
+    label: 'Low',
+    class: 'text-[#75887E] dark:text-[#A0B2A6] border-[#D8E2D6] dark:border-[#618764]/30',
+  },
 }
 
 export function DealCard({ deal, onClick }: DealCardProps) {
@@ -40,37 +54,52 @@ export function DealCard({ deal, onClick }: DealCardProps) {
       ref={ref}
       onClick={onClick}
       className={cn(
-        'group cursor-pointer select-none transition-all hover:shadow-md hover:border-primary/40 active:cursor-grabbing',
-        isDragging && 'opacity-50 rotate-2 shadow-xl'
+        'group cursor-pointer select-none transition-all duration-200',
+        'bg-white dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764] rounded-xl',
+        'hover:border-[#9CB080] dark:hover:border-[#9CB080] hover:shadow-sm active:cursor-grabbing',
+        isDragging && 'opacity-50 rotate-1 shadow-lg border-[#9CB080]'
       )}
     >
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <p className="text-sm font-semibold leading-tight truncate text-foreground group-hover:text-primary transition-colors">
+      <CardContent className="p-3.5 flex flex-col gap-2">
+        {/* Header: Name and Priority / Status Badge */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold leading-tight truncate text-[#273338] dark:text-white group-hover:text-[#2B5748] dark:group-hover:text-[#9CB080] transition-colors">
               {deal.contactName}
             </p>
           </div>
-          <div className="flex items-center gap-1 shrink-0 ml-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             {deal.isConvertedToEscrow && (
-              <Badge variant="outline" className="text-[10px] bg-emerald-500/15 text-emerald-500 border-emerald-500/30 font-bold px-1.5 py-0">
-                In Escrow
+              <Badge
+                variant="outline"
+                className="text-[10px] bg-[#618764]/20 text-[#2B5748] dark:text-[#9CB080] border-[#618764] font-bold px-1.5 py-0"
+              >
+                Escrow
               </Badge>
             )}
-            <Badge variant="outline" className={cn('text-[10px]', p.class)}>
+            <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', p.class)}>
               {p.label}
             </Badge>
           </div>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground truncate">{deal.propertyAddress}</p>
-        <div className="mt-3 flex items-center justify-between">
-          <span className="text-sm font-bold text-foreground font-mono">
-            ${(deal.dealValue / 1000).toFixed(0)}K
+
+        {/* Address */}
+        <div className="flex items-center gap-1 text-xs text-[#75887E] dark:text-[#A0B2A6] truncate">
+          <MaterialIcon name="location_on" size={14} className="shrink-0 text-[#618764] dark:text-[#9CB080]" />
+          <span className="truncate">{deal.propertyAddress}</span>
+        </div>
+
+        {/* Footer: Price, Days in Stage & Agent */}
+        <div className="mt-1 pt-2.5 border-t border-[#D8E2D6] dark:border-[#618764]/40 flex items-center justify-between">
+          <span className="text-sm font-bold text-[#273338] dark:text-white font-mono">
+            ${(deal.dealValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}K
           </span>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-muted-foreground">{deal.daysInStage}d in stage</span>
-            <Avatar className="h-6 w-6">
-              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+            <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+              {deal.daysInStage}d
+            </span>
+            <Avatar className="h-6 w-6 border border-[#D8E2D6] dark:border-[#618764]">
+              <AvatarFallback className="bg-[#EDF2EB] dark:bg-[#2B5748] text-[#2B5748] dark:text-[#9CB080] text-[10px] font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>

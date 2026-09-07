@@ -140,7 +140,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
             </Label>
             <Select
               value={category}
-              onValueChange={(val: DocumentCategory) => setCategory(val)}
+              onValueChange={(val) => val && setCategory(val as DocumentCategory)}
             >
               <SelectTrigger id="doc-category">
                 <SelectValue placeholder="Select Category" />

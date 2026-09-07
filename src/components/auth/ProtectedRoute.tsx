@@ -19,7 +19,7 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
   const { isAuthenticated, isInitialized, user } = useAppSelector((state) => state.auth)
 
   // On mount / page refresh, validate session via GET /api/auth/me
-  const { data, isLoading, isError, isSuccess } = useGetMeQuery(undefined, {
+  const { data, isLoading, isError, isSuccess, error } = useGetMeQuery(undefined, {
     skip: isAuthenticated && isInitialized,
   })
 
@@ -27,13 +27,23 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
   useEffect(() => {
     if (isSuccess && data) {
       dispatch(setCredentials({ user: data }))
-    } else if (isError) {
+    } else if (isError || error) {
       dispatch(setInitialized())
     }
-  }, [isSuccess, isError, data, dispatch])
+  }, [isSuccess, isError, error, data, dispatch])
+
+  // Safety fallback: if session check takes > 2.5s, unblock loader screen so app doesn't hang
+  useEffect(() => {
+    if (!isInitialized) {
+      const timer = setTimeout(() => {
+        dispatch(setInitialized())
+      }, 2500)
+      return () => clearTimeout(timer)
+    }
+  }, [isInitialized, dispatch])
 
   // Show loading splash while checking session
-  if (!isInitialized || isLoading) {
+  if (!isInitialized || (isLoading && !isAuthenticated)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

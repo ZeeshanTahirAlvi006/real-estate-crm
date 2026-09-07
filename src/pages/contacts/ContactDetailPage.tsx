@@ -231,7 +231,7 @@ export function ContactDetailPage() {
               <div className="p-2.5 rounded-lg bg-background/80 border border-border/80 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground font-medium">Portal Email:</span>
-                  <span className="font-mono font-bold text-foreground truncate max-w-[140px]">
+                  <span className="font-mono font-bold text-foreground truncate max-w-35">
                     {contact.portalAccessEmail || contact.email || 'Auto-Provisioned'}
                   </span>
                 </div>

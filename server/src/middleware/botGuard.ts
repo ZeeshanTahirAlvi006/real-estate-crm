@@ -16,6 +16,14 @@ const BLOCKED_SCRAPER_PATTERNS = [
   /urllib/i,
 ]
 
+// Cloud Metadata Probe URL patterns (OWASP A05 / CWE-1230 mitigation)
+const CLOUD_METADATA_PROBE_PATTERNS = [
+  /^\/opc\//i,
+  /^\/latest\/meta-data/i,
+  /^\/computeMetadata\/v1/i,
+  /^\/metadata\/instance/i,
+]
+
 // Bot & Webcrawler Guard Middleware
 export const botGuard = (req: Request, res: Response, next: NextFunction): void | Response => {
   // 1. Prohibit search engine bots and AI crawlers from indexing API endpoints
@@ -26,7 +34,20 @@ export const botGuard = (req: Request, res: Response, next: NextFunction): void 
   res.setHeader('Pragma', 'no-cache')
   res.setHeader('Expires', '0')
 
-  // 3. User-Agent Bot Screening for automated scraping attempts
+  // 3. Cloud Metadata SSRF & Host Header Spoofing Protection
+  const hostHeader = (req.headers.host || '').toLowerCase()
+  if (hostHeader.includes('169.254.169.254')) {
+    logger.warn(`Blocked Host header cloud metadata spoofing attempt from IP: ${req.ip}`)
+    return sendError(res, 'Access forbidden. Host header invalid.', HTTP_STATUS.FORBIDDEN)
+  }
+
+  const isMetadataProbe = CLOUD_METADATA_PROBE_PATTERNS.some((pattern) => pattern.test(req.path || req.originalUrl))
+  if (isMetadataProbe) {
+    logger.warn(`Blocked Cloud Metadata probe path '${req.path}' from IP: ${req.ip}`)
+    return sendError(res, 'Access forbidden. Metadata endpoint unavailable.', HTTP_STATUS.FORBIDDEN)
+  }
+
+  // 4. User-Agent Bot Screening for automated scraping attempts
   const userAgent = req.headers['user-agent'] || ''
 
   // Allow webhooks, health checks, or requests with proper API keys

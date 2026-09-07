@@ -105,7 +105,7 @@ export const getClientIp = (req: Request): string => {
  * directly driven by .env configurations.
  */
 export const rateLimiter = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  // Allow health checks, audit logs, and activity requests without rate-limiting
+  // Allow health checks, audit logs, activity requests, and external webhooks without rate-limiting
   const path = req.path.toLowerCase()
   if (
     path === '/health' ||
@@ -113,7 +113,8 @@ export const rateLimiter = async (req: Request, res: Response, next: NextFunctio
     path.startsWith('/api/audit-logs') ||
     path.startsWith('/audit-logs') ||
     path.includes('/activities') ||
-    path.includes('/activity-feed')
+    path.includes('/activity-feed') ||
+    path.includes('/webhook')
   ) {
     return next()
   }

@@ -33,10 +33,25 @@ export const leadsApi = baseApi.injectEndpoints({
       { leadSources: LeadSource[]; total: number },
       { search?: string; type?: string; isActive?: string; page?: number; limit?: number } | void
     >({
-      query: (params) => ({
-        url: '/lead-sources',
-        params: params || {},
-      }),
+      query: (params) => {
+        const cleanParams: Record<string, string | number> = {}
+        if (params?.search && params.search.trim() && params.search !== 'undefined') {
+          cleanParams.search = params.search.trim()
+        }
+        if (params?.type && params.type !== 'all' && params.type !== 'undefined') {
+          cleanParams.type = params.type
+        }
+        if (params?.isActive && params.isActive !== 'undefined') {
+          cleanParams.isActive = params.isActive
+        }
+        if (params?.page) cleanParams.page = params.page
+        if (params?.limit) cleanParams.limit = params.limit
+
+        return {
+          url: '/lead-sources',
+          params: Object.keys(cleanParams).length > 0 ? cleanParams : undefined,
+        }
+      },
       transformResponse: (response: ApiResponse<LeadSource[]>) => ({
         leadSources: response.data || [],
         total: response.meta?.total ?? (response.data?.length || 0),
@@ -98,10 +113,22 @@ export const leadsApi = baseApi.injectEndpoints({
       { routingRules: RoutingRule[]; total: number },
       { type?: string; isActive?: string; page?: number; limit?: number } | void
     >({
-      query: (params) => ({
-        url: '/routing-rules',
-        params: params || {},
-      }),
+      query: (params) => {
+        const cleanParams: Record<string, string | number> = {}
+        if (params?.type && params.type !== 'all' && params.type !== 'undefined') {
+          cleanParams.type = params.type
+        }
+        if (params?.isActive && params.isActive !== 'undefined') {
+          cleanParams.isActive = params.isActive
+        }
+        if (params?.page) cleanParams.page = params.page
+        if (params?.limit) cleanParams.limit = params.limit
+
+        return {
+          url: '/routing-rules',
+          params: Object.keys(cleanParams).length > 0 ? cleanParams : undefined,
+        }
+      },
       transformResponse: (response: ApiResponse<RoutingRule[]>) => ({
         routingRules: response.data || [],
         total: response.meta?.total ?? (response.data?.length || 0),

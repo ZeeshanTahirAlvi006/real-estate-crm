@@ -18,8 +18,9 @@ import {
   ingestManualLead,
   acknowledgeLeads,
 } from './lead.service.js'
-import { sendSuccess, sendPaginated } from '../../utils/apiResponse.js'
+import { sendSuccess, sendPaginated, sendError } from '../../utils/apiResponse.js'
 import { HTTP_STATUS } from '../../utils/constants.js'
+import { logger } from '../../utils/logger.js'
 
 // Helper to extract IP and user-agent
 const getClientMeta = (req: Request) => ({
@@ -42,12 +43,19 @@ export const createLeadSourceHandler = async (req: Request, res: Response, next:
 
 export const listLeadSourcesHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    if (!req.user) return
+    if (!req.user) {
+      logger.warn('[listLeadSourcesHandler] No req.user found')
+      sendError(res, 'Unauthorized', HTTP_STATUS.UNAUTHORIZED)
+      return
+    }
+    logger.info('[listLeadSourcesHandler] req.query: %o, user: %s, tenantFilter: %o', req.query, req.user._id, req.tenantFilter)
     const { leadSources, total } = await listLeadSources(req.query, req.user, req.tenantFilter || {})
+    logger.info('[listLeadSourcesHandler] Returning total: %d, items: %d', total, leadSources.length)
     const page = Number(req.query.page) || 1
     const limit = Number(req.query.limit) || 25
     sendPaginated(res, leadSources, total, page, limit, 'Lead sources retrieved successfully')
   } catch (error) {
+    logger.error('[listLeadSourcesHandler] Error:', error)
     next(error)
   }
 }

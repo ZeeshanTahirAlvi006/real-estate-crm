@@ -126,10 +126,23 @@ export const communicationApi = baseApi.injectEndpoints({
       invalidatesTags: ['Conversations'],
     }),
 
-    getMessages: builder.query<ConversationMessage[], string>({
-      query: (conversationId) => `/inbox/conversations/${conversationId}/messages`,
+    getMessages: builder.query<
+      ConversationMessage[],
+      string | { conversationId: string; channel?: string }
+    >({
+      query: (arg) => {
+        const id = typeof arg === 'string' ? arg : arg.conversationId
+        const channel = typeof arg === 'object' ? arg.channel : undefined
+        return {
+          url: `/inbox/conversations/${id}/messages`,
+          params: channel && channel !== 'all' ? { channel } : undefined,
+        }
+      },
       transformResponse: (res: ApiResponse<ConversationMessage[]>) => res.data || [],
-      providesTags: (_res, _err, id) => [{ type: 'Messages', id }],
+      providesTags: (_res, _err, arg) => {
+        const id = typeof arg === 'string' ? arg : arg.conversationId
+        return [{ type: 'Messages', id }]
+      },
     }),
 
     sendMessage: builder.mutation<

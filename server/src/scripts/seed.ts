@@ -5,6 +5,8 @@ import { Contact } from '../models/Contact.js'
 import { Activity } from '../models/Activity.js'
 import { Conversation } from '../models/Conversation.js'
 import { Message } from '../models/Message.js'
+import { Property } from '../models/Property.js'
+import { CmaReport } from '../models/CmaReport.js'
 import { FeatureFlag, initializeDefaultFeatureFlags } from '../models/FeatureFlag.js'
 import { AuditLog } from '../models/AuditLog.js'
 import { USER_ROLES } from '../utils/constants.js'
@@ -25,6 +27,8 @@ export const seedDatabase = async (): Promise<void> => {
       Activity.deleteMany({}),
       Conversation.deleteMany({}),
       Message.deleteMany({}),
+      Property.deleteMany({}),
+      CmaReport.deleteMany({}),
       FeatureFlag.deleteMany({}),
       AuditLog.deleteMany({}),
     ])
@@ -500,6 +504,7 @@ export const seedDatabase = async (): Promise<void> => {
       },
     ]
 
+    const createdContactsList: any[] = []
     for (let i = 0; i < contactsData.length; i++) {
       const contactInfo = contactsData[i]
       const assignedAgent = agentsList[i % agentsList.length]
@@ -510,6 +515,7 @@ export const seedDatabase = async (): Promise<void> => {
         assignedAgentId: assignedAgent._id,
         lastContactedAt: new Date(Date.now() - (i + 1) * 3600 * 1000 * 6),
       })
+      createdContactsList.push(contact)
 
       // 5. Seed Activity Logs for Contact
       await Activity.create({
@@ -653,7 +659,240 @@ export const seedDatabase = async (): Promise<void> => {
       }
     }
 
-    // 6. Seed Initial Audit Logs
+    // 6. Seed Properties & Seller Radar Intelligence
+    logger.info('Seeding Properties & Seller Radar Intelligence...')
+    const today = new Date()
+    const anniversaryDate = new Date(today.getFullYear() - 10, today.getMonth(), today.getDate())
+
+    const prop1 = await Property.create({
+      brokerageId: alMirajBrokerage._id,
+      ownerContactId: createdContactsList[0]._id,
+      assignedAgentId: agentHamza._id,
+      address: {
+        street: '1420 Highland Ave',
+        city: 'Austin',
+        state: 'TX',
+        zipCode: '78703',
+        formattedAddress: '1420 Highland Ave, Austin TX 78703',
+      },
+      propertyType: 'single_family',
+      beds: 4,
+      baths: 3,
+      squareFeet: 2850,
+      purchaseDate: anniversaryDate,
+      purchasePrice: 520000,
+      currentMortgageRate: 3.12,
+      estimatedMortgageBalance: 320000,
+      estimatedValue: 840000,
+      equity: 520000,
+      equityPercent: 62,
+      probabilityOfSelling: 96,
+      sellSignals: ['10-Yr Purchase Anniversary', 'Empty Nester Signal', '62% Equity'],
+    })
+
+    await Property.create({
+      brokerageId: alMirajBrokerage._id,
+      ownerContactId: createdContactsList[1]._id,
+      assignedAgentId: agentFatima._id,
+      address: {
+        street: '890 Barton Springs Rd',
+        city: 'Austin',
+        state: 'TX',
+        zipCode: '78704',
+        formattedAddress: '890 Barton Springs Rd, Austin TX 78704',
+      },
+      propertyType: 'single_family',
+      beds: 5,
+      baths: 4,
+      squareFeet: 3400,
+      purchaseDate: new Date(Date.now() - 7.8 * 365.25 * 86400 * 1000),
+      purchasePrice: 650000,
+      currentMortgageRate: 3.35,
+      estimatedMortgageBalance: 370000,
+      estimatedValue: 1150000,
+      equity: 780000,
+      equityPercent: 68,
+      probabilityOfSelling: 92,
+      sellSignals: ['High Appreciation Zone (+38%)', 'Equity Peak Indicator'],
+    })
+
+    await Property.create({
+      brokerageId: alMirajBrokerage._id,
+      ownerContactId: createdContactsList[2]._id,
+      assignedAgentId: agentBilal._id,
+      address: {
+        street: '3204 Westlake Dr',
+        city: 'Austin',
+        state: 'TX',
+        zipCode: '78746',
+        formattedAddress: '3204 Westlake Dr, Austin TX 78746',
+      },
+      propertyType: 'single_family',
+      beds: 5,
+      baths: 4.5,
+      squareFeet: 4200,
+      purchaseDate: new Date(Date.now() - 11.4 * 365.25 * 86400 * 1000),
+      purchasePrice: 820000,
+      currentMortgageRate: 2.87,
+      estimatedMortgageBalance: 460000,
+      estimatedValue: 1450000,
+      equity: 990000,
+      equityPercent: 68,
+      probabilityOfSelling: 89,
+      sellSignals: ['Free & Clear Equity (68%)', 'Upsizing Inquiries on Zillow'],
+    })
+
+    await Property.create({
+      brokerageId: alMirajBrokerage._id,
+      ownerContactId: createdContactsList[3]._id,
+      assignedAgentId: agentZainab._id,
+      address: {
+        street: '5120 River Road',
+        city: 'Austin',
+        state: 'TX',
+        zipCode: '78734',
+        formattedAddress: '5120 River Road, Austin TX 78734',
+      },
+      propertyType: 'single_family',
+      beds: 4,
+      baths: 3,
+      squareFeet: 2950,
+      purchaseDate: new Date(Date.now() - 8.5 * 365.25 * 86400 * 1000),
+      purchasePrice: 540000,
+      currentMortgageRate: 3.45,
+      estimatedMortgageBalance: 310000,
+      estimatedValue: 920000,
+      equity: 610000,
+      equityPercent: 66,
+      probabilityOfSelling: 86,
+      sellSignals: ['Significant Equity Spike (+44%)', 'Empty Nester Life Event'],
+    })
+
+    await Property.create({
+      brokerageId: alMirajBrokerage._id,
+      ownerContactId: createdContactsList[4]._id,
+      assignedAgentId: agentHamza._id,
+      address: {
+        street: '2204 South Congress Ave',
+        city: 'Austin',
+        state: 'TX',
+        zipCode: '78704',
+        formattedAddress: '2204 South Congress Ave, Austin TX 78704',
+      },
+      propertyType: 'condo',
+      beds: 2,
+      baths: 2,
+      squareFeet: 1450,
+      purchaseDate: new Date(Date.now() - 5.2 * 365.25 * 86400 * 1000),
+      purchasePrice: 420000,
+      currentMortgageRate: 3.75,
+      estimatedMortgageBalance: 280000,
+      estimatedValue: 680000,
+      equity: 400000,
+      equityPercent: 59,
+      probabilityOfSelling: 76,
+      sellSignals: ['Mid-Cycle Ownership (5.2 Yrs)', 'Trapped Equity Cushion'],
+    })
+
+    await Property.create({
+      brokerageId: alMirajBrokerage._id,
+      ownerContactId: createdContactsList[5]._id,
+      assignedAgentId: agentFatima._id,
+      address: {
+        street: '7402 Shoal Creek Blvd',
+        city: 'Austin',
+        state: 'TX',
+        zipCode: '78757',
+        formattedAddress: '7402 Shoal Creek Blvd, Austin TX 78757',
+      },
+      propertyType: 'single_family',
+      beds: 3,
+      baths: 2,
+      squareFeet: 2100,
+      purchaseDate: new Date(Date.now() - 2.8 * 365.25 * 86400 * 1000),
+      purchasePrice: 580000,
+      currentMortgageRate: 5.85,
+      estimatedMortgageBalance: 510000,
+      estimatedValue: 710000,
+      equity: 200000,
+      equityPercent: 28,
+      probabilityOfSelling: 58,
+      sellSignals: ['High Locked Rate (5.85%)', 'Refi or Move Potential'],
+    })
+
+    // Seed a sample CmaReport
+    logger.info('Seeding Sample Public Micro-CMA Report...')
+    await CmaReport.create({
+      shareId: 'cma_demo1420highland',
+      brokerageId: alMirajBrokerage._id,
+      propertyId: prop1._id,
+      contactId: createdContactsList[0]._id,
+      createdById: agentHamza._id,
+      subjectProperty: {
+        formattedAddress: prop1.address.formattedAddress,
+        beds: prop1.beds,
+        baths: prop1.baths,
+        squareFeet: prop1.squareFeet,
+        propertyType: prop1.propertyType,
+        purchaseDate: prop1.purchaseDate,
+        purchasePrice: prop1.purchasePrice,
+        estimatedValue: prop1.estimatedValue,
+        estimatedMortgageBalance: prop1.estimatedMortgageBalance,
+        equity: prop1.equity,
+        equityPercent: prop1.equityPercent,
+      },
+      valuationRange: {
+        low: 806000,
+        target: 840000,
+        high: 882000,
+        confidenceScore: 94,
+      },
+      comparables: [
+        {
+          address: '1208 Pine Crest Dr, Austin TX',
+          soldPrice: 825000,
+          beds: 4,
+          baths: 3,
+          squareFeet: 2790,
+          pricePerSqft: 295,
+          soldDate: new Date(Date.now() - 14 * 86400 * 1000),
+          distanceMiles: 0.4,
+          daysOnMarket: 7,
+        },
+        {
+          address: '1314 Oak Ridge Trail, Austin TX',
+          soldPrice: 855000,
+          beds: 4,
+          baths: 3.5,
+          squareFeet: 2920,
+          pricePerSqft: 292,
+          soldDate: new Date(Date.now() - 28 * 86400 * 1000),
+          distanceMiles: 0.6,
+          daysOnMarket: 9,
+        },
+        {
+          address: '1102 Highland Meadow Way, Austin TX',
+          soldPrice: 839000,
+          beds: 4,
+          baths: 3,
+          squareFeet: 2840,
+          pricePerSqft: 295,
+          soldDate: new Date(Date.now() - 35 * 86400 * 1000),
+          distanceMiles: 0.8,
+          daysOnMarket: 11,
+        },
+      ],
+      activeBuyerDemandCount: 48,
+      agentBranding: {
+        name: `${agentHamza.firstName} ${agentHamza.lastName}`,
+        phone: agentHamza.phone || '+1 (555) 849-2041',
+        email: agentHamza.email,
+        brokerageName: alMirajBrokerage.name,
+      },
+      expiresAt: new Date(Date.now() + 60 * 86400 * 1000),
+    })
+
+    // 7. Seed Initial Audit Logs
     logger.info('Seeding Initial Audit Trail...')
     await AuditLog.create({
       userId: superAdmin._id,

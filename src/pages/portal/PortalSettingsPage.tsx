@@ -36,7 +36,7 @@ const PROPERTY_TYPE_OPTIONS = [
 
 export function PortalSettingsPage() {
   const user = useAppSelector((state) => state.auth.user)
-  const { data: portalData, isLoading } = useGetLeadPortalQuery()
+  const { data: portalData } = useGetLeadPortalQuery()
   const [updateProfile, { isLoading: isSavingProfile }] = useUpdateLeadPortalProfileMutation()
   const [changePassword, { isLoading: isChangingPassword }] = useChangePasswordMutation()
 

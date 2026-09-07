@@ -21,6 +21,11 @@ import {
   KanbanStageData,
   formatDealDto,
 } from './deal.types.js'
+import { cacheGet, cacheSet } from '../../config/redis.js'
+import { buildCacheKey, invalidateTenantFeatureCache } from '../../utils/cacheHelper.js'
+
+// 24 hours in seconds for deal cache TTL
+const DEAL_CACHE_TTL = 86400
 
 //  Role-Scoped Filter Builder 
 
@@ -149,6 +154,9 @@ export const createDeal = async (
     userAgent: userAgent,
   })
 
+  // Invalidate deal cache for this brokerage
+  await invalidateTenantFeatureCache(targetBrokerageId.toString(), 'deals')
+
   return formatDealDto(deal, stage.name)
 }
 
@@ -257,6 +265,9 @@ export const updateDeal = async (
     userAgent: userAgent,
   })
 
+  // Invalidate deal cache for this brokerage
+  await invalidateTenantFeatureCache(deal.brokerageId.toString(), 'deals')
+
   const pipeline = await Pipeline.findById(deal.pipelineId)
   const stageName = pipeline?.stages.find((s) => s._id.toString() === deal.stageId.toString())?.name
 
@@ -287,6 +298,9 @@ export const deleteDeal = async (
     ipAddress: clientIp,
     userAgent: userAgent,
   })
+
+  // Invalidate deal cache for this brokerage
+  await invalidateTenantFeatureCache(deal.brokerageId.toString(), 'deals')
 }
 
 // ── Stage Transition ────────────────────────────────────
@@ -374,6 +388,9 @@ export const moveDealStage = async (
     // Non-blocking
   }
 
+  // Invalidate deal cache for this brokerage
+  await invalidateTenantFeatureCache(deal.brokerageId.toString(), 'deals')
+
   return formatDealDto(deal, newStageName)
 }
 
@@ -383,7 +400,8 @@ export const moveDealStage = async (
 export const getKanbanData = async (
   pipelineId: string,
   caller: IUser,
-  tenantFilter: Record<string, any>
+  tenantFilter: Record<string, any>,
+  options?: { stageId?: string; includeDeals?: boolean }
 ): Promise<KanbanResponse> => {
   if (!mongoose.Types.ObjectId.isValid(pipelineId)) {
     throw new AppError('Invalid pipeline ID', HTTP_STATUS.BAD_REQUEST)
@@ -394,6 +412,23 @@ export const getKanbanData = async (
   if (!verifyBrokerageAccess(caller, pipeline.brokerageId)) {
     throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
   }
+
+  // Try Redis cache for kanban data (24hr TTL)
+  const brokerageId = (caller.brokerageId || pipeline.brokerageId).toString()
+  const cacheIdentifier = { pipelineId, stageId: options?.stageId || '', includeDeals: options?.includeDeals !== false, role: caller.role, userId: caller._id.toString() }
+  const cacheKey = buildCacheKey(brokerageId, 'deals', cacheIdentifier)
+
+  const cached = await cacheGet(cacheKey)
+  if (cached) {
+    try {
+      return JSON.parse(cached) as KanbanResponse
+    } catch {
+      // Corrupted cache, proceed with fresh query
+    }
+  }
+
+  const includeDeals = options?.includeDeals !== false
+  const targetStageId = options?.stageId
 
   // Build deal filter with role scoping
   const dealFilter: Record<string, any> = {
@@ -411,28 +446,112 @@ export const getKanbanData = async (
     dealFilter.assignedAgentId = caller._id
   }
 
-  const deals = (await Deal.find(dealFilter)
-    .sort({ priority: -1, stageEnteredAt: 1 })
-    .lean()) as unknown as IDeal[]
-
-  // Priority sort helper
+  const sortedStages = [...pipeline.stages].sort((a, b) => a.order - b.order)
   const priorityOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 }
 
-  const sortedStages = [...pipeline.stages].sort((a, b) => a.order - b.order)
+  // Case 1: Fast metadata mode (includeDeals === false and no targetStageId)
+  if (!includeDeals && !targetStageId) {
+    const stageStats = await Deal.aggregate([
+      { $match: dealFilter },
+      {
+        $group: {
+          _id: '$stageId',
+          count: { $sum: 1 },
+          totalValue: { $sum: '$dealValue' },
+        },
+      },
+    ])
+
+    const statsMap = new Map<string, { count: number; totalValue: number }>()
+    for (const stat of stageStats) {
+      if (stat._id) {
+        statsMap.set(stat._id.toString(), { count: stat.count, totalValue: stat.totalValue })
+      }
+    }
+
+    let totalDeals = 0
+    let totalValue = 0
+    let weightedForecast = 0
+
+    const stages: KanbanStageData[] = sortedStages.map((stage) => {
+      const stats = statsMap.get(stage._id.toString()) || { count: 0, totalValue: 0 }
+      const stageWeighted = Math.round((stats.totalValue * stage.probability) / 100)
+
+      totalDeals += stats.count
+      totalValue += stats.totalValue
+      weightedForecast += stageWeighted
+
+      return {
+        id: stage._id.toString(),
+        name: stage.name,
+        color: stage.color,
+        order: stage.order,
+        probability: stage.probability,
+        dealCount: stats.count,
+        totalValue: stats.totalValue,
+        weightedValue: stageWeighted,
+        deals: [],
+      }
+    })
+
+    return {
+      pipelineId: pipeline._id.toString(),
+      pipelineName: pipeline.name,
+      stages,
+      summary: {
+        totalDeals,
+        totalValue,
+        weightedForecast,
+      },
+    }
+  }
+
+  // Case 2: Load deals for a specific stage or all stages
+  const fetchFilter = targetStageId && mongoose.Types.ObjectId.isValid(targetStageId)
+    ? { ...dealFilter, stageId: new mongoose.Types.ObjectId(targetStageId) }
+    : dealFilter
+
+  const [deals, stageStats] = await Promise.all([
+    Deal.find(fetchFilter).sort({ priority: -1, stageEnteredAt: 1 }).lean() as unknown as Promise<IDeal[]>,
+    targetStageId
+      ? Deal.aggregate([
+          { $match: dealFilter },
+          {
+            $group: {
+              _id: '$stageId',
+              count: { $sum: 1 },
+              totalValue: { $sum: '$dealValue' },
+            },
+          },
+        ])
+      : Promise.resolve([]),
+  ])
+
+  const statsMap = new Map<string, { count: number; totalValue: number }>()
+  for (const stat of stageStats) {
+    if (stat._id) {
+      statsMap.set(stat._id.toString(), { count: stat.count, totalValue: stat.totalValue })
+    }
+  }
 
   let totalDeals = 0
   let totalValue = 0
   let weightedForecast = 0
 
   const stages: KanbanStageData[] = sortedStages.map((stage) => {
-    const stageDeals = deals
-      .filter((d) => d.stageId.toString() === stage._id.toString())
-      .sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0))
+    const isTargetStage = !targetStageId || stage._id.toString() === targetStageId
+    const stageDeals = isTargetStage
+      ? deals
+          .filter((d) => d.stageId.toString() === stage._id.toString())
+          .sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0))
+      : []
 
-    const stageTotalValue = stageDeals.reduce((sum, d) => sum + d.dealValue, 0)
+    const fallbackStats = statsMap.get(stage._id.toString()) || { count: 0, totalValue: 0 }
+    const stageDealCount = isTargetStage && !targetStageId ? stageDeals.length : fallbackStats.count || stageDeals.length
+    const stageTotalValue = isTargetStage && !targetStageId ? stageDeals.reduce((sum, d) => sum + d.dealValue, 0) : fallbackStats.totalValue
     const stageWeighted = Math.round((stageTotalValue * stage.probability) / 100)
 
-    totalDeals += stageDeals.length
+    totalDeals += stageDealCount
     totalValue += stageTotalValue
     weightedForecast += stageWeighted
 
@@ -442,14 +561,14 @@ export const getKanbanData = async (
       color: stage.color,
       order: stage.order,
       probability: stage.probability,
-      dealCount: stageDeals.length,
+      dealCount: stageDealCount,
       totalValue: stageTotalValue,
       weightedValue: stageWeighted,
       deals: stageDeals.map((d) => formatDealDto(d, stage.name)),
     }
   })
 
-  return {
+  const response: KanbanResponse = {
     pipelineId: pipeline._id.toString(),
     pipelineName: pipeline.name,
     stages,
@@ -459,4 +578,154 @@ export const getKanbanData = async (
       weightedForecast,
     },
   }
+
+  // Cache the response in Redis with 24hr TTL
+  await cacheSet(cacheKey, JSON.stringify(response), DEAL_CACHE_TTL)
+
+  return response
 }
+
+// ── Stage-Level Deal Fetching ────────────────────────────────────
+
+/**
+ * Fetches deals and aggregated statistics for a single pipeline stage.
+ * Uses Redis cache with 24hr TTL.
+ */
+export const getStageDeals = async (
+  stageId: string,
+  caller: IUser,
+  tenantFilter: Record<string, any>,
+  pipelineId?: string
+): Promise<KanbanStageData> => {
+  if (!mongoose.Types.ObjectId.isValid(stageId)) {
+    throw new AppError('Invalid stage ID', HTTP_STATUS.BAD_REQUEST)
+  }
+
+  // Must have pipelineId to locate the stage
+  if (!pipelineId || !mongoose.Types.ObjectId.isValid(pipelineId)) {
+    throw new AppError('Pipeline ID is required', HTTP_STATUS.BAD_REQUEST)
+  }
+
+  const pipeline = await Pipeline.findById(pipelineId)
+  if (!pipeline) throw new AppError('Pipeline not found', HTTP_STATUS.NOT_FOUND)
+  if (!verifyBrokerageAccess(caller, pipeline.brokerageId)) {
+    throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
+  }
+
+  const stage = pipeline.stages.find((s) => s._id.toString() === stageId)
+  if (!stage) throw new AppError('Stage not found in this pipeline', HTTP_STATUS.BAD_REQUEST)
+
+  // Try Redis cache
+  const brokerageId = (caller.brokerageId || pipeline.brokerageId).toString()
+  const cacheIdentifier = { type: 'stageDeals', pipelineId, stageId, role: caller.role, userId: caller._id.toString() }
+  const cacheKey = buildCacheKey(brokerageId, 'deals', cacheIdentifier)
+
+  const cached = await cacheGet(cacheKey)
+  if (cached) {
+    try {
+      return JSON.parse(cached) as KanbanStageData
+    } catch {
+      // Corrupted cache, proceed with fresh query
+    }
+  }
+
+  const dealFilter: Record<string, any> = {
+    pipelineId: pipeline._id,
+    stageId: new mongoose.Types.ObjectId(stageId),
+    isDeleted: false,
+  }
+  if (tenantFilter.brokerageId) dealFilter.brokerageId = tenantFilter.brokerageId
+  if (typeof caller.role === 'string' && caller.role === USER_ROLES.AGENT) {
+    dealFilter.assignedAgentId = caller._id
+  }
+
+  const priorityOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 }
+  const deals = (await Deal.find(dealFilter).sort({ priority: -1, stageEnteredAt: 1 }).lean()) as unknown as IDeal[]
+  const sortedDeals = deals.sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0))
+
+  const totalValue = sortedDeals.reduce((sum, d) => sum + d.dealValue, 0)
+  const weightedValue = Math.round((totalValue * stage.probability) / 100)
+
+  const result: KanbanStageData = {
+    id: stage._id.toString(),
+    name: stage.name,
+    color: stage.color,
+    order: stage.order,
+    probability: stage.probability,
+    dealCount: sortedDeals.length,
+    totalValue,
+    weightedValue,
+    deals: sortedDeals.map((d) => formatDealDto(d, stage.name)),
+  }
+
+  // Cache with 24hr TTL
+  await cacheSet(cacheKey, JSON.stringify(result), DEAL_CACHE_TTL)
+
+  return result
+}
+
+/**
+ * Batch-fetches deals and statistics for multiple stages at once.
+ * Designed for stage transitions where both fromStage and toStage need reloading.
+ */
+export const getMultipleStageDeals = async (
+  stageIds: string[],
+  caller: IUser,
+  tenantFilter: Record<string, any>,
+  pipelineId?: string
+): Promise<KanbanStageData[]> => {
+  if (!pipelineId || !mongoose.Types.ObjectId.isValid(pipelineId)) {
+    throw new AppError('Pipeline ID is required', HTTP_STATUS.BAD_REQUEST)
+  }
+
+  const validStageIds = stageIds.filter((id) => mongoose.Types.ObjectId.isValid(id))
+  if (validStageIds.length === 0) {
+    throw new AppError('At least one valid stage ID is required', HTTP_STATUS.BAD_REQUEST)
+  }
+
+  const pipeline = await Pipeline.findById(pipelineId)
+  if (!pipeline) throw new AppError('Pipeline not found', HTTP_STATUS.NOT_FOUND)
+  if (!verifyBrokerageAccess(caller, pipeline.brokerageId)) {
+    throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
+  }
+
+  const dealFilter: Record<string, any> = {
+    pipelineId: pipeline._id,
+    stageId: { $in: validStageIds.map((id) => new mongoose.Types.ObjectId(id)) },
+    isDeleted: false,
+  }
+  if (tenantFilter.brokerageId) dealFilter.brokerageId = tenantFilter.brokerageId
+  if (typeof caller.role === 'string' && caller.role === USER_ROLES.AGENT) {
+    dealFilter.assignedAgentId = caller._id
+  }
+
+  const priorityOrder: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 }
+  const deals = (await Deal.find(dealFilter).sort({ priority: -1, stageEnteredAt: 1 }).lean()) as unknown as IDeal[]
+
+  const results: KanbanStageData[] = validStageIds.map((sid) => {
+    const stage = pipeline.stages.find((s) => s._id.toString() === sid)
+    if (!stage) return null as unknown as KanbanStageData
+
+    const stageDeals = deals
+      .filter((d) => d.stageId.toString() === sid)
+      .sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0))
+
+    const totalValue = stageDeals.reduce((sum, d) => sum + d.dealValue, 0)
+    const weightedValue = Math.round((totalValue * stage.probability) / 100)
+
+    return {
+      id: stage._id.toString(),
+      name: stage.name,
+      color: stage.color,
+      order: stage.order,
+      probability: stage.probability,
+      dealCount: stageDeals.length,
+      totalValue,
+      weightedValue,
+      deals: stageDeals.map((d) => formatDealDto(d, stage.name)),
+    }
+  }).filter(Boolean)
+
+  return results
+}
+

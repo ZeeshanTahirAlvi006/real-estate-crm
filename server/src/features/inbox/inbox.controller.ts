@@ -36,7 +36,8 @@ export const getMessagesHandler = async (
     const id = req.params.id as string
     const page = Number(req.query.page) || 1
     const limit = Number(req.query.limit) || 50
-    const result = await getMessages(id, req.user, page, limit)
+    const channel = req.query.channel as string | undefined
+    const result = await getMessages(id, req.user, page, limit, channel)
     sendSuccess(res, result.messages, 'Messages retrieved successfully')
   } catch (error) {
     next(error)

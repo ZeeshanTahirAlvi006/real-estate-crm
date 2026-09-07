@@ -51,6 +51,7 @@ export interface ConversationThread {
     createdAt: string
     senderType: 'agent' | 'lead' | 'ai_isa'
     channel: ChannelType
+    direction?: MessageDirection
   }
   dncStatus: DncStatus
   aiIsaEnabled: boolean

@@ -1,6 +1,7 @@
 import cron, { ScheduledTask } from 'node-cron'
 import { runDataHealthScanJob } from './dataHealthScan.job.js'
 import { runReactivationCampaignJob } from './reactivation.job.js'
+import { runHomeAnniversaryJob } from './homeAnniversary.job.js'
 import { recordScheduledRun } from '../features/ai-isa/isa.scheduler.js'
 import { logger } from '../utils/logger.js'
 
@@ -77,6 +78,31 @@ export const startScheduler = (): void => {
       name: 'daily_reactivation_scan',
       cronExpression: '0 3 * * * (Daily at 03:00 AM PKT)',
       task: reactivationTask,
+    })
+
+    // ── 3. Daily Home Purchase Anniversary Scan (4:00 AM PKT) ───────────
+    // Cron: 0 4 * * * = At 04:00 AM every day
+    const anniversaryTask = cron.schedule(
+      '0 4 * * *',
+      async () => {
+        logger.info('Triggering scheduled Home Purchase Anniversary Job')
+        try {
+          await runHomeAnniversaryJob()
+        } catch (jobErr: any) {
+          logger.error(`Error running Home Anniversary Job: ${jobErr?.message}`)
+        }
+      },
+      {
+        name: 'daily_home_anniversary_scan',
+        timezone: SYSTEM_TIMEZONE,
+        noOverlap: true,
+      }
+    )
+
+    activeJobs.push({
+      name: 'daily_home_anniversary_scan',
+      cronExpression: '0 4 * * * (Daily at 04:00 AM PKT)',
+      task: anniversaryTask,
     })
 
     isSchedulerRunning = true

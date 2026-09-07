@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import {
   Dialog,
   DialogContent,
@@ -25,35 +26,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  KeyIcon,
-  ClipboardIcon,
-  EllipsisVerticalIcon,
-  PencilSquareIcon,
-  TrashIcon,
-  ArrowPathIcon,
-  PlusIcon,
-  ShieldCheckIcon,
-  MagnifyingGlassIcon,
-  CheckIcon,
-  SparklesIcon,
-} from '@heroicons/react/24/outline'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { LeadSourceModal } from './LeadSourceModal'
 import type { LeadSource, LeadSourceType } from '@/types'
 
-const SOURCE_BADGES: Record<
+const SOURCE_CONFIG: Record<
   LeadSourceType,
-  { label: string; bg: string; text: string; icon: string; border: string }
+  { label: string; icon: string }
 > = {
-  zillow: { label: 'Zillow Premier', bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400', icon: '🔵', border: 'border-blue-500/30' },
-  realtor: { label: 'Realtor.com', bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400', icon: '🔴', border: 'border-red-500/30' },
-  meta_ads: { label: 'Meta Ads (FB/IG)', bg: 'bg-purple-500/10', text: 'text-purple-600 dark:text-purple-400', icon: '🟣', border: 'border-purple-500/30' },
-  google_ads: { label: 'Google Ads', bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', icon: '🟢', border: 'border-emerald-500/30' },
-  website: { label: 'Website Capture', bg: 'bg-indigo-500/10', text: 'text-indigo-600 dark:text-indigo-400', icon: '🌐', border: 'border-indigo-500/30' },
-  webhook: { label: 'Universal Webhook', bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', icon: '⚡', border: 'border-amber-500/30' },
-  manual: { label: 'Manual Intake', bg: 'bg-slate-500/10', text: 'text-slate-600 dark:text-slate-400', icon: '📝', border: 'border-slate-500/30' },
+  zillow: { label: 'Zillow', icon: 'home' },
+  realtor: { label: 'Realtor.com', icon: 'apartment' },
+  meta_ads: { label: 'Meta Ads', icon: 'campaign' },
+  google_ads: { label: 'Google Ads', icon: 'ads_click' },
+  website: { label: 'Website', icon: 'language' },
+  webhook: { label: 'Universal Webhook', icon: 'webhook' },
+  manual: { label: 'Manual Intake', icon: 'edit_note' },
 }
 
 export function LeadSourcesTab() {
@@ -64,16 +52,18 @@ export function LeadSourcesTab() {
   const [viewSecretSourceId, setViewSecretSourceId] = useState<string | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
-  const { data, isLoading } = useGetLeadSourcesQuery({
-    search: searchTerm || undefined,
-    type: selectedType !== 'all' ? selectedType : undefined,
-  })
+  const queryParams: { search?: string; type?: string } = {}
+  if (searchTerm.trim()) queryParams.search = searchTerm.trim()
+  if (selectedType !== 'all') queryParams.type = selectedType
+
+  const { data, isLoading } = useGetLeadSourcesQuery(
+    Object.keys(queryParams).length > 0 ? queryParams : undefined
+  )
 
   const [updateSource] = useUpdateLeadSourceMutation()
   const [deleteSource] = useDeleteLeadSourceMutation()
   const [rotateSecret, { isLoading: isRotating }] = useRotateWebhookSecretMutation()
 
-  // Secret details query when modal is open
   const { data: secretDetails } = useGetLeadSourceByIdQuery(
     { id: viewSecretSourceId || '', includeSecret: true },
     { skip: !viewSecretSourceId }
@@ -115,7 +105,7 @@ export function LeadSourcesTab() {
   const handleRotateSecret = async (id: string) => {
     try {
       const res = await rotateSecret(id).unwrap()
-      toast.success('HMAC webhook secret rotated! Update your external portal settings.')
+      toast.success('HMAC webhook secret rotated!')
       handleCopy(res.webhookSecret, 'New Secret')
     } catch {
       toast.error('Failed to rotate secret')
@@ -128,18 +118,20 @@ export function LeadSourcesTab() {
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-1 max-w-md">
           <div className="relative flex-1">
-            <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#75887E] dark:text-[#A0B2A6]">
+              <MaterialIcon name="search" size={16} />
+            </span>
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search sources by name..."
-              className="pl-9 h-9 text-xs"
+              placeholder="Search sources..."
+              className="pl-9 h-9 text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
             />
           </div>
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="h-9 px-3 rounded-lg border border-border bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+            className="h-9 px-3 rounded-lg border border-[#D8E2D6] dark:border-[#618764]/60 bg-white dark:bg-[#202B2F] text-xs font-medium text-[#273338] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#9CB080]"
           >
             <option value="all">All Types</option>
             <option value="zillow">Zillow</option>
@@ -147,7 +139,7 @@ export function LeadSourcesTab() {
             <option value="meta_ads">Meta Ads</option>
             <option value="google_ads">Google Ads</option>
             <option value="website">Website</option>
-            <option value="webhook">Custom Webhook</option>
+            <option value="webhook">Universal Webhook</option>
           </select>
         </div>
 
@@ -157,28 +149,28 @@ export function LeadSourcesTab() {
             setIsModalOpen(true)
           }}
           size="sm"
-          className="gap-1.5 font-semibold shadow-xs"
+          className="bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs h-9 px-3.5 gap-1.5 rounded-lg shrink-0 border border-[#9CB080] shadow-xs cursor-pointer"
         >
-          <PlusIcon className="w-4 h-4" />
-          Connect Source
+          <MaterialIcon name="add" size={16} />
+          <span>Connect Source</span>
         </Button>
       </div>
 
       {/* Sources Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-48 rounded-2xl" />
+            <Skeleton key={i} className="h-48 rounded-xl bg-[#EDF2EB] dark:bg-[#202B2F]" />
           ))}
         </div>
       ) : sources.length === 0 ? (
-        <div className="text-center py-16 px-4 rounded-2xl border border-dashed border-border bg-muted/20">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
-            <SparklesIcon className="w-6 h-6" />
+        <div className="text-center py-16 px-4 rounded-xl border border-dashed border-[#D8E2D6] dark:border-[#618764]/60 bg-white/50 dark:bg-[#202B2F]/40">
+          <div className="w-12 h-12 rounded-xl bg-[#EDF2EB] dark:bg-[#1A2E26] text-[#2B5748] dark:text-[#9CB080] flex items-center justify-center mx-auto mb-3 border border-[#D8E2D6] dark:border-[#618764]/50">
+            <MaterialIcon name="hub" size={24} />
           </div>
-          <h3 className="font-semibold text-sm">No Lead Sources Configured</h3>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-1 mb-4">
-            Connect Zillow, Meta Ads, Realtor.com, or embed a website widget to automatically ingest leads into your routing engine.
+          <h3 className="font-bold text-sm text-[#273338] dark:text-white">No Sources Configured</h3>
+          <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] max-w-sm mx-auto mt-1 mb-4">
+            Connect portals, webhooks, or widgets to ingest leads into your pipeline.
           </p>
           <Button
             size="sm"
@@ -186,38 +178,44 @@ export function LeadSourcesTab() {
               setEditingSource(null)
               setIsModalOpen(true)
             }}
+            className="bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs h-9 px-4 rounded-lg"
           >
-            Create First Lead Source
+            Create First Source
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {sources.map((s) => {
-            const badge = SOURCE_BADGES[s.type] || SOURCE_BADGES.webhook
+            const config = SOURCE_CONFIG[s.type] || SOURCE_CONFIG.webhook
             const webhookUrl = `${apiBaseUrl}/leads/ingest?sourceId=${s.id}`
 
             return (
               <Card
                 key={s.id}
-                className={`relative overflow-hidden transition-all duration-200 hover:shadow-md border-border/80 ${
-                  !s.isActive ? 'opacity-70 bg-muted/20' : 'bg-card'
+                className={`relative overflow-hidden transition-all duration-200 border rounded-xl shadow-xs hover:shadow-md ${
+                  !s.isActive
+                    ? 'opacity-70 bg-[#EDF2EB]/40 dark:bg-[#202B2F]/40 border-[#D8E2D6] dark:border-[#618764]/40'
+                    : 'bg-white dark:bg-[#254238] border-[#D8E2D6] dark:border-[#618764]'
                 }`}
               >
                 <CardContent className="p-5 space-y-4">
                   {/* Top Bar */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg font-bold border ${badge.bg} ${badge.border}`}>
-                        {badge.icon}
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDF2EB] dark:bg-[#1A2E26] text-[#2B5748] dark:text-[#9CB080] border border-[#D8E2D6] dark:border-[#618764]/50">
+                        <MaterialIcon name={config.icon} size={20} />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-bold text-sm truncate text-foreground">{s.name}</h3>
+                        <h3 className="font-bold text-sm truncate text-[#273338] dark:text-white">{s.name}</h3>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-medium ${badge.bg} ${badge.text} ${badge.border}`}>
-                            {badge.label}
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-2 py-0.5 font-semibold bg-[#EDF2EB] dark:bg-[#202B2F] text-[#2B5748] dark:text-[#9CB080] border-[#D8E2D6] dark:border-[#618764]/50"
+                          >
+                            {config.label}
                           </Badge>
                           {s.config?.fieldMapping && Object.keys(s.config.fieldMapping).length > 0 && (
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6]">
                               • {Object.keys(s.config.fieldMapping).length} mapped
                             </span>
                           )}
@@ -231,33 +229,33 @@ export function LeadSourcesTab() {
                         onCheckedChange={() => handleToggle(s)}
                       />
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
-                          <EllipsisVerticalIcon className="w-4 h-4" />
+                        <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#75887E] dark:text-[#A0B2A6] hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] hover:text-[#273338] dark:hover:text-white">
+                          <MaterialIcon name="more_vert" size={18} />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="text-xs">
+                        <DropdownMenuContent align="end" className="text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]">
                           <DropdownMenuItem
                             onClick={() => {
                               setEditingSource(s)
                               setIsModalOpen(true)
                             }}
-                            className="gap-2"
+                            className="gap-2 cursor-pointer"
                           >
-                            <PencilSquareIcon className="w-3.5 h-3.5" />
-                            Edit Configuration
+                            <MaterialIcon name="edit" size={14} />
+                            <span>Edit Source</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => setViewSecretSourceId(s.id)}
-                            className="gap-2"
+                            className="gap-2 cursor-pointer"
                           >
-                            <KeyIcon className="w-3.5 h-3.5" />
-                            View HMAC Secret
+                            <MaterialIcon name="key" size={14} />
+                            <span>View Secret</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDelete(s)}
-                            className="gap-2 text-destructive"
+                            className="gap-2 text-red-600 dark:text-red-400 cursor-pointer"
                           >
-                            <TrashIcon className="w-3.5 h-3.5" />
-                            Delete Source
+                            <MaterialIcon name="delete" size={14} />
+                            <span>Delete Source</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -267,37 +265,37 @@ export function LeadSourcesTab() {
                   {/* Webhook Endpoint Strip */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-muted-foreground font-medium flex items-center gap-1">
-                        <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-500" />
-                        Inbound Webhook URL
+                      <span className="text-[#4A5D54] dark:text-[#A0B2A6] font-medium flex items-center gap-1">
+                        <MaterialIcon name="verified_user" size={14} className="text-[#618764]" />
+                        <span>Inbound Webhook</span>
                       </span>
                       <button
                         onClick={() => handleCopy(webhookUrl, 'Webhook URL')}
-                        className="text-primary hover:underline text-[10px] font-semibold flex items-center gap-1"
+                        className="text-[#2B5748] dark:text-[#9CB080] hover:underline text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                       >
                         {copiedKey === 'Webhook URL' ? (
                           <>
-                            <CheckIcon className="w-3 h-3 text-emerald-500" />
-                            <span className="text-emerald-500">Copied</span>
+                            <MaterialIcon name="check" size={12} className="text-[#618764]" />
+                            <span className="text-[#618764]">Copied</span>
                           </>
                         ) : (
                           <>
-                            <ClipboardIcon className="w-3 h-3" />
-                            Copy
+                            <MaterialIcon name="content_copy" size={12} />
+                            <span>Copy</span>
                           </>
                         )}
                       </button>
                     </div>
-                    <div className="p-2 rounded-lg bg-muted/40 border border-border/70 font-mono text-[10px] text-muted-foreground truncate select-all">
+                    <div className="p-2 rounded-lg bg-[#EDF2EB]/60 dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/50 font-mono text-[10px] text-[#4A5D54] dark:text-[#A0B2A6] truncate select-all">
                       {webhookUrl}
                     </div>
                   </div>
 
                   {/* Footer Metrics */}
-                  <div className="pt-2 border-t border-border/60 flex items-center justify-between">
+                  <div className="pt-2 border-t border-[#D8E2D6] dark:border-[#618764]/40 flex items-center justify-between">
                     <div>
-                      <p className="text-lg font-bold text-foreground">{s.leadCount.toLocaleString()}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Leads Ingested</p>
+                      <p className="text-lg font-bold text-[#273338] dark:text-white tabular-nums">{s.leadCount.toLocaleString()}</p>
+                      <p className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] uppercase tracking-wider font-semibold">Leads Ingested</p>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -305,10 +303,10 @@ export function LeadSourcesTab() {
                         variant="outline"
                         size="sm"
                         onClick={() => setViewSecretSourceId(s.id)}
-                        className="h-7 text-xs gap-1 px-2 text-muted-foreground hover:text-foreground"
+                        className="h-7 text-xs gap-1 px-2.5 text-[#4A5D54] dark:text-[#A0B2A6] border-[#D8E2D6] dark:border-[#618764]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] hover:text-[#273338] dark:hover:text-white"
                       >
-                        <KeyIcon className="w-3.5 h-3.5" />
-                        Credentials
+                        <MaterialIcon name="key" size={14} />
+                        <span>Credentials</span>
                       </Button>
                     </div>
                   </div>
@@ -324,18 +322,18 @@ export function LeadSourcesTab() {
         open={Boolean(viewSecretSourceId)}
         onOpenChange={(open) => !open && setViewSecretSourceId(null)}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]">
           <DialogHeader>
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <KeyIcon className="w-5 h-5" />
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-[#EDF2EB] dark:bg-[#1A2E26] text-[#2B5748] dark:text-[#9CB080] border border-[#D8E2D6] dark:border-[#618764]/50">
+                <MaterialIcon name="key" size={20} />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold">
+                <DialogTitle className="text-base font-bold text-[#273338] dark:text-white">
                   {secretDetails?.name || 'Webhook Credentials'}
                 </DialogTitle>
-                <p className="text-xs text-muted-foreground">
-                  Security keys for HMAC SHA-256 payload signature verification.
+                <p className="text-xs text-[#75887E] dark:text-[#A0B2A6]">
+                  HMAC signature verification keys
                 </p>
               </div>
             </div>
@@ -345,8 +343,8 @@ export function LeadSourcesTab() {
             {/* HMAC Webhook Secret */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold">HMAC Secret Key (X-Webhook-Signature)</Label>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                <Label className="text-xs font-semibold text-[#273338] dark:text-white">HMAC Secret Key</Label>
+                <span className="text-[10px] text-[#2B5748] dark:text-[#9CB080] font-bold bg-[#9CB080]/20 px-2 py-0.5 rounded border border-[#9CB080]/30">
                   AES-256 Encrypted
                 </span>
               </div>
@@ -354,7 +352,7 @@ export function LeadSourcesTab() {
                 <Input
                   readOnly
                   value={secretDetails?.webhookSecret || '••••••••••••••••••••••••••••••••'}
-                  className="h-9 font-mono text-xs bg-muted/40"
+                  className="h-9 font-mono text-xs bg-[#EDF2EB]/50 dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                 />
                 <Button
                   variant="outline"
@@ -363,25 +361,25 @@ export function LeadSourcesTab() {
                     secretDetails?.webhookSecret &&
                     handleCopy(secretDetails.webhookSecret, 'Webhook Secret')
                   }
-                  className="h-9 px-3 gap-1 shrink-0"
+                  className="h-9 px-3 gap-1 shrink-0 border-[#D8E2D6] dark:border-[#618764]/60"
                 >
-                  <ClipboardIcon className="w-3.5 h-3.5" />
-                  Copy
+                  <MaterialIcon name="content_copy" size={14} />
+                  <span>Copy</span>
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Inbound requests must sign the raw body with this secret and send in the <code className="text-primary font-mono font-bold">X-Webhook-Signature</code> header.
+              <p className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+                Signed raw body sent in <code className="text-[#2B5748] dark:text-[#9CB080] font-mono font-bold">X-Webhook-Signature</code>.
               </p>
             </div>
 
             {/* Public Capture Key */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Public Capture Key (Widget & Forms)</Label>
+              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Public Capture Key</Label>
               <div className="flex items-center gap-2">
                 <Input
                   readOnly
                   value={secretDetails?.captureKey || ''}
-                  className="h-9 font-mono text-xs bg-muted/40"
+                  className="h-9 font-mono text-xs bg-[#EDF2EB]/50 dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
                 />
                 <Button
                   variant="outline"
@@ -390,28 +388,28 @@ export function LeadSourcesTab() {
                     secretDetails?.captureKey &&
                     handleCopy(secretDetails.captureKey, 'Capture Key')
                   }
-                  className="h-9 px-3 gap-1 shrink-0"
+                  className="h-9 px-3 gap-1 shrink-0 border-[#D8E2D6] dark:border-[#618764]/60"
                 >
-                  <ClipboardIcon className="w-3.5 h-3.5" />
-                  Copy
+                  <MaterialIcon name="content_copy" size={14} />
+                  <span>Copy</span>
                 </Button>
               </div>
             </div>
 
             {/* Inbound Endpoint */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Universal Ingestion URL</Label>
-              <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 font-mono text-[11px] select-all break-all text-muted-foreground">
+              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Ingestion URL</Label>
+              <div className="p-2.5 rounded-xl bg-[#EDF2EB]/50 dark:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/50 font-mono text-[11px] select-all break-all text-[#4A5D54] dark:text-[#A0B2A6]">
                 {`${apiBaseUrl}/leads/ingest?sourceId=${secretDetails?.id || ''}`}
               </div>
             </div>
 
             {/* 1-Click Secret Rotation */}
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
+            <div className="p-3 rounded-xl bg-[#EDF2EB] dark:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/50 flex items-center justify-between gap-3">
               <div>
-                <p className="font-semibold text-amber-800 dark:text-amber-300 text-xs">Need to Rotate Secret?</p>
-                <p className="text-[10px] text-amber-700/80 dark:text-amber-300/70">
-                  Instantly generates a new HMAC key and invalidates previous token.
+                <p className="font-bold text-[#273338] dark:text-white text-xs">Rotate Secret</p>
+                <p className="text-[10px] text-[#75887E] dark:text-[#A0B2A6]">
+                  Generates a new HMAC key and invalidates previous token.
                 </p>
               </div>
               <Button
@@ -419,16 +417,20 @@ export function LeadSourcesTab() {
                 size="sm"
                 disabled={isRotating}
                 onClick={() => secretDetails?.id && handleRotateSecret(secretDetails.id)}
-                className="h-8 text-xs gap-1 border-amber-500/40 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 shrink-0 font-semibold"
+                className="h-8 text-xs gap-1 border-[#618764] hover:bg-[#618764]/20 text-[#2B5748] dark:text-[#9CB080] shrink-0 font-bold"
               >
-                <ArrowPathIcon className={`w-3.5 h-3.5 ${isRotating ? 'animate-spin' : ''}`} />
-                Rotate Key
+                <MaterialIcon name="refresh" size={14} className={isRotating ? 'animate-spin' : ''} />
+                <span>Rotate Key</span>
               </Button>
             </div>
           </div>
 
           <DialogFooter className="pt-2">
-            <Button size="sm" onClick={() => setViewSecretSourceId(null)}>
+            <Button
+              size="sm"
+              onClick={() => setViewSecretSourceId(null)}
+              className="bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs h-9 px-4 rounded-lg"
+            >
               Done
             </Button>
           </DialogFooter>
@@ -444,3 +446,5 @@ export function LeadSourcesTab() {
     </div>
   )
 }
+
+export default LeadSourcesTab

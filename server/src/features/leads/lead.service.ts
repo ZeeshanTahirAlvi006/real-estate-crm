@@ -122,12 +122,12 @@ export const listLeadSources = async (
 ): Promise<{ leadSources: LeadSourceResponseDto[]; total: number }> => {
   const filter: Record<string, any> = { ...tenantFilter }
 
-  if (query.type && query.type !== 'all') filter.type = query.type
+  if (query.type && query.type !== 'all' && query.type !== 'undefined') filter.type = query.type
   if (query.isActive === 'true') filter.isActive = true
   else if (query.isActive === 'false') filter.isActive = false
 
-  if (query.search) {
-    const escaped = escapeRegExp(query.search)
+  if (query.search && query.search.trim() && query.search !== 'undefined') {
+    const escaped = escapeRegExp(query.search.trim())
     filter.name = { $regex: escaped, $options: 'i' }
   }
 
@@ -397,7 +397,7 @@ export const listRoutingRules = async (
 ): Promise<{ routingRules: RoutingRuleResponseDto[]; total: number }> => {
   const filter: Record<string, any> = { ...tenantFilter }
 
-  if (query.type && query.type !== 'all') filter.type = query.type
+  if (query.type && query.type !== 'all' && query.type !== 'undefined') filter.type = query.type
   if (query.isActive === 'true') filter.isActive = true
   else if (query.isActive === 'false') filter.isActive = false
 

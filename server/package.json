@@ -9,13 +9,17 @@
     "seed": "tsx src/scripts/seed.ts",
     "build": "tsc",
     "start": "node dist/app.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit",
+    "test": "tsx --test tests/**/*.test.ts",
+    "tunnel": ".\\cloudflared.exe tunnel --url http://localhost:5000"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1125.0",
     "bcrypt": "^5.1.1",
     "cookie": "^2.0.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "csv-parse": "^7.0.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-mongo-sanitize": "^2.2.0",
@@ -25,8 +29,10 @@
     "jsonwebtoken": "^9.0.2",
     "mailparser": "^3.9.19",
     "mongoose": "^8.9.5",
+    "multer": "^2.3.0",
     "node-cron": "^4.6.0",
     "nodemailer": "^9.1.0",
+    "pdfkit": "^0.20.2",
     "socket.io": "^4.8.3",
     "uuid": "^14.0.2",
     "winston": "^3.17.0",
@@ -42,9 +48,13 @@
     "@types/imapflow": "^1.0.23",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/mailparser": "^3.4.6",
+    "@types/multer": "^2.2.0",
     "@types/node": "^22.10.7",
     "@types/nodemailer": "^8.0.1",
+    "@types/pdfkit": "^0.17.6",
+    "@types/supertest": "^7.2.1",
     "@types/uuid": "^10.0.0",
+    "supertest": "^7.2.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }

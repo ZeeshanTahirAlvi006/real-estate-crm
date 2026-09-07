@@ -1,23 +1,17 @@
 import React from 'react'
 import type { ConversationThread } from '@/types/communication'
-import {
-  PhoneIcon,
-  EnvelopeIcon,
-  ShieldCheckIcon,
-  TagIcon,
-  BuildingOfficeIcon,
-  SparklesIcon,
-} from '@heroicons/react/24/outline'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
 
 interface ContactInfoPaneProps {
   conversation: ConversationThread
-  onOpenDialerForContact?: () => void
   onOpenCopilot: () => void
+  onClose?: () => void
 }
 
 export const ContactInfoPane: React.FC<ContactInfoPaneProps> = ({
   conversation,
   onOpenCopilot,
+  onClose,
 }) => {
   const contactInitials = (conversation.contactName || 'Lead')
     .split(' ')
@@ -28,126 +22,169 @@ export const ContactInfoPane: React.FC<ContactInfoPaneProps> = ({
     .toUpperCase() || 'L'
 
   const isOptedOut = conversation.dncStatus === 'opted_out'
+  const cleanPhone = (conversation.contactPhone || '').replace(/\D/g, '')
 
   return (
-    <div className="hidden xl:flex flex-col h-full bg-card border-l border-border/80 w-80 shrink-0 p-5 space-y-5 overflow-y-auto">
-      {/* Profile Header */}
-      <div className="flex flex-col items-center text-center space-y-2 pb-4 border-b border-border/60">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-tr from-primary to-chart-3 text-primary-foreground font-bold text-xl shadow-md">
-          {contactInitials}
-        </div>
-        <div>
-          <h3 className="font-bold text-sm text-foreground">{conversation.contactName || 'Lead'}</h3>
-          <p className="text-xs text-muted-foreground">{conversation.assignedAgentName || 'Unassigned'}</p>
-        </div>
-
-        {/* Lead Score Badge */}
-        <div className="flex items-center gap-2 pt-1">
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-bold border ${
-              (conversation.leadScore ?? 50) >= 80
-                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                : (conversation.leadScore ?? 50) >= 60
-                  ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30'
-                  : (conversation.leadScore ?? 50) >= 40
-                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30'
-            }`}
+    <div className="flex flex-col h-full bg-[#f0f2f5] dark:bg-[#111b21] border-l border-[#e9edef] dark:border-[#222d34] w-full sm:w-[320px] md:w-[340px] lg:w-[360px] shrink-0 overflow-y-auto select-none">
+      {/* ═══════ WhatsApp Drawer Header ═══════ */}
+      <div className="flex items-center gap-4 px-4 py-3 bg-white dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#222d34] shrink-0">
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-full text-[#54656f] dark:text-[#aebac1] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            title="Close contact info"
           >
-            Lead Score: {conversation.leadScore ?? 50}/100
-          </span>
-        </div>
-      </div>
-
-      {/* Quick Action Buttons */}
-      <div className="grid grid-cols-2 gap-2">
-        {conversation.contactPhone ? (
-          <a
-            href={`https://wa.me/${conversation.contactPhone.replace(/\D/g, '')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-600 text-emerald-600 hover:text-white font-semibold text-xs transition-colors"
-            title="Open WhatsApp Voice Call & Chat"
-          >
-            <PhoneIcon className="w-3.5 h-3.5" />
-            <span>WhatsApp Call</span>
-          </a>
-        ) : (
-          <div className="flex items-center justify-center py-2 px-3 rounded-xl bg-muted/40 text-muted-foreground text-xs">
-            No Phone
-          </div>
+            <MaterialIcon name="close" size={20} />
+          </button>
         )}
-
-        <button
-          type="button"
-          onClick={onOpenCopilot}
-          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-chart-3/10 hover:bg-chart-3 text-chart-3 hover:text-white font-semibold text-xs transition-colors"
-        >
-          <SparklesIcon className="w-4 h-4" />
-          <span>AI Copilot</span>
-        </button>
+        <h3 className="font-semibold text-sm text-[#111b21] dark:text-[#e9edef]">
+          Contact info
+        </h3>
       </div>
 
-      {/* Client Communication Consent (Read-only status) */}
-      <div className="space-y-2 bg-muted/30 p-3.5 rounded-xl border border-border/60">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <ShieldCheckIcon className={`w-4 h-4 ${isOptedOut ? 'text-rose-500' : 'text-emerald-500'}`} />
-            <span>Client Consent</span>
-          </h4>
-          <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-              isOptedOut ? 'bg-rose-500/10 text-rose-600' : 'bg-emerald-500/10 text-emerald-600'
-            }`}
-          >
-            {isOptedOut ? 'OPTED OUT' : 'OPTED IN'}
-          </span>
+      <div className="space-y-2 p-0">
+        {/* ═══════ Large Profile Section ═══════ */}
+        <div className="flex flex-col items-center text-center p-6 bg-white dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#222d34] space-y-3">
+          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#6b7c85] text-white font-bold text-3xl sm:text-4xl flex items-center justify-center font-mono shadow-md">
+            {contactInitials}
+          </div>
+
+          <div>
+            <h2 className="font-semibold text-lg text-[#111b21] dark:text-[#e9edef]">
+              {conversation.contactName || 'WhatsApp Contact'}
+            </h2>
+            <p className="text-xs sm:text-sm text-[#667781] dark:text-[#8696a0] font-mono mt-0.5">
+              {conversation.contactPhone || 'No phone recorded'}
+            </p>
+          </div>
+
+          {/* Quick WhatsApp Action Icons */}
+          <div className="flex items-center justify-center gap-6 pt-2 text-[#008069] dark:text-[#00a884]">
+            {cleanPhone ? (
+              <a
+                href={`https://wa.me/${cleanPhone}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"
+              >
+                <div className="w-10 h-10 rounded-full bg-[#00a884]/15 flex items-center justify-center">
+                  <MaterialIcon name="call" size={20} />
+                </div>
+                <span className="text-[11px] text-[#54656f] dark:text-[#aebac1]">Audio</span>
+              </a>
+            ) : null}
+
+            {cleanPhone ? (
+              <a
+                href={`https://wa.me/${cleanPhone}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"
+              >
+                <div className="w-10 h-10 rounded-full bg-[#00a884]/15 flex items-center justify-center">
+                  <MaterialIcon name="videocam" size={20} />
+                </div>
+                <span className="text-[11px] text-[#54656f] dark:text-[#aebac1]">Video</span>
+              </a>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={onOpenCopilot}
+              className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-full bg-[#00a884]/15 flex items-center justify-center">
+                <MaterialIcon name="auto_awesome" size={20} />
+              </div>
+              <span className="text-[11px] text-[#54656f] dark:text-[#aebac1]">Copilot</span>
+            </button>
+          </div>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          {isOptedOut
-            ? 'Client opted out of automated messaging via STOP keyword or VIP Portal.'
-            : 'Client has granted consent to receive property alerts and advisor updates.'}
-        </p>
-      </div>
 
-      {/* Contact Details */}
-      <div className="space-y-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          Contact Information
-        </h4>
-        <div className="space-y-2 text-xs">
-          <div className="flex items-center gap-2 text-foreground font-mono">
-            <PhoneIcon className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>{conversation.contactPhone}</span>
+        {/* ═══════ WhatsApp About & Phone Section ═══════ */}
+        <div className="p-4 bg-white dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#222d34] space-y-3">
+          <span className="text-xs font-semibold text-[#54656f] dark:text-[#8696a0] uppercase tracking-wider">
+            About and phone number
+          </span>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-[#111b21] dark:text-[#e9edef]">
+              {conversation.contactPhone || 'Unknown phone'}
+            </p>
+            <p className="text-xs text-[#667781] dark:text-[#8696a0]">
+              Mobile • WhatsApp Verified
+            </p>
           </div>
-          <div className="flex items-center gap-2 text-foreground truncate">
-            <EnvelopeIcon className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="truncate">{conversation.contactEmail}</span>
-          </div>
-          {conversation.pipelineStage && (
-            <div className="flex items-center gap-2 text-foreground">
-              <BuildingOfficeIcon className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>Stage: {conversation.pipelineStage}</span>
+          {conversation.contactEmail && (
+            <div className="space-y-0.5 pt-2 border-t border-[#e9edef] dark:border-[#222d34]">
+              <p className="text-xs font-medium text-[#111b21] dark:text-[#e9edef]">
+                {conversation.contactEmail}
+              </p>
+              <p className="text-[11px] text-[#667781] dark:text-[#8696a0]">Email Address</p>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Tags */}
-      <div className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <TagIcon className="w-3.5 h-3.5" />
-          <span>Lead Tags</span>
-        </h4>
-        <div className="flex flex-wrap gap-1.5">
-          {conversation.tags.map((tag, idx) => (
+        {/* ═══════ Lead Score & Qualification Card ═══════ */}
+        <div className="p-4 bg-white dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#222d34] space-y-2">
+          <span className="text-xs font-semibold text-[#54656f] dark:text-[#8696a0] uppercase tracking-wider">
+            CRM Qualification
+          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#111b21] dark:text-[#e9edef]">Lead Score</span>
             <span
-              key={idx}
-              className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border/60"
+              className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                (conversation.leadScore ?? 50) >= 80
+                  ? 'bg-[#00a884]/20 text-[#00a884]'
+                  : (conversation.leadScore ?? 50) >= 60
+                    ? 'bg-blue-500/20 text-blue-400'
+                    : 'bg-amber-500/20 text-amber-400'
+              }`}
             >
-              {tag}
+              {conversation.leadScore ?? 50} / 100
             </span>
-          ))}
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-[#e9edef] dark:border-[#222d34]">
+            <span className="text-xs text-[#111b21] dark:text-[#e9edef]">Assigned Agent</span>
+            <span className="text-xs text-[#667781] dark:text-[#8696a0]">
+              {conversation.assignedAgentName || 'General Lead Pool'}
+            </span>
+          </div>
+        </div>
+
+        {/* ═══════ TCPA Consent & Privacy ═══════ */}
+        <div className="p-4 bg-white dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#222d34] space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#54656f] dark:text-[#8696a0] uppercase tracking-wider">
+              Consent & Privacy
+            </span>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                isOptedOut
+                  ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                  : 'bg-[#00a884]/15 text-[#00a884]'
+              }`}
+            >
+              {isOptedOut ? 'Opted Out' : 'Compliant'}
+            </span>
+          </div>
+          <p className="text-[11px] text-[#667781] dark:text-[#8696a0] leading-relaxed">
+            {isOptedOut
+              ? 'Client has revoked contact consent. Messages cannot be dispatched.'
+              : 'Active opt-in for automated WhatsApp transactional and listing notifications.'}
+          </p>
+        </div>
+
+        {/* ═══════ Media, Links, and Docs ═══════ */}
+        <div className="p-4 bg-white dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#222d34] space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#54656f] dark:text-[#8696a0]">
+              Media, links and docs
+            </span>
+            <MaterialIcon name="chevron_right" size={18} className="text-[#8696a0]" />
+          </div>
+          <p className="text-[11px] text-[#8696a0]">0 documents shared</p>
         </div>
       </div>
     </div>

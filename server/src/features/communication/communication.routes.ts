@@ -41,6 +41,8 @@ const router = Router()
 // ── Public Meta Webhooks (No Cookie Auth) ───────────────
 router.get('/whatsapp/webhook', verifyWebhook)
 router.post('/whatsapp/webhook', handleWebhook)
+router.get('/webhook', verifyWebhook)
+router.post('/webhook', handleWebhook)
 
 // ── Authenticated Communication Endpoints ────────────────
 router.use(authenticate, tenantScope)

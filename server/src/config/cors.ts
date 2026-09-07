@@ -21,9 +21,17 @@ export const corsOptions: cors.CorsOptions = {
     }
   },
   credentials: true, // Allow cookies to be sent across origins
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Set-Cookie'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'X-XSRF-Token',
+    'X-CSRF-Token',
+    'x-xsrf-token',
+    'x-csrf-token',
+  ],
+  exposedHeaders: ['Set-Cookie', 'X-XSRF-Token', 'X-CSRF-Token'],
   maxAge: 86400, // 24 hours
 }
 

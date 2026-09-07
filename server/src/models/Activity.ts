@@ -5,6 +5,7 @@ export type ActivityType =
   | 'email'
   | 'sms'
   | 'note'
+  | 'voice_note'
   | 'stage_change'
   | 'whatsapp'
   | 'meeting'
@@ -50,6 +51,7 @@ const activitySchema = new Schema<IActivity>(
         'email',
         'sms',
         'note',
+        'voice_note',
         'stage_change',
         'whatsapp',
         'meeting',

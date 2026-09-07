@@ -15,7 +15,25 @@ export const validate = (schemas: ValidationTarget | AnyZodSchema) => {
     try {
       if ('parseAsync' in schemas) {
         const shape = (schemas as any).shape || (schemas as any)._def?.schema?.shape
-        if (shape && (shape.body || shape.params || shape.query)) {
+        // A schema is an HTTP wrapper schema if its properties are object schemas for body, params, or query
+        const isWrapper =
+          shape &&
+          Boolean(
+            (shape.body &&
+              (shape.body._def?.typeName === 'ZodObject' ||
+                shape.body._def?.typeName === 'ZodEffects' ||
+                'shape' in shape.body)) ||
+            (shape.params &&
+              (shape.params._def?.typeName === 'ZodObject' ||
+                shape.params._def?.typeName === 'ZodEffects' ||
+                'shape' in shape.params)) ||
+            (shape.query &&
+              (shape.query._def?.typeName === 'ZodObject' ||
+                shape.query._def?.typeName === 'ZodEffects' ||
+                'shape' in shape.query))
+          )
+
+        if (isWrapper) {
           const result = (await schemas.parseAsync({
             body: req.body || {},
             query: req.query || {},

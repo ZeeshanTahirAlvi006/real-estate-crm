@@ -11,8 +11,7 @@ import { PortalLayout } from '@/layouts/PortalLayout'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 
 // Auth Pages
-import { LoginPage } from '@/pages/auth/LoginPage'
-import { SignupPage } from '@/pages/auth/SignupPage'
+import { AuthLandingPage } from '@/pages/auth/AuthLandingPage'
 import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage'
 
 // Main Pages
@@ -31,6 +30,8 @@ import { LeadIngestionPage } from '@/pages/leads/LeadIngestionPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { LeadPortalPage } from '@/pages/portal/LeadPortalPage'
 import { PortalSettingsPage } from '@/pages/portal/PortalSettingsPage'
+import { CommissionsPage } from '@/pages/commissions/CommissionsPage'
+import { PublicSignPage } from '@/pages/esign/PublicSignPage'
 
 function ThemedToaster() {
   const { resolvedTheme } = useTheme()
@@ -55,12 +56,18 @@ function App() {
             <ThemedToaster />
             <BrowserRouter>
               <Routes>
-                {/* Public Auth Routes */}
+                {/* Public Flagship Marketing & Auth Landing Pages */}
+                <Route path="/" element={<AuthLandingPage />} />
+                <Route path="/login" element={<AuthLandingPage />} />
+                <Route path="/signup" element={<AuthLandingPage />} />
+
+                {/* Public Auth Sub-Routes */}
                 <Route element={<AuthLayout />}>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/signup" element={<SignupPage />} />
                   <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 </Route>
+
+                {/* Public Standalone eSignature Execution Route */}
+                <Route path="/sign/:token" element={<PublicSignPage />} />
 
                 {/* Client Lead Portal Standalone Route */}
                 <Route
@@ -91,15 +98,15 @@ function App() {
                   <Route path="/pipeline" element={<PipelinePage />} />
                   <Route path="/transactions" element={<TransactionsPage />} />
                   <Route path="/transactions/:id" element={<TransactionDetailPage />} />
+                  <Route path="/commissions" element={<CommissionsPage />} />
                   <Route path="/smart-lists" element={<SmartListsPage />} />
                   <Route path="/data-health" element={<DataHealthPage />} />
                   <Route path="/lead-ingestion" element={<LeadIngestionPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                 </Route>
 
-                {/* Default redirect */}
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                {/* Catch-all redirect */}
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </BrowserRouter>
           </TooltipProvider>

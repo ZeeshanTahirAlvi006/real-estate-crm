@@ -6,6 +6,8 @@ import { AuditLogsTab } from './components/AuditLogsTab'
 import { FeatureFlagsTab } from './components/FeatureFlagsTab'
 import { BrokeragesTab } from './components/BrokeragesTab'
 import { SecurityTab } from './components/SecurityTab'
+import { ComplianceTab } from './components/ComplianceTab'
+import { ObjectionPlaybookTab } from './components/ObjectionPlaybookTab'
 import { WhatsAppIntegrationSettings } from '../ai-isa/components/WhatsAppIntegrationSettings'
 import { useAppSelector } from '@/store/hooks'
 import { UserRole } from '@/types/auth'
@@ -65,6 +67,18 @@ export function SettingsPage() {
             </TabsTrigger>
           )}
 
+          {!isClient && (
+            <TabsTrigger value="compliance" className="rounded-xl text-xs font-semibold text-primary">
+              Compliance & TCPA
+            </TabsTrigger>
+          )}
+
+          {!isClient && (
+            <TabsTrigger value="playbook" className="rounded-xl text-xs font-semibold text-amber-400">
+              Objection Playbook
+            </TabsTrigger>
+          )}
+
           <TabsTrigger value="security" className="rounded-xl text-xs font-semibold">
             Change Password
           </TabsTrigger>
@@ -89,6 +103,18 @@ export function SettingsPage() {
         {(isSuperAdmin || isBrokerageOwner) && (
           <TabsContent value="audit" className="mt-4">
             <AuditLogsTab />
+          </TabsContent>
+        )}
+
+        {!isClient && (
+          <TabsContent value="compliance" className="mt-4">
+            <ComplianceTab />
+          </TabsContent>
+        )}
+
+        {!isClient && (
+          <TabsContent value="playbook" className="mt-4">
+            <ObjectionPlaybookTab />
           </TabsContent>
         )}
 

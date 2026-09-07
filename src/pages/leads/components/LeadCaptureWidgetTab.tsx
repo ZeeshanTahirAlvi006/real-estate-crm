@@ -78,11 +78,9 @@ export function LeadCaptureWidgetTab() {
         lastName: testLastName.trim(),
         email: testEmail.trim() || undefined,
         phone: testPhone.trim() || undefined,
-        propertyInterest: {
-          address: testAddress,
-          price: testPrice || undefined,
-          zipCode: testZipCode,
-        },
+        propertyAddress: testAddress || undefined,
+        propertyPrice: testPrice ? Number(testPrice) : undefined,
+        zipCode: testZipCode || undefined,
         message: testMessage,
       }).unwrap()
 

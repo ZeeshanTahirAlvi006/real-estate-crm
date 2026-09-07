@@ -122,7 +122,9 @@ function MobileNavbarPill({
             return (
               <button
                 key={tab.id}
-                ref={(el) => (tabRefs.current[idx] = el)}
+                ref={(el) => {
+                  tabRefs.current[idx] = el
+                }}
                 type="button"
                 onClick={() => onSelectTab(tab.id)}
                 className={cn(

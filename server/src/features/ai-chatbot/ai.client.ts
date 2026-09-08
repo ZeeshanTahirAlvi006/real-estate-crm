@@ -28,7 +28,7 @@ export const callLLM = async (options: CompletionOptions): Promise<string> => {
   fullMessages.push(...messages)
 
   // 1. Mistral AI Provider (Direct & Fast)
-  const mistralKey = process.env.MISTRAL_API || process.env.MISTRAL_API_KEY || env.MISTRAL_API_KEY
+  const mistralKey = env.MISTRAL_API_KEY
   if (mistralKey) {
     try {
       const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -59,7 +59,7 @@ export const callLLM = async (options: CompletionOptions): Promise<string> => {
   }
 
   // 2. OpenRouter Provider
-  const openRouterKey = process.env.OPEN_ROUTER_API || process.env.OPENROUTER_API_KEY || env.OPENROUTER_API_KEY
+  const openRouterKey = env.OPENROUTER_API_KEY
   if (openRouterKey) {
     try {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {

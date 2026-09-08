@@ -33,7 +33,7 @@ export class WhisperService {
     const startTime = Date.now()
 
     // 1. Groq Whisper (Ultra-fast speech-to-text pipeline: < 500ms)
-    const groqKey = process.env.GROQ_API_KEY || env.GROQ_API_KEY
+    const groqKey = env.GROQ_API_KEY
     if (groqKey) {
       try {
         const formData = new FormData()
@@ -334,17 +334,17 @@ ${validFollowUp ? `Next Follow-Up: ${validFollowUp.toLocaleDateString('en-US', {
       contactUpdated,
       contact: matchedContact
         ? {
-            id: matchedContact._id.toString(),
-            firstName: matchedContact.firstName,
-            lastName: matchedContact.lastName,
-            email: matchedContact.email,
-            phone: matchedContact.phone,
-            notes: matchedContact.notes,
-            nextFollowUpDate: matchedContact.nextFollowUpDate
-              ? matchedContact.nextFollowUpDate.toISOString()
-              : extracted.nextFollowUpDate || null,
-            tags: matchedContact.tags,
-          }
+          id: matchedContact._id.toString(),
+          firstName: matchedContact.firstName,
+          lastName: matchedContact.lastName,
+          email: matchedContact.email,
+          phone: matchedContact.phone,
+          notes: matchedContact.notes,
+          nextFollowUpDate: matchedContact.nextFollowUpDate
+            ? matchedContact.nextFollowUpDate.toISOString()
+            : extracted.nextFollowUpDate || null,
+          tags: matchedContact.tags,
+        }
         : undefined,
       activityId,
       dealUpdated,

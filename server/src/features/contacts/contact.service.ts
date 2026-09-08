@@ -251,7 +251,7 @@ export const provisionLeadPortalUser = async (
   const agentName = `${caller.firstName} ${caller.lastName}`.trim() || 'Your Dedicated Advisor'
 
   // Construct URLs
-  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+  const baseUrl = process.env.FRONTEND_URL as string
   const portalUrl = `${baseUrl}/portal`
   const loginUrl = `${baseUrl}/login`
 

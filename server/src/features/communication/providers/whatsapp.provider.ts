@@ -42,11 +42,11 @@ export class WhatsAppProvider implements ICommunicationProvider {
   }
 
   private getToken(): string | undefined {
-    return process.env.META_WHATSAPP_TOKEN || env.META_WHATSAPP_TOKEN
+    return env.META_WHATSAPP_TOKEN
   }
 
   private getPhoneNumberId(): string | undefined {
-    return process.env.META_PHONE_NUMBER_ID || env.META_PHONE_NUMBER_ID
+    return env.META_PHONE_NUMBER_ID
   }
 
   public isLiveMode(): boolean {
@@ -181,7 +181,7 @@ export class WhatsAppProvider implements ICommunicationProvider {
     token: string,
     challenge: string
   ): { isValid: boolean; challenge?: string } {
-    const expectedToken = this.verifyToken || process.env.META_VERIFY_TOKEN
+    const expectedToken = this.verifyToken || env.META_VERIFY_TOKEN
     if (mode === 'subscribe' && token === expectedToken
     ) {
       logger.info(`WhatsApp webhook handshake verified successfully! Challenge: ${challenge}`)

@@ -64,7 +64,7 @@ export class EmailProvider implements ICommunicationProvider {
     }
 
     const timestamp = new Date().toISOString()
-    const fromAddress = options.from || process.env.EMAIL_FROM || 'PropPulse OS <no-reply@proppulse.io>'
+    const fromAddress = options.from || (process.env.EMAIL_FROM as string)
     const toAddress = options.to.trim().toLowerCase()
 
     // Validate email format

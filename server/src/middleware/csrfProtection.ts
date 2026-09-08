@@ -7,7 +7,6 @@ const CSRF_COOKIE_NAME = 'XSRF-TOKEN'
 const CSRF_HEADER_NAME = 'x-xsrf-token'
 const CSRF_HEADER_ALT = 'x-csrf-token'
 
-// Whitelisted paths exempt from CSRF validation (webhooks, public token endpoints)
 const CSRF_EXEMPT_PREFIXES = [
   '/api/auth/login',
   '/api/auth/register',
@@ -24,29 +23,33 @@ const CSRF_EXEMPT_PREFIXES = [
   '/health',
 ]
 
-/**
- * Enterprise Double-Submit Cookie CSRF Protection Middleware
- * - Issues readable XSRF-TOKEN cookie to clients on safe HTTP requests
- * - Verifies matching X-XSRF-Token or X-CSRF-Token header on state mutations (POST, PUT, PATCH, DELETE)
- * - Safe from cross-origin exploits while allowing seamless Single-Page App RTK Query execution
- */
 export const csrfProtection = (req: Request, res: Response, next: NextFunction): void => {
-  // 1. Generate or preserve CSRF token in cookies for client reading
+  // 1. Generate or preserve CSRF token in cookies
   let token = req.cookies?.[CSRF_COOKIE_NAME]
   if (!token) {
     token = crypto.randomBytes(24).toString('hex')
     res.cookie(CSRF_COOKIE_NAME, token, {
+<<<<<<< HEAD
       httpOnly: false, // Must be accessible to frontend JavaScript to attach in headers
       sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+=======
+      httpOnly: false,
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax', // Required for cross-site
+>>>>>>> 7ab8a63549094635a9c1ee7cbdec57afaf54411d
       secure: env.NODE_ENV === 'production',
       path: '/',
     })
   }
 
+<<<<<<< HEAD
   // Expose in response headers so cross-origin clients can read it
   if (token) {
     res.setHeader('X-CSRF-Token', token)
   }
+=======
+  // Also expose token in response headers so cross-origin clients can read it
+  res.setHeader('X-CSRF-Token', token)
+>>>>>>> 7ab8a63549094635a9c1ee7cbdec57afaf54411d
 
   // 2. Safe idempotent HTTP methods do not mutate state
   const method = req.method.toUpperCase()
@@ -59,18 +62,18 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
     return next()
   }
 
-  // 4. Check URL prefix whitelist (external webhooks and token-based public links)
-  const isExempt = CSRF_EXEMPT_PREFIXES.some((prefix) => req.originalUrl.startsWith(prefix))
-  if (isExempt) {
+  // 4. Whitelisted routes
+  if (CSRF_EXEMPT_PREFIXES.some((prefix) => req.originalUrl.startsWith(prefix))) {
     return next()
   }
 
-  // 5. Authorization Bearer token exemption (browsers cannot send Bearer headers in cross-origin image/form exploits)
+  // 5. Bearer token exemption
   const authHeader = req.headers.authorization
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return next()
   }
 
+<<<<<<< HEAD
   // 6. Cross-origin validation & header verification
   const origin = req.headers.origin
   const clientUrl = env.CLIENT_URL ? env.CLIENT_URL.replace(/\/$/, '') : ''
@@ -92,6 +95,27 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
   }
 
   // If header token was provided but explicitly mismatched with cookie
+=======
+  // 6. Cross-origin validation:
+  // In modern SPAs across domains, fetch/XHR requests with custom headers require a CORS preflight.
+  // If the request originates from your verified frontend (Origin matches CLIENT_URL) and contains custom headers, it cannot be forged by third-party forms.
+  const origin = req.headers.origin
+  const clientUrl = env.CLIENT_URL ? env.CLIENT_URL.replace(/\/$/, '') : ''
+  const isVerifiedOrigin = origin && (
+    origin === clientUrl ||
+    origin === 'https://real-estate-grid2xfsj-codewithgoostyhumans-projects.vercel.app' ||
+    (env.NODE_ENV !== 'production' && origin.includes('localhost'))
+  )
+
+  const headerToken = req.headers[CSRF_HEADER_NAME] || req.headers[CSRF_HEADER_ALT]
+
+  // Allow if tokens match, OR if verified origin is sending authenticated request with custom header
+  if ((token && headerToken && headerToken === token) || (isVerifiedOrigin && req.headers['x-requested-with'] === 'XMLHttpRequest')) {
+    return next()
+  }
+
+  // If header token was provided but mismatched
+>>>>>>> 7ab8a63549094635a9c1ee7cbdec57afaf54411d
   if (headerToken && token && headerToken !== token) {
     res.status(HTTP_STATUS.FORBIDDEN).json({
       success: false,
@@ -101,7 +125,11 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
     return
   }
 
+<<<<<<< HEAD
   // Allow verified origin with authenticated session cookie
+=======
+  // Otherwise, if origin is verified and user has active session cookies, proceed safely
+>>>>>>> 7ab8a63549094635a9c1ee7cbdec57afaf54411d
   if (isVerifiedOrigin && req.cookies?.['accessToken']) {
     return next()
   }
@@ -111,5 +139,8 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
     message: 'Invalid or missing CSRF token. Please refresh your session.',
     code: 'CSRF_VALIDATION_FAILED',
   })
+<<<<<<< HEAD
   return
+=======
+>>>>>>> 7ab8a63549094635a9c1ee7cbdec57afaf54411d
 }

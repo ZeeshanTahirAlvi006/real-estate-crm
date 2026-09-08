@@ -16,11 +16,13 @@ export class ImapListenerService {
   private reconnectTimer: NodeJS.Timeout | null = null
 
   public async start(): Promise<void> {
-    const user = process.env.SMTP_USER
-    const pass = process.env.SMTP_PASS
+    const user = process.env.SMTP_USER?.trim()
+    const pass = process.env.SMTP_PASS?.trim()
+    const host = process.env.IMAP_HOST?.trim()
+    const port = process.env.IMAP_PORT ? parseInt(process.env.IMAP_PORT, 10) : 993
 
-    if (!user || !pass) {
-      logger.info('[IMAP Listener] SMTP_USER or SMTP_PASS not set — skipping IMAP live sync.')
+    if (!user || !pass || !host) {
+      logger.info('[IMAP Listener] SMTP_USER, SMTP_PASS, or IMAP_HOST not set — skipping IMAP live sync.')
       return
     }
 
@@ -29,8 +31,8 @@ export class ImapListenerService {
 
     try {
       this.client = new ImapFlow({
-        host: process.env.IMAP_HOST as string,
-        port: parseInt(process.env.IMAP_PORT as string, 10),
+        host,
+        port: isNaN(port) ? 993 : port,
         secure: true,
         auth: {
           user,
@@ -105,7 +107,7 @@ export class ImapListenerService {
   public async processNewIncomingEmails(): Promise<void> {
     if (!this.client || !this.isRunning) return
 
-    const myEmail = (process.env.SMTP_USER as string).toLowerCase().trim()
+    const myEmail = (process.env.SMTP_USER || '').toLowerCase().trim()
     const lock = await this.client.getMailboxLock('INBOX')
 
     try {

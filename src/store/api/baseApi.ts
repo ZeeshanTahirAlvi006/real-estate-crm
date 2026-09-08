@@ -3,7 +3,7 @@ import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolk
 import { logout, setInitialized } from '../slices/authSlice'
 
 // Base API configuration — connects to real backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = import.meta.env.API_URL
 
 // Extract a cookie value by name from document.cookie
 function getCookie(name: string): string | null {

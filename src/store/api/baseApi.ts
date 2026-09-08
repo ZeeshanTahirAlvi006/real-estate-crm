@@ -21,7 +21,7 @@ const rawBaseQuery = fetchBaseQuery({
     if (!headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json')
     }
-
+   headers.set('X-Requested-With', 'XMLHttpRequest')
     // Attach CSRF protection header from XSRF-TOKEN cookie
     const xsrfToken = getCookie('XSRF-TOKEN')
     if (xsrfToken) {

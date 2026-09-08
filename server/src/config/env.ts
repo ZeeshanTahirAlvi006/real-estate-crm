@@ -46,8 +46,8 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string(),
-  IMAP_HOST: z.string(),
-  IMAP_PORT: z.coerce.number(),
+  IMAP_HOST: z.string().optional().or(z.literal('')),
+  IMAP_PORT: z.string().optional().transform(v => v ? parseInt(v, 10) : undefined),
   // Rate Limits (req/min)
   RATE_LIMIT_SUPER_ADMIN: z.coerce.number(),
   RATE_LIMIT_BROKERAGE_OWNER: z.coerce.number(),

@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: proppulse_server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/proppulse_crm
+      - REDIS_URL=redis://redis:6379
+      - JWT_ACCESS_SECRET=proppulse_production_access_token_secret_key_2026_super_secure
+      - JWT_REFRESH_SECRET=proppulse_production_refresh_token_secret_key_2026_super_secure
+      - COOKIE_SECRET=proppulse_production_cookie_secret_key_2026
+      - STORAGE_PROVIDER=local
+      - API_PUBLIC_URL=http://localhost:5000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - uploads_data:/app/uploads
+
+  mongodb:
+    image: mongo:7.0
+    container_name: proppulse_mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: proppulse_crm
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: proppulse_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongodb_data:
+  redis_data:
+  uploads_data:

@@ -1,0 +1,230 @@
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import type { DialerLine, DialerLineCount, LineState, LocalPresenceInfo } from '@/types/communication'
+
+export interface TranscriptEntry {
+  id: string
+  speaker: 'Agent' | 'Prospect' | 'System'
+  text: string
+  time: string
+}
+
+interface DialerState {
+  isOpen: boolean
+  isMinimized: boolean
+  lineCount: DialerLineCount
+  isDialing: boolean
+  useLocalPresence: boolean
+  lines: DialerLine[]
+  activeConnectedLineIndex: number | null
+  isMuted: boolean
+  isRecording: boolean
+  selectedVoicemailDropId: string | null
+  autoNextCall: boolean
+  sessionDurationSeconds: number
+  callsCompletedInSession: number
+  liveTranscript: TranscriptEntry[]
+}
+
+const initialLines = (count: DialerLineCount): DialerLine[] =>
+  Array.from({ length: count }, (_, i) => ({
+    lineIndex: i,
+    state: 'idle' as LineState,
+    callDurationSeconds: 0,
+    isMuted: false,
+    isRecording: true,
+  }))
+
+const initialState: DialerState = {
+  isOpen: false,
+  isMinimized: false,
+  lineCount: 3,
+  isDialing: false,
+  useLocalPresence: true,
+  lines: initialLines(3),
+  activeConnectedLineIndex: null,
+  isMuted: false,
+  isRecording: true,
+  selectedVoicemailDropId: 'vm-1',
+  autoNextCall: true,
+  sessionDurationSeconds: 0,
+  callsCompletedInSession: 0,
+  liveTranscript: [],
+}
+
+export const dialerSlice = createSlice({
+  name: 'dialer',
+  initialState,
+  reducers: {
+    openDialer: (
+      state,
+      action: PayloadAction<{ lineCount?: DialerLineCount; minimize?: boolean } | undefined>
+    ) => {
+      state.isOpen = true
+      state.isMinimized = action.payload?.minimize ?? false
+      if (action.payload?.lineCount) {
+        state.lineCount = action.payload.lineCount
+        state.lines = initialLines(action.payload.lineCount)
+      }
+    },
+    closeDialer: (state) => {
+      state.isOpen = false
+      state.isMinimized = false
+      state.isDialing = false
+      state.activeConnectedLineIndex = null
+      state.lines = initialLines(state.lineCount)
+      state.liveTranscript = []
+    },
+    minimizeDialer: (state) => {
+      state.isMinimized = true
+    },
+    maximizeDialer: (state) => {
+      state.isMinimized = false
+      state.isOpen = true
+    },
+    setLineCount: (state, action: PayloadAction<DialerLineCount>) => {
+      state.lineCount = action.payload
+      state.lines = initialLines(action.payload)
+    },
+    toggleLocalPresence: (state) => {
+      state.useLocalPresence = !state.useLocalPresence
+    },
+    startDialingSession: (
+      state,
+      action: PayloadAction<{
+        targets: Array<{
+          id: string
+          name: string
+          phone: string
+          localPresence?: LocalPresenceInfo
+        }>
+      }>
+    ) => {
+      state.isDialing = true
+      state.activeConnectedLineIndex = null
+      state.liveTranscript = []
+      const targets = action.payload.targets
+
+      state.lines = state.lines.map((line, idx) => {
+        const target = targets[idx]
+        if (target) {
+          return {
+            ...line,
+            contactId: target.id,
+            contactName: target.name,
+            contactPhone: target.phone,
+            localPresence: target.localPresence,
+            state: 'dialing',
+            callDurationSeconds: 0,
+          }
+        }
+        return { ...line, state: 'idle' }
+      })
+    },
+    updateLineState: (
+      state,
+      action: PayloadAction<{ lineIndex: number; state: LineState; duration?: number }>
+    ) => {
+      const line = state.lines[action.payload.lineIndex]
+      if (line) {
+        line.state = action.payload.state
+        if (action.payload.duration !== undefined) {
+          line.callDurationSeconds = action.payload.duration
+        }
+        if (action.payload.state === 'connected') {
+          state.activeConnectedLineIndex = action.payload.lineIndex
+          // Other dialing lines get hung up or marked completed
+          state.lines.forEach((l, idx) => {
+            if (
+              idx !== action.payload.lineIndex &&
+              (l.state === 'dialing' || l.state === 'ringing')
+            ) {
+              l.state = 'completed'
+            }
+          })
+        }
+      }
+    },
+    setLineLocalPresence: (
+      state,
+      action: PayloadAction<{ lineIndex: number; localPresence: LocalPresenceInfo }>
+    ) => {
+      const line = state.lines[action.payload.lineIndex]
+      if (line) {
+        line.localPresence = action.payload.localPresence
+      }
+    },
+    appendTranscriptSnippet: (
+      state,
+      action: PayloadAction<{ speaker: 'Agent' | 'Prospect' | 'System'; text: string }>
+    ) => {
+      const now = new Date()
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
+      state.liveTranscript.push({
+        id: `ts_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        speaker: action.payload.speaker,
+        text: action.payload.text,
+        time: timeStr,
+      })
+    },
+    clearTranscript: (state) => {
+      state.liveTranscript = []
+    },
+    hangupActiveCall: (state) => {
+      if (state.activeConnectedLineIndex !== null) {
+        const line = state.lines[state.activeConnectedLineIndex]
+        if (line) {
+          line.state = 'completed'
+        }
+      }
+      state.activeConnectedLineIndex = null
+      state.isDialing = false
+      state.callsCompletedInSession += 1
+    },
+    toggleMute: (state) => {
+      state.isMuted = !state.isMuted
+    },
+    toggleRecording: (state) => {
+      state.isRecording = !state.isRecording
+    },
+    setSelectedVoicemailDrop: (state, action: PayloadAction<string>) => {
+      state.selectedVoicemailDropId = action.payload
+    },
+    toggleAutoNextCall: (state) => {
+      state.autoNextCall = !state.autoNextCall
+    },
+    incrementSessionTimer: (state) => {
+      state.sessionDurationSeconds += 1
+      if (state.activeConnectedLineIndex !== null) {
+        const line = state.lines[state.activeConnectedLineIndex]
+        if (line && line.state === 'connected') {
+          line.callDurationSeconds += 1
+        }
+      }
+    },
+  },
+})
+
+export const {
+  openDialer,
+  closeDialer,
+  minimizeDialer,
+  maximizeDialer,
+  setLineCount,
+  toggleLocalPresence,
+  startDialingSession,
+  updateLineState,
+  setLineLocalPresence,
+  appendTranscriptSnippet,
+  clearTranscript,
+  hangupActiveCall,
+  toggleMute,
+  toggleRecording,
+  setSelectedVoicemailDrop,
+  toggleAutoNextCall,
+  incrementSessionTimer,
+} = dialerSlice.actions
+
+export default dialerSlice.reducer

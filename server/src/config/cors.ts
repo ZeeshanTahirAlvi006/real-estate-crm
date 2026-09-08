@@ -1,31 +1,45 @@
 import cors from 'cors'
 import { env } from './env.js'
 
-// Allowed origin list
-const allowedOrigins = [
-  env.CLIENT_URL,
+// Normalize CLIENT_URL to prevent trailing slash mismatches
+const normalizedClientUrl = env.CLIENT_URL ? env.CLIENT_URL.replace(/\/$/, '') : ''
+
+// Explicitly allowed production & development origins
+const allowedOrigins = new Set([
+  normalizedClientUrl,
   'https://real-estate-grid2xfsj-codewithgoostyhumans-projects.vercel.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
-]
+  'http://localhost:3000',
+])
 
 // CORS middleware options
 export const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, Postman)
-    if (!origin) return callback(null, true)
-
-    const isVercelDomain =
-      /^https:\/\/[a-z0-9-]+-codewithgoostyhumans-projects\.vercel\.app$/.test(origin) ||
-      /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)
-
-    if (allowedOrigins.indexOf(origin) !== -1 || isVercelDomain || env.NODE_ENV !== 'production') {
-      callback(null, true)
-    } else {
-      callback(new Error('Blocked: CORS policy'))
+    // 1. Allow non-browser requests (mobile apps, server-to-server, curl, Postman, webhooks)
+    if (!origin) {
+      return callback(null, true)
     }
+
+    const cleanOrigin = origin.replace(/\/$/, '')
+
+    // 2. Only allow YOUR specific Vercel preview deployments (scoped strictly to your account)
+    const isYourVercelPreview =
+      /^https:\/\/[a-z0-9-]+-codewithgoostyhumans-projects\.vercel\.app$/.test(cleanOrigin)
+
+    // 3. Match against exact allowed list or verified account preview
+    if (
+      allowedOrigins.has(cleanOrigin) ||
+      isYourVercelPreview ||
+      (env.NODE_ENV !== 'production' && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin))
+    ) {
+      return callback(null, true)
+    }
+
+    // 4. Safely deny unallowed origins without throwing 500 error
+    callback(null, false)
   },
-  credentials: true, // Allow cookies to be sent across origins
+  credentials: true, // Allows HTTP cookies with requests
   allowedHeaders: [
     'Content-Type',
     'Authorization',
@@ -37,7 +51,7 @@ export const corsOptions: cors.CorsOptions = {
     'x-csrf-token',
   ],
   exposedHeaders: ['Set-Cookie', 'X-XSRF-Token', 'X-CSRF-Token'],
-  maxAge: 86400, // 24 hours
+  maxAge: 86400, // Cache preflight response for 24 hours
 }
 
 export const corsMiddleware = cors(corsOptions)

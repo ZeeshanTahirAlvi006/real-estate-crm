@@ -29,27 +29,17 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
   if (!token) {
     token = crypto.randomBytes(24).toString('hex')
     res.cookie(CSRF_COOKIE_NAME, token, {
-<<<<<<< HEAD
-      httpOnly: false, // Must be accessible to frontend JavaScript to attach in headers
-      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
-=======
       httpOnly: false,
       sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax', // Required for cross-site
->>>>>>> 7ab8a63549094635a9c1ee7cbdec57afaf54411d
       secure: env.NODE_ENV === 'production',
       path: '/',
     })
   }
 
-<<<<<<< HEAD
-  // Expose in response headers so cross-origin clients can read it
+  // Also expose token in response headers so cross-origin clients can read it
   if (token) {
     res.setHeader('X-CSRF-Token', token)
   }
-=======
-  // Also expose token in response headers so cross-origin clients can read it
-  res.setHeader('X-CSRF-Token', token)
->>>>>>> 7ab8a63549094635a9c1ee7cbdec57afaf54411d
 
   // 2. Safe idempotent HTTP methods do not mutate state
   const method = req.method.toUpperCase()
@@ -73,49 +63,20 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
     return next()
   }
 
-<<<<<<< HEAD
-  // 6. Cross-origin validation & header verification
-  const origin = req.headers.origin
-  const clientUrl = env.CLIENT_URL ? env.CLIENT_URL.replace(/\/$/, '') : ''
-  const isVerifiedOrigin =
-    Boolean(origin) &&
-    (origin === clientUrl ||
-      origin === 'https://real-estate-grid2xfsj-codewithgoostyhumans-projects.vercel.app' ||
-      /^https:\/\/[a-z0-9-]+-codewithgoostyhumans-projects\.vercel\.app$/.test(origin!) ||
-      (env.NODE_ENV !== 'production' && origin!.includes('localhost')))
-
-  const headerToken = req.headers[CSRF_HEADER_NAME] || req.headers[CSRF_HEADER_ALT]
-
-  // Allow if double-submit tokens match, OR if verified origin sends standard SPA header
-  if (
-    (token && headerToken && headerToken === token) ||
-    (isVerifiedOrigin && req.headers['x-requested-with'] === 'XMLHttpRequest')
-  ) {
+  // 6. Custom SPA Request Header Check (OWASP Custom Request Header Defense)
+  // Cross-origin HTML forms and <img>/<script> tags CANNOT send custom headers like X-Requested-With.
+  // Any request with this header must have been initiated via fetch/XHR and passed CORS preflight.
+  if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
     return next()
   }
 
-  // If header token was provided but explicitly mismatched with cookie
-=======
-  // 6. Cross-origin validation:
-  // In modern SPAs across domains, fetch/XHR requests with custom headers require a CORS preflight.
-  // If the request originates from your verified frontend (Origin matches CLIENT_URL) and contains custom headers, it cannot be forged by third-party forms.
-  const origin = req.headers.origin
-  const clientUrl = env.CLIENT_URL ? env.CLIENT_URL.replace(/\/$/, '') : ''
-  const isVerifiedOrigin = origin && (
-    origin === clientUrl ||
-    origin === 'https://real-estate-grid2xfsj-codewithgoostyhumans-projects.vercel.app' ||
-    (env.NODE_ENV !== 'production' && origin.includes('localhost'))
-  )
-
+  // 7. Double-submit cookie header verification
   const headerToken = req.headers[CSRF_HEADER_NAME] || req.headers[CSRF_HEADER_ALT]
-
-  // Allow if tokens match, OR if verified origin is sending authenticated request with custom header
-  if ((token && headerToken && headerToken === token) || (isVerifiedOrigin && req.headers['x-requested-with'] === 'XMLHttpRequest')) {
+  if (token && headerToken && headerToken === token) {
     return next()
   }
 
   // If header token was provided but mismatched
->>>>>>> 7ab8a63549094635a9c1ee7cbdec57afaf54411d
   if (headerToken && token && headerToken !== token) {
     res.status(HTTP_STATUS.FORBIDDEN).json({
       success: false,
@@ -125,11 +86,16 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
     return
   }
 
-<<<<<<< HEAD
-  // Allow verified origin with authenticated session cookie
-=======
-  // Otherwise, if origin is verified and user has active session cookies, proceed safely
->>>>>>> 7ab8a63549094635a9c1ee7cbdec57afaf54411d
+  // 8. Session cookie fallback for authenticated requests that passed CORS
+  const origin = req.headers.origin
+  const clientUrl = env.CLIENT_URL ? env.CLIENT_URL.replace(/\/$/, '') : ''
+  const isVerifiedOrigin = Boolean(origin) && (
+    origin === clientUrl ||
+    origin === 'https://real-estate-grid2xfsj-codewithgoostyhumans-projects.vercel.app' ||
+    /^https:\/\/[a-z0-9-]+-codewithgoostyhumans-projects\.vercel\.app$/.test(origin!) ||
+    (env.NODE_ENV !== 'production' && origin!.includes('localhost'))
+  )
+
   if (isVerifiedOrigin && req.cookies?.['accessToken']) {
     return next()
   }
@@ -139,8 +105,4 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
     message: 'Invalid or missing CSRF token. Please refresh your session.',
     code: 'CSRF_VALIDATION_FAILED',
   })
-<<<<<<< HEAD
-  return
-=======
->>>>>>> 7ab8a63549094635a9c1ee7cbdec57afaf54411d
 }

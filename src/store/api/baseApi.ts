@@ -2,8 +2,11 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query'
 import { logout, setInitialized } from '../slices/authSlice'
 
-// Base API configuration — connects to real backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.API_URL || '/api'
+// Base API configuration — connects to real backend using single API_URL
+const rawApiUrl = import.meta.env.API_URL || ''
+const API_BASE_URL = rawApiUrl
+  ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`)
+  : '/api'
 
 // Extract a cookie value by name from document.cookie
 function getCookie(name: string): string | null {
@@ -22,7 +25,10 @@ const rawBaseQuery = fetchBaseQuery({
       headers.set('Content-Type', 'application/json')
     }
 
-    // Attach CSRF protection header from XSRF-TOKEN cookie
+    // Identifies standard SPA request (blocks cross-origin form CSRF exploits)
+    headers.set('X-Requested-With', 'XMLHttpRequest')
+
+    // Attach CSRF protection header from XSRF-TOKEN cookie if accessible
     const xsrfToken = getCookie('XSRF-TOKEN')
     if (xsrfToken) {
       headers.set('X-XSRF-Token', xsrfToken)

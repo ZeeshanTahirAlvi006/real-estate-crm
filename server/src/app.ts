@@ -55,6 +55,9 @@ import { HTTP_STATUS } from './utils/constants.js'
 export const createApp = (): Express => {
   const app: Express = express()
 
+  // Trust first proxy (Render / Cloudflare load balancers)
+  app.set('trust proxy', 1)
+
   // 1. Security HTTP Headers
   app.use(
     helmet({

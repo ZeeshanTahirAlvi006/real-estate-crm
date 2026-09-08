@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import crypto from 'crypto'
 import { HTTP_STATUS } from '../utils/constants.js'
+import { env } from '../config/env.js'
 
 const CSRF_COOKIE_NAME = 'XSRF-TOKEN'
 const CSRF_HEADER_NAME = 'x-xsrf-token'
@@ -36,10 +37,15 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
     token = crypto.randomBytes(24).toString('hex')
     res.cookie(CSRF_COOKIE_NAME, token, {
       httpOnly: false, // Must be accessible to frontend JavaScript to attach in headers
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: env.NODE_ENV === 'production',
       path: '/',
     })
+  }
+
+  // Expose in response headers so cross-origin clients can read it
+  if (token) {
+    res.setHeader('X-CSRF-Token', token)
   }
 
   // 2. Safe idempotent HTTP methods do not mutate state
@@ -65,17 +71,45 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction):
     return next()
   }
 
-  // 6. Header verification against cookie token
+  // 6. Cross-origin validation & header verification
+  const origin = req.headers.origin
+  const clientUrl = env.CLIENT_URL ? env.CLIENT_URL.replace(/\/$/, '') : ''
+  const isVerifiedOrigin =
+    Boolean(origin) &&
+    (origin === clientUrl ||
+      origin === 'https://real-estate-grid2xfsj-codewithgoostyhumans-projects.vercel.app' ||
+      /^https:\/\/[a-z0-9-]+-codewithgoostyhumans-projects\.vercel\.app$/.test(origin!) ||
+      (env.NODE_ENV !== 'production' && origin!.includes('localhost')))
+
   const headerToken = req.headers[CSRF_HEADER_NAME] || req.headers[CSRF_HEADER_ALT]
 
-  if (!headerToken || headerToken !== token) {
+  // Allow if double-submit tokens match, OR if verified origin sends standard SPA header
+  if (
+    (token && headerToken && headerToken === token) ||
+    (isVerifiedOrigin && req.headers['x-requested-with'] === 'XMLHttpRequest')
+  ) {
+    return next()
+  }
+
+  // If header token was provided but explicitly mismatched with cookie
+  if (headerToken && token && headerToken !== token) {
     res.status(HTTP_STATUS.FORBIDDEN).json({
       success: false,
-      message: 'Invalid or missing CSRF token. Please refresh your session.',
+      message: 'Invalid CSRF token. Please refresh your session.',
       code: 'CSRF_VALIDATION_FAILED',
     })
     return
   }
 
-  next()
+  // Allow verified origin with authenticated session cookie
+  if (isVerifiedOrigin && req.cookies?.['accessToken']) {
+    return next()
+  }
+
+  res.status(HTTP_STATUS.FORBIDDEN).json({
+    success: false,
+    message: 'Invalid or missing CSRF token. Please refresh your session.',
+    code: 'CSRF_VALIDATION_FAILED',
+  })
+  return
 }

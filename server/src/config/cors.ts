@@ -1,28 +1,39 @@
 import cors from 'cors'
 import { env } from './env.js'
 
-// Allowed origin list
-const allowedOrigins = [
-  env.CLIENT_URL,
+// Normalize CLIENT_URL to prevent trailing slash mismatches
+const normalizedClientUrl = env.CLIENT_URL ? env.CLIENT_URL.replace(/\/$/, '') : ''
+
+// Explicitly allowed production & development origins
+const allowedOrigins = new Set([
+  normalizedClientUrl,
   'https://real-estate-grid2xfsj-codewithgoostyhumans-projects.vercel.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
-]
+  'http://localhost:3000',
+])
 
 // CORS middleware options
 export const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, Postman)
+    // 1. Allow requests with no origin (like mobile apps, curl, Postman, webhooks)
     if (!origin) return callback(null, true)
 
-    const isVercelDomain =
-      /^https:\/\/[a-z0-9-]+-codewithgoostyhumans-projects\.vercel\.app$/.test(origin) ||
-      /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)
+    const cleanOrigin = origin.replace(/\/$/, '')
 
-    if (allowedOrigins.indexOf(origin) !== -1 || isVercelDomain || env.NODE_ENV !== 'production') {
+    // 2. Only allow your project's specific Vercel preview deployments
+    const isYourVercelPreview =
+      /^https:\/\/[a-z0-9-]+-codewithgoostyhumans-projects\.vercel\.app$/.test(cleanOrigin)
+
+    if (
+      allowedOrigins.has(cleanOrigin) ||
+      isYourVercelPreview ||
+      (env.NODE_ENV !== 'production' && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin))
+    ) {
       callback(null, true)
     } else {
-      callback(new Error('Blocked: CORS policy'))
+      // Safely deny CORS without crashing server with 500 error
+      callback(null, false)
     }
   },
   credentials: true, // Allow cookies to be sent across origins

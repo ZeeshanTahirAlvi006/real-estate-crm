@@ -3,20 +3,12 @@ import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import {
   useMergeDuplicateMutation,
   useDismissDuplicateMutation,
 } from '@/store/api/dataHealthApi'
 import { MergeContactModal } from './MergeContactModal'
-import {
-  ArrowsRightLeftIcon,
-  XMarkIcon,
-  SparklesIcon,
-  BuildingOfficeIcon,
-  ClockIcon,
-  BriefcaseIcon,
-  CheckBadgeIcon,
-} from '@heroicons/react/24/outline'
 import type { DuplicatePair } from '@/types'
 
 interface DuplicatesListProps {
@@ -75,31 +67,34 @@ export function DuplicatesList({ duplicates, onTriggerScan, isScanning = false }
 
   return (
     <>
-      <Card className="border-border/80 shadow-xs">
+      <Card className="rounded-2xl border border-[#D8E2D6] dark:border-[#618764]/40 bg-white dark:bg-[#254238] shadow-xs">
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <ArrowsRightLeftIcon className="w-5 h-5 text-primary" />
-              <span>Duplicate Candidates for Review</span>
+            <CardTitle className="text-base font-bold flex items-center gap-2 text-[#273338] dark:text-white">
+              <MaterialIcon name="content_copy" size={20} className="text-[#2B5748] dark:text-[#9CB080]" />
+              <span>Duplicate Review</span>
             </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground mt-0.5">
-              Fuzzy-matched contacts with high similarity across phone, email, or name.
+            <CardDescription className="text-xs text-[#75887E] dark:text-[#A0B2A6] mt-0.5">
+              Fuzzy-matched contacts with high similarity across identity fields
             </CardDescription>
           </div>
-          <Badge variant="secondary" className="font-mono text-xs">
-            {duplicates.length} {duplicates.length === 1 ? 'Pair' : 'Pairs'} Detected
+          <Badge
+            variant="outline"
+            className="font-mono text-xs px-2.5 py-0.5 border-[#D8E2D6] dark:border-[#618764]/40 bg-[#EDF2EB] dark:bg-[#1A2E26] text-[#2B5748] dark:text-[#9CB080] font-bold"
+          >
+            {duplicates.length}
           </Badge>
         </CardHeader>
 
         <CardContent className="space-y-3">
           {duplicates.length === 0 ? (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
-              <div className="p-3 rounded-full bg-emerald-500/10 text-emerald-500">
-                <CheckBadgeIcon className="w-8 h-8" />
+              <div className="w-12 h-12 rounded-full bg-[#EDF2EB] dark:bg-[#1A2E26] text-emerald-600 dark:text-[#9CB080] flex items-center justify-center border border-[#D8E2D6] dark:border-[#618764]/40">
+                <MaterialIcon name="verified" size={26} />
               </div>
-              <div>
-                <p className="font-bold text-sm text-foreground">Database Clean — No Duplicates Found</p>
-                <p className="text-xs text-muted-foreground max-w-sm mt-0.5">
+              <div className="space-y-1">
+                <p className="font-bold text-sm text-[#273338] dark:text-white">No Duplicates Found</p>
+                <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] max-w-sm">
                   All active contacts have distinct emails, phone numbers, and unique identities.
                 </p>
               </div>
@@ -109,10 +104,10 @@ export function DuplicatesList({ duplicates, onTriggerScan, isScanning = false }
                   variant="outline"
                   onClick={onTriggerScan}
                   disabled={isScanning}
-                  className="h-8 text-xs gap-1.5"
+                  className="h-8 text-xs font-semibold gap-1.5 border-[#D8E2D6] dark:border-[#618764]/40 text-[#273338] dark:text-white hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] cursor-pointer"
                 >
-                  <SparklesIcon className="w-3.5 h-3.5" />
-                  Run New Fuzzy Scan
+                  <MaterialIcon name="sync" size={15} className={isScanning ? 'animate-spin text-emerald-600' : 'text-emerald-600'} />
+                  <span>Scan Again</span>
                 </Button>
               )}
             </div>
@@ -120,50 +115,48 @@ export function DuplicatesList({ duplicates, onTriggerScan, isScanning = false }
             duplicates.map((dup) => (
               <div
                 key={dup.id}
-                className="rounded-2xl border border-border/80 bg-card p-4 space-y-3 hover:border-primary/40 transition-all shadow-2xs"
+                className="rounded-2xl border border-[#D8E2D6] dark:border-[#618764]/40 bg-[#F5F7F4]/60 dark:bg-[#202B2F] p-4 space-y-3 hover:border-[#618764] transition-all shadow-2xs"
               >
                 {/* Header Row */}
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-xs font-bold font-mono"
-                    >
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold font-mono border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300">
                       {dup.matchScore}% Match ({dup.matchFields.join(', ')})
-                    </Badge>
-                    <span className="text-[11px] text-muted-foreground">
+                    </span>
+                    <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
                       Detected {new Date(dup.createdAt || Date.now()).toLocaleDateString()}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 text-xs text-muted-foreground hover:text-foreground gap-1"
+                      className="h-8 text-xs text-[#75887E] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white gap-1 cursor-pointer"
                       onClick={() => handleDismiss(dup.id)}
                       disabled={dismissing}
                     >
-                      <XMarkIcon className="w-3.5 h-3.5" />
-                      Dismiss
+                      <MaterialIcon name="close" size={14} />
+                      <span>Dismiss Pair</span>
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 text-xs gap-1 font-semibold"
+                      className="h-8 text-xs gap-1 font-semibold border-[#D8E2D6] dark:border-[#618764]/40 text-[#273338] dark:text-white hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] cursor-pointer"
                       onClick={() => handleQuickMerge(dup)}
                       disabled={merging}
                     >
-                      1-Click Auto-Merge
+                      <MaterialIcon name="bolt" size={14} className="text-amber-600" />
+                      <span>Quick Merge</span>
                     </Button>
                     <Button
                       size="sm"
-                      className="h-8 text-xs font-bold gap-1 shadow-xs bg-primary hover:bg-primary/90"
+                      className="h-8 text-xs font-bold gap-1 shadow-xs bg-[#2B5748] hover:bg-[#24463a] text-white cursor-pointer"
                       onClick={() => handleOpenMergeModal(dup)}
                       disabled={merging}
                     >
-                      <ArrowsRightLeftIcon className="w-3.5 h-3.5" />
-                      Compare & Merge
+                      <MaterialIcon name="call_merge" size={15} />
+                      <span>Review Pair</span>
                     </Button>
                   </div>
                 </div>
@@ -171,76 +164,80 @@ export function DuplicatesList({ duplicates, onTriggerScan, isScanning = false }
                 {/* Side-by-side Contact Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                   {/* Contact 1 */}
-                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1.5 text-xs">
+                  <div className="p-3 rounded-xl bg-white dark:bg-[#1E282D] border border-[#D8E2D6] dark:border-[#618764]/30 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-foreground text-sm">
+                      <span className="font-bold text-[#273338] dark:text-white text-sm">
                         {dup.contact1.firstName} {dup.contact1.lastName}
                       </span>
-                      <Badge variant="secondary" className="text-[10px]">
-                        Record A (Older)
-                      </Badge>
+                      <span className="text-[10px] font-semibold px-2 py-0.2 rounded bg-[#EDF2EB] dark:bg-[#1A2E26] text-[#2B5748] dark:text-[#9CB080] border border-[#D8E2D6] dark:border-[#618764]/30">
+                        Record A
+                      </span>
                     </div>
 
-                    <div className="space-y-1 text-muted-foreground">
+                    <div className="space-y-1 text-[#4A5D54] dark:text-[#A0B2A6]">
                       <p className="truncate">
-                        📧 <strong className="text-foreground">{dup.contact1.email || '(No email)'}</strong>
+                        <MaterialIcon name="mail" size={13} className="inline mr-1 text-[#75887E]" />
+                        <strong className="text-[#273338] dark:text-white">{dup.contact1.email || '(No email)'}</strong>
                       </p>
                       <p className="font-mono">
-                        📱 <strong className="text-foreground">{dup.contact1.phone || '(No phone)'}</strong>
+                        <MaterialIcon name="call" size={13} className="inline mr-1 text-[#75887E]" />
+                        <strong className="text-[#273338] dark:text-white">{dup.contact1.phone || '(No phone)'}</strong>
                       </p>
                       {dup.contact1.address && (
                         <p className="flex items-center gap-1 truncate">
-                          <BuildingOfficeIcon className="w-3.5 h-3.5 shrink-0" />
+                          <MaterialIcon name="home" size={13} className="shrink-0 text-[#75887E]" />
                           <span>{dup.contact1.address}</span>
                         </p>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
+                    <div className="flex items-center gap-3 pt-1 border-t border-[#D8E2D6] dark:border-[#618764]/20 text-[10px] text-[#75887E] dark:text-[#A0B2A6]">
                       <span className="flex items-center gap-1">
-                        <BriefcaseIcon className="w-3 h-3 text-primary" />
+                        <MaterialIcon name="business_center" size={12} className="text-[#618764]" />
                         {(dup.contact1 as any).dealCount || 0} Deals
                       </span>
                       <span className="flex items-center gap-1">
-                        <ClockIcon className="w-3 h-3 text-emerald-500" />
+                        <MaterialIcon name="schedule" size={12} className="text-emerald-600" />
                         {(dup.contact1 as any).activityCount || 0} Activities
                       </span>
                     </div>
                   </div>
 
                   {/* Contact 2 */}
-                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1.5 text-xs">
+                  <div className="p-3 rounded-xl bg-white dark:bg-[#1E282D] border border-[#D8E2D6] dark:border-[#618764]/30 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-foreground text-sm">
+                      <span className="font-bold text-[#273338] dark:text-white text-sm">
                         {dup.contact2.firstName} {dup.contact2.lastName}
                       </span>
-                      <Badge variant="secondary" className="text-[10px]">
-                        Record B (Newer)
-                      </Badge>
+                      <span className="text-[10px] font-semibold px-2 py-0.2 rounded bg-[#EDF2EB] dark:bg-[#1A2E26] text-[#2B5748] dark:text-[#9CB080] border border-[#D8E2D6] dark:border-[#618764]/30">
+                        Record B
+                      </span>
                     </div>
 
-                    <div className="space-y-1 text-muted-foreground">
+                    <div className="space-y-1 text-[#4A5D54] dark:text-[#A0B2A6]">
                       <p className="truncate">
-                        📧 <strong className="text-foreground">{dup.contact2.email || '(No email)'}</strong>
+                        <MaterialIcon name="mail" size={13} className="inline mr-1 text-[#75887E]" />
+                        <strong className="text-[#273338] dark:text-white">{dup.contact2.email || '(No email)'}</strong>
                       </p>
                       <p className="font-mono">
-                        📱 <strong className="text-foreground">{dup.contact2.phone || '(No phone)'}</strong>
+                        <MaterialIcon name="call" size={13} className="inline mr-1 text-[#75887E]" />
+                        <strong className="text-[#273338] dark:text-white">{dup.contact2.phone || '(No phone)'}</strong>
                       </p>
                       {dup.contact2.address && (
                         <p className="flex items-center gap-1 truncate">
-                          <BuildingOfficeIcon className="w-3.5 h-3.5 shrink-0" />
+                          <MaterialIcon name="home" size={13} className="shrink-0 text-[#75887E]" />
                           <span>{dup.contact2.address}</span>
                         </p>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
+                    <div className="flex items-center gap-3 pt-1 border-t border-[#D8E2D6] dark:border-[#618764]/20 text-[10px] text-[#75887E] dark:text-[#A0B2A6]">
                       <span className="flex items-center gap-1">
-                        <BriefcaseIcon className="w-3 h-3 text-primary" />
+                        <MaterialIcon name="business_center" size={12} className="text-[#618764]" />
                         {(dup.contact2 as any).dealCount || 0} Deals
                       </span>
                       <span className="flex items-center gap-1">
-                        <ClockIcon className="w-3 h-3 text-emerald-500" />
+                        <MaterialIcon name="schedule" size={12} className="text-emerald-600" />
                         {(dup.contact2 as any).activityCount || 0} Activities
                       </span>
                     </div>

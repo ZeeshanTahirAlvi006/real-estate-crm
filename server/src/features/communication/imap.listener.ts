@@ -142,7 +142,7 @@ export class ImapListenerService {
           const brokerageId = contact.brokerageId
 
           // 3. Find or Create Conversation for this Contact
-          let conversation = await Conversation.findOne({ contactId: contact._id })
+          let conversation = await Conversation.findOne({ contactId: contact._id, brokerageId })
           if (!conversation) {
             conversation = await Conversation.create({
               brokerageId,

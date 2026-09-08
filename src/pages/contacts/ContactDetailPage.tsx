@@ -165,8 +165,8 @@ export function ContactDetailPage() {
                   variant="default"
                   size="sm"
                   className="justify-start bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-                  onClick={() => window.open(`https://wa.me/${contact.phone.replace(/\D/g, '')}`, '_blank')}
-                  title="Open WhatsApp Voice Call & Chat"
+                  onClick={() => window.open(`https://web.whatsapp.com/send?phone=${contact.phone.replace(/\D/g, '')}`, '_blank')}
+                  title="Open WhatsApp Voice Call & Chat on WhatsApp Web"
                 >
                   <PhoneIcon className="mr-2 h-4 w-4" />
                   WhatsApp Call

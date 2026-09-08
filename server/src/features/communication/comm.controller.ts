@@ -1,18 +1,28 @@
 import { Request, Response } from 'express'
 import { commService, QUICK_TEMPLATES } from './comm.service.js'
 import { sendSuccess, sendError } from '../../utils/apiResponse.js'
-import { HTTP_STATUS } from '../../utils/constants.js'
+import { HTTP_STATUS, USER_ROLES } from '../../utils/constants.js'
+import { Conversation } from '../../models/Conversation.js'
 import { v4 as uuidv4 } from 'uuid'
 
 export const sendUnifiedHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id
-    const brokerageId = (req as any).effectiveBrokerageId || req.user?.brokerageId
-    const senderName = `${req.user?.firstName || 'Agent'} ${req.user?.lastName || ''}`.trim()
+    const caller = req.user
+    const userId = caller?.id
+    const brokerageId = caller?.brokerageId?.toString()
+    const senderName = `${caller?.firstName || 'Agent'} ${caller?.lastName || ''}`.trim()
 
     if (!brokerageId) {
       sendError(res, 'Brokerage ID is required', HTTP_STATUS.BAD_REQUEST)
       return
+    }
+
+    if (caller?.role === USER_ROLES.SUPER_ADMIN && req.body.conversationId) {
+      const existingConv = await Conversation.findById(req.body.conversationId)
+      if (existingConv && (!existingConv.assignedAgentId || existingConv.assignedAgentId.toString() !== caller._id.toString())) {
+        sendError(res, 'Access denied: Super Admin is restricted from sending communications on behalf of other users.', HTTP_STATUS.FORBIDDEN)
+        return
+      }
     }
 
     const result = await commService.sendUnifiedMessage(req.body, userId, brokerageId, senderName)

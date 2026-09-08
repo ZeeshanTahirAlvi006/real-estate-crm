@@ -14,11 +14,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
+import { KpiCard } from '@/components/shared/KpiCard'
 import {
   PhoneIcon,
   BoltIcon,
   ClockIcon,
-  SignalIcon,
   UserGroupIcon,
   TrashIcon,
   MusicalNoteIcon,
@@ -169,77 +169,35 @@ export function DialerPage() {
       </div>
 
       {/* KPI Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Calls Today */}
-        <Card className="border-border/80 shadow-xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Dials Today
-              </span>
-              <span className="text-2xl font-black text-foreground font-mono">{totalCallsToday}</span>
-              <p className="text-[11px] text-muted-foreground">Outbound attempts logged</p>
-            </div>
-            <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-              <PhoneIcon className="w-5 h-5" />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 gap-y-6 pt-3">
+        <KpiCard
+          title="Dials Today"
+          value={totalCallsToday}
+          icon="phone_in_talk"
+          subtitle="Outbound attempts logged"
+        />
 
-        {/* Connect Rate */}
-        <Card className="border-border/80 shadow-xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Connect Rate
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                  {connectRate}%
-                </span>
-                <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
-                  +28% via Local Pres
-                </Badge>
-              </div>
-              <p className="text-[11px] text-muted-foreground">Live answered pickups</p>
-            </div>
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500">
-              <SignalIcon className="w-5 h-5" />
-            </div>
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Connect Rate"
+          value={`${connectRate}%`}
+          icon="cell_tower"
+          badge="+28% Local Pres"
+          subtitle="Live answered pickups"
+        />
 
-        {/* Total Talk Time */}
-        <Card className="border-border/80 shadow-xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Total Talk Time
-              </span>
-              <span className="text-2xl font-black text-foreground font-mono">{totalMinutes} min</span>
-              <p className="text-[11px] text-muted-foreground">Live agent conversation time</p>
-            </div>
-            <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-500">
-              <ClockIcon className="w-5 h-5" />
-            </div>
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Total Talk Time"
+          value={`${totalMinutes} min`}
+          icon="timer"
+          subtitle="Live agent conversation time"
+        />
 
-        {/* Active Queue Size */}
-        <Card className="border-border/80 shadow-xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Ready in Queue
-              </span>
-              <span className="text-2xl font-black text-foreground font-mono">{queue.length} Leads</span>
-              <p className="text-[11px] text-muted-foreground">DNC-cleared & prioritized</p>
-            </div>
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
-              <UserGroupIcon className="w-5 h-5" />
-            </div>
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Ready in Queue"
+          value={`${queue.length} Leads`}
+          icon="group"
+          subtitle="DNC-cleared & prioritized"
+        />
       </div>
 
       {/* Tabbed Dialer Workspace */}

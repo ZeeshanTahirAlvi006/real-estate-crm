@@ -15,6 +15,7 @@ interface PipelineColumnProps {
   onSelectDeal?: (deal: Deal) => void
   onLoadStageDeals?: (stageId: string) => void
   isMobile?: boolean
+  className?: string
 }
 
 export function PipelineColumn({
@@ -25,6 +26,7 @@ export function PipelineColumn({
   onSelectDeal,
   onLoadStageDeals,
   isMobile = false,
+  className,
 }: PipelineColumnProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
@@ -53,9 +55,9 @@ export function PipelineColumn({
       className={cn(
         'flex flex-col rounded-2xl transition-all duration-200',
         'bg-[#F8F9FA] dark:bg-[#2B5748]/50 border border-[#D8E2D6] dark:border-[#618764]',
-        // Desktop fixed width, tablet/mobile full width of container
-        'w-full lg:w-80 lg:shrink-0',
-        isDragOver && 'border-[#9CB080] bg-[#9CB080]/10 ring-2 ring-[#9CB080]/30 scale-[1.01]'
+        'w-full lg:flex-1 lg:min-w-[270px] lg:max-w-md',
+        isDragOver && 'border-[#9CB080] bg-[#9CB080]/10 ring-2 ring-[#9CB080]/30 scale-[1.01]',
+        className
       )}
     >
       {/* Column Header */}

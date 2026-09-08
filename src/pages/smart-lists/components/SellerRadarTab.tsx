@@ -1,16 +1,11 @@
 import React, { useState } from 'react'
-import {
-  SparklesIcon,
-  DocumentChartBarIcon,
-  GiftIcon,
-  HomeModernIcon,
-  CheckBadgeIcon,
-  ArrowTrendingUpIcon,
-  ArrowPathIcon,
-} from '@heroicons/react/24/outline'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
+import { KpiCard } from '@/components/shared/KpiCard'
 import { MicroCmaModal } from './MicroCmaModal'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import {
   useGetSellerRadarProspectsQuery,
   useGetSellerRadarDashboardQuery,
@@ -93,7 +88,19 @@ const fallbackSellerRadarLeads: SellerRadarLead[] = [
   },
 ]
 
+function getSignalBadgeColor(signal: string) {
+  const s = signal.toLowerCase()
+  if (s.includes('equity') || s.includes('appreciation') || s.includes('clear')) {
+    return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40'
+  }
+  if (s.includes('spike') || s.includes('nester') || s.includes('life event') || s.includes('anniversary')) {
+    return 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800/40'
+  }
+  return 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800/40'
+}
+
 export const SellerRadarTab: React.FC = () => {
+  const navigate = useNavigate()
   const [selectedCmaLead, setSelectedCmaLead] = useState<SellerRadarLead | null>(null)
   const [isCmaOpen, setIsCmaOpen] = useState(false)
 
@@ -121,14 +128,14 @@ export const SellerRadarTab: React.FC = () => {
   }
 
   const handleSendAnniversaryUpdate = (lead: SellerRadarLead) => {
-    toast.success(`Home Anniversary Equity Update prepared for ${lead.name}`)
+    toast.success(`Equity update prepared for ${lead.name}`)
   }
 
   const handleRunAnniversaryScan = async () => {
     try {
       const result = await triggerAnniversary({ forceAll: true }).unwrap()
       toast.success(
-        `Anniversary scan complete: ${result.anniversariesIdentified} anniversaries flagged, ${result.notificationsCreated} notifications sent!`
+        `Anniversary scan complete: ${result.anniversariesIdentified} identified, ${result.notificationsCreated} notifications sent!`
       )
       refetch()
     } catch {
@@ -136,46 +143,54 @@ export const SellerRadarTab: React.FC = () => {
     }
   }
 
+  const handleOpenWhatsApp = (lead: SellerRadarLead) => {
+    const targetId = lead.contactId || lead.id
+    navigate(`/inbox?channel=whatsapp&contactId=${targetId}`)
+  }
+
+  const handleOpenEmail = (lead: SellerRadarLead) => {
+    const targetId = lead.contactId || lead.id
+    navigate(`/inbox?channel=email&contactId=${targetId}`)
+  }
+
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-primary via-chart-3 to-chart-2 text-primary-foreground shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2 max-w-xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold">
-            <SparklesIcon className="w-4 h-4" />
-            <span>AI Predictive Equity Scanner</span>
-          </div>
-          <h2 className="text-2xl font-extrabold tracking-tight">
-            Predictive "Seller Radar" & Equity Engine
-          </h2>
-          <p className="text-xs sm:text-sm text-white/85 leading-relaxed">
-            Continuously scans public tax registries, mortgage lock-in rates, and length-of-tenure data to flag homeowners with high statistical probability of selling within 6–12 months.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 px-4 py-3 rounded-2xl text-center">
-            <span className="text-[11px] text-white/80 block uppercase font-bold">Identified Targets</span>
-            <span className="text-2xl font-black font-mono">{totalTargets} Homeowners</span>
-          </div>
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 px-4 py-3 rounded-2xl text-center">
-            <span className="text-[11px] text-white/80 block uppercase font-bold">Total Trapped Equity</span>
-            <span className="text-2xl font-black font-mono text-emerald-300">{totalEquityStr}</span>
-          </div>
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 px-4 py-3 rounded-2xl text-center">
-            <span className="text-[11px] text-white/80 block uppercase font-bold">Avg Equity</span>
-            <span className="text-2xl font-black font-mono text-blue-200">{avgEquityStr}</span>
-          </div>
-        </div>
+      {/* Top Unicolor KPI Metrics Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard
+          title="Targets"
+          value={totalTargets}
+          icon="radar"
+          subtitle="Predicted listing probability"
+        />
+        <KpiCard
+          title="Trapped Equity"
+          value={totalEquityStr}
+          icon="account_balance_wallet"
+          subtitle="Total verified equity"
+          trend={{ value: 14, isPositive: true }}
+        />
+        <KpiCard
+          title="Avg Equity"
+          value={avgEquityStr}
+          icon="trending_up"
+          subtitle="Per target homeowner"
+          trend={{ value: 8, isPositive: true }}
+        />
       </div>
 
       {/* Action Toolbar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#202B2F] p-3.5 rounded-2xl border border-[#D8E2D6] dark:border-[#618764]/40">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-foreground">
+          <MaterialIcon name="group" size={18} className="text-[#2B5748] dark:text-[#9CB080]" />
+          <span className="text-sm font-bold text-[#273338] dark:text-white">
             Ranked Prospects ({displayLeads.length})
           </span>
-          {isLoading && <span className="text-xs text-muted-foreground animate-pulse">Refreshing live radar...</span>}
+          {isLoading && (
+            <span className="text-xs text-[#75887E] dark:text-[#A0B2A6] animate-pulse">
+              Scanning...
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -183,102 +198,138 @@ export const SellerRadarTab: React.FC = () => {
             size="sm"
             onClick={handleRunAnniversaryScan}
             disabled={isScanningAnniversaries}
-            className="text-xs h-8"
+            className="text-xs h-8 border-[#D8E2D6] dark:border-[#618764]/40 cursor-pointer"
           >
-            <ArrowPathIcon className={`w-3.5 h-3.5 mr-1 ${isScanningAnniversaries ? 'animate-spin' : ''}`} />
-            Run Anniversary Scan
+            <MaterialIcon
+              name="refresh"
+              size={15}
+              className={`mr-1 ${isScanningAnniversaries ? 'animate-spin' : ''}`}
+            />
+            Anniversary Scan
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => refetch()}
-            className="text-xs h-8"
+            className="text-xs h-8 border-[#D8E2D6] dark:border-[#618764]/40 cursor-pointer"
           >
-            Refresh Radar
+            <MaterialIcon name="sync" size={15} className="mr-1" />
+            Refresh
           </Button>
         </div>
       </div>
 
-      {/* Seller Radar Cards Grid */}
+      {/* Ranked Prospect Cards */}
       <div className="space-y-4">
-        {displayLeads.map((lead) => (
-          <div
-            key={lead.id}
-            className="p-5 rounded-2xl bg-card border border-border/80 shadow-xs hover:border-primary/40 transition-all space-y-4"
-          >
-            {/* Top Row: Info & Score */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold text-base border border-primary/20">
-                  <HomeModernIcon className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-foreground">{lead.name}</h3>
-                    <span className="text-xs text-muted-foreground font-mono">({lead.phone})</span>
+        {displayLeads.map((lead) => {
+          const signals = lead.allSignals?.length
+            ? lead.allSignals
+            : lead.keySignal
+              ? lead.keySignal.split('•').map((s) => s.trim()).filter(Boolean)
+              : []
+
+          return (
+            <div
+              key={lead.id}
+              className="p-5 rounded-2xl bg-white dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/40 shadow-xs hover:border-[#618764] transition-all space-y-4"
+            >
+              {/* Row 1: Client Info (Left) & Tiny Propensity % (Right) */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EDF2EB] dark:bg-[#1A2E26] text-[#2B5748] dark:text-[#9CB080] border border-[#D8E2D6] dark:border-[#618764]/40 shrink-0">
+                    <MaterialIcon name="person" size={20} />
                   </div>
-                  <p className="text-xs text-muted-foreground">{lead.address}</p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-sm text-[#273338] dark:text-white truncate">
+                        {lead.name}
+                      </h3>
+                      <span className="text-xs text-[#75887E] dark:text-[#A0B2A6] font-mono">
+                        ({lead.phone})
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] truncate">{lead.address}</p>
+                  </div>
                 </div>
-              </div>
 
-              {/* Propensity Score Badge */}
-              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl">
-                <ArrowTrendingUpIcon className="w-4 h-4 text-emerald-500" />
-                <div>
-                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                    {lead.propensityScore}% Propensity
+                {/* Tiny Propensity Percentage on the Right Side of Client Info */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#EDF2EB] dark:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/40 shrink-0">
+                  <MaterialIcon name="trending_up" size={14} className="text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-xs font-bold font-mono text-[#273338] dark:text-white">
+                    {lead.propensityScore}%
                   </span>
-                  <span className="text-[10px] text-muted-foreground block">Predicted Listing Probability</span>
+                  <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] font-medium hidden sm:inline">
+                    Propensity
+                  </span>
                 </div>
               </div>
-            </div>
 
-            {/* Financial & Equity Stats Pill Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase block">Est. Market Value</span>
-                <span className="font-extrabold text-foreground text-sm font-mono">
-                  ${(lead.estimatedValue || 0).toLocaleString()}
-                </span>
+              {/* Row 2: Signals rendered in distinct red / green / blue badges immediately below client info & percentage */}
+              {signals.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  {signals.map((sig, idx) => (
+                    <span
+                      key={idx}
+                      className={cn(
+                        'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border',
+                        getSignalBadgeColor(sig)
+                      )}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+                      {sig}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Row 3: Financial & Equity Stats Pill Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-[#F5F7F4] dark:bg-[#273338] border border-[#D8E2D6] dark:border-[#618764]/40">
+                  <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] font-semibold uppercase block">
+                    Market Value
+                  </span>
+                  <span className="font-extrabold text-[#273338] dark:text-white text-sm font-mono">
+                    ${(lead.estimatedValue || 0).toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#F5F7F4] dark:bg-[#273338] border border-[#D8E2D6] dark:border-[#618764]/40">
+                  <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] font-semibold uppercase block">
+                    Net Equity
+                  </span>
+                  <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm font-mono">
+                    +${(lead.equityAmount || 0).toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#F5F7F4] dark:bg-[#273338] border border-[#D8E2D6] dark:border-[#618764]/40">
+                  <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] font-semibold uppercase block">
+                    Tenure
+                  </span>
+                  <span className="font-bold text-[#273338] dark:text-white text-sm font-mono">
+                    {lead.yearsOwned} Years
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#F5F7F4] dark:bg-[#273338] border border-[#D8E2D6] dark:border-[#618764]/40">
+                  <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] font-semibold uppercase block">
+                    Mortgage Rate
+                  </span>
+                  <span className="font-bold text-[#2B5748] dark:text-[#9CB080] text-sm font-mono">
+                    {lead.mortgageRate} fixed
+                  </span>
+                </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase block">Net Home Equity</span>
-                <span className="font-extrabold text-emerald-500 text-sm font-mono">
-                  +${(lead.equityAmount || 0).toLocaleString()}
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase block">Tenure / Ownership</span>
-                <span className="font-bold text-foreground text-sm font-mono">
-                  {lead.yearsOwned} Years
-                </span>
-              </div>
-
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase block">Locked Mortgage Rate</span>
-                <span className="font-bold text-primary text-sm font-mono">
-                  {lead.mortgageRate} fixed
-                </span>
-              </div>
-            </div>
-
-            {/* Signals and Trigger Actions */}
-            <div className="pt-2 border-t border-border/50 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
-                <CheckBadgeIcon className="w-4 h-4 text-primary shrink-0" />
-                <span className="font-medium text-foreground">{lead.keySignal}</span>
-              </div>
-
-              <div className="flex items-center gap-2">
+              {/* Row 4: Trigger Actions */}
+              <div className="pt-2 border-t border-[#D8E2D6] dark:border-[#618764]/40 flex flex-wrap items-center justify-end gap-2 text-xs">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleSendAnniversaryUpdate(lead)}
-                  className="text-xs h-8"
+                  className="text-xs h-8 border-[#D8E2D6] dark:border-[#618764]/40 cursor-pointer"
                 >
-                  <GiftIcon className="w-3.5 h-3.5 mr-1 text-amber-500" />
+                  <MaterialIcon name="card_giftcard" size={15} className="mr-1 text-amber-600" />
                   Equity Update
                 </Button>
 
@@ -286,23 +337,35 @@ export const SellerRadarTab: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => handleOpenCma(lead)}
-                  className="text-xs h-8 text-primary border-primary/30 hover:bg-primary/10"
+                  className="text-xs h-8 text-[#2B5748] dark:text-[#9CB080] border-[#D8E2D6] dark:border-[#618764]/40 hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] cursor-pointer"
                 >
-                  <DocumentChartBarIcon className="w-3.5 h-3.5 mr-1" />
-                  Generate Micro-CMA
+                  <MaterialIcon name="analytics" size={15} className="mr-1" />
+                  Micro-CMA
                 </Button>
 
+                {/* WhatsApp Button: In-app navigation */}
                 <Button
                   size="sm"
-                  onClick={() => window.open(`https://wa.me/${lead.phone.replace(/\D/g, '')}`, '_blank')}
-                  className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                  onClick={() => handleOpenWhatsApp(lead)}
+                  className="text-xs h-8 bg-[#008069] hover:bg-[#006a57] text-white shadow-xs font-semibold cursor-pointer"
                 >
+                  <MaterialIcon name="chat" size={15} className="mr-1" />
                   WhatsApp
+                </Button>
+
+                {/* Email Button: In-app navigation (No Gmail logo/text) */}
+                <Button
+                  size="sm"
+                  onClick={() => handleOpenEmail(lead)}
+                  className="text-xs h-8 bg-[#2B5748] hover:bg-[#24463a] text-white shadow-xs font-semibold cursor-pointer"
+                >
+                  <MaterialIcon name="mail" size={15} className="mr-1" />
+                  Email
                 </Button>
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Micro-CMA Modal */}

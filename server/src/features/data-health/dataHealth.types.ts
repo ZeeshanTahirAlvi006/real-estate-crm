@@ -71,3 +71,42 @@ export interface ScanResultDto {
   issuesFound: number
   message: string
 }
+
+// ── Contact Data Hygiene Issue DTOs ────────────────────
+export interface ContactDataIssue {
+  type: 'email' | 'phone' | 'missing'
+  field: string
+  title: string
+  description: string
+  severity: 'error' | 'warning' | 'info'
+}
+
+export interface ContactWithDataIssues {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  secondaryPhone?: string
+  address?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  leadSource: string
+  leadScore: number
+  status: string
+  tags: string[]
+  notes?: string
+  propertyInterests?: string[]
+  assignedAgentName?: string
+  dealCount: number
+  activityCount: number
+  createdAt: string
+  updatedAt: string
+  lastContactedAt?: string
+  hasInvalidEmail: boolean
+  hasInvalidPhone: boolean
+  hasMissingFields: boolean
+  issues: ContactDataIssue[]
+}
+

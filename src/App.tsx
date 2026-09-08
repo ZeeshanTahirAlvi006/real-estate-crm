@@ -32,6 +32,7 @@ import { LeadPortalPage } from '@/pages/portal/LeadPortalPage'
 import { PortalSettingsPage } from '@/pages/portal/PortalSettingsPage'
 import { CommissionsPage } from '@/pages/commissions/CommissionsPage'
 import { PublicSignPage } from '@/pages/esign/PublicSignPage'
+import { MicroCmaPage } from '@/pages/cma/MicroCmaPage'
 
 function ThemedToaster() {
   const { resolvedTheme } = useTheme()
@@ -68,6 +69,11 @@ function App() {
 
                 {/* Public Standalone eSignature Execution Route */}
                 <Route path="/sign/:token" element={<PublicSignPage />} />
+
+                {/* Public Standalone Micro-CMA Report Route */}
+                <Route path="/cma/:id" element={<MicroCmaPage />} />
+                <Route path="/cma" element={<MicroCmaPage />} />
+                <Route path="/micro-cma" element={<MicroCmaPage />} />
 
                 {/* Client Lead Portal Standalone Route */}
                 <Route

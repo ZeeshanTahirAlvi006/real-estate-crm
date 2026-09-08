@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type {
   ConversationThread,
   ConversationMessage,
@@ -11,6 +12,7 @@ import {
 } from '@/components/ai-copilot/FairHousingWarning'
 import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { ObjectionCopilotDrawer } from '@/components/ai-copilot/ObjectionCopilotDrawer'
+import { toast } from 'sonner'
 
 interface WhatsAppChatViewProps {
   conversation: ConversationThread
@@ -33,6 +35,7 @@ export const WhatsAppChatView: React.FC<WhatsAppChatViewProps> = ({
   onToggleContactInfo,
   isSending = false,
 }) => {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [inputText, setInputText] = useState('')
   const [showTemplates, setShowTemplates] = useState(false)
   const [isWhatsAppTemplateModalOpen, setIsWhatsAppTemplateModalOpen] = useState(false)
@@ -41,6 +44,28 @@ export const WhatsAppChatView: React.FC<WhatsAppChatViewProps> = ({
   const [searchInChat, setSearchInChat] = useState(false)
   const [searchFilter, setSearchFilter] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const cleanPhone = (conversation.contactPhone || '').replace(/\D/g, '')
+
+  // When autoCall=true is present in query parameters, open WhatsApp Web with chat open for this contact
+  useEffect(() => {
+    if (searchParams.get('autoCall') === 'true') {
+      if (cleanPhone) {
+        toast.info(`Opening WhatsApp Web for ${conversation.contactName || 'contact'}...`)
+        window.open(`https://web.whatsapp.com/send?phone=${cleanPhone}`, '_blank')
+      } else {
+        toast.error('No phone number available for this contact')
+      }
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          next.delete('autoCall')
+          return next
+        },
+        { replace: true }
+      )
+    }
+  }, [searchParams, setSearchParams, conversation.id, conversation.contactName, cleanPhone])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -95,8 +120,6 @@ export const WhatsAppChatView: React.FC<WhatsAppChatViewProps> = ({
       .join('')
       .slice(0, 2)
       .toUpperCase() || 'WA'
-
-  const cleanPhone = (conversation.contactPhone || '').replace(/\D/g, '')
 
   const whatsAppMessages = messages.filter((m) => m.channel === 'whatsapp' || !m.channel)
   const filteredMessages = searchFilter.trim()
@@ -175,39 +198,50 @@ export const WhatsAppChatView: React.FC<WhatsAppChatViewProps> = ({
             <MaterialIcon name="search" size={20} />
           </button>
 
-          {/* Voice Call */}
+          {/* Voice Call: Open WhatsApp Web with chat open */}
           {cleanPhone ? (
-            <a
-              href={`https://wa.me/${cleanPhone}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="WhatsApp Voice Call"
+            <button
+              type="button"
+              onClick={() => {
+                window.open(`https://web.whatsapp.com/send?phone=${cleanPhone}`, '_blank')
+              }}
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer text-[#54656f] dark:text-[#aebac1] hover:text-[#00a884] dark:hover:text-[#00a884]"
+              title="Voice Call on WhatsApp Web"
             >
               <MaterialIcon name="call" size={20} />
-            </a>
+            </button>
           ) : (
             <button
               type="button"
               disabled
-              className="p-2 rounded-full opacity-40 cursor-not-allowed"
+              className="p-2 rounded-full opacity-40 cursor-not-allowed text-[#54656f] dark:text-[#aebac1]"
               title="No Phone Number"
             >
               <MaterialIcon name="call" size={20} />
             </button>
           )}
 
-          {/* Video Call */}
-          {cleanPhone && (
-            <a
-              href={`https://wa.me/${cleanPhone}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer hidden sm:flex"
-              title="WhatsApp Video Call"
+          {/* Video Call: Open WhatsApp Web with chat open */}
+          {cleanPhone ? (
+            <button
+              type="button"
+              onClick={() => {
+                window.open(`https://web.whatsapp.com/send?phone=${cleanPhone}`, '_blank')
+              }}
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer hidden sm:flex text-[#54656f] dark:text-[#aebac1] hover:text-[#00a884] dark:hover:text-[#00a884]"
+              title="Video Call on WhatsApp Web"
             >
               <MaterialIcon name="videocam" size={20} />
-            </a>
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="p-2 rounded-full opacity-40 cursor-not-allowed hidden sm:flex text-[#54656f] dark:text-[#aebac1]"
+              title="No Phone Number"
+            >
+              <MaterialIcon name="videocam" size={20} />
+            </button>
           )}
 
           {/* AI Copilot shortcut */}

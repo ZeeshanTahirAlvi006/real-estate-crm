@@ -2,6 +2,7 @@ import { Router } from 'express'
 import {
   getScore,
   listDuplicates,
+  listIssues,
   triggerDuplicateScan,
   triggerEmailScan,
   triggerPhoneScan,
@@ -34,6 +35,9 @@ router.get('/score', getScore)
 
 // List duplicate candidates
 router.get('/duplicates', listDuplicates)
+
+// List contacts with data health issues (invalid emails, invalid phones)
+router.get('/issues', listIssues)
 
 // Trigger on-demand scans
 router.post('/scan/deduplication', triggerDuplicateScan)

@@ -20,6 +20,8 @@ import {
   DuplicateContactSummary,
   MergeContactInput,
   ScanResultDto,
+  ContactDataIssue,
+  ContactWithDataIssues,
 } from './dataHealth.types.js'
 
 // ── Grade Calculator Helper ─────────────────────────────
@@ -446,3 +448,132 @@ export const dismissDuplicate = async (
 
   return { success: true }
 }
+
+// ── 8. List Contacts with Data Health Issues (Invalid Emails & Phones) ──
+export const listDataHealthIssues = async (
+  tenantFilter: Record<string, any>,
+  filterType?: 'all' | 'email' | 'phone',
+  search?: string
+): Promise<ContactWithDataIssues[]> => {
+  const filter = { ...tenantFilter, isDeleted: false }
+  const contacts = await Contact.find(filter).lean() as unknown as IContact[]
+
+  const results: ContactWithDataIssues[] = []
+
+  for (const c of contacts) {
+    const issues: ContactDataIssue[] = []
+    let hasInvalidEmail = false
+    let hasInvalidPhone = false
+    let hasMissingFields = false
+
+    // 1. Email check
+    if (!c.email || !c.email.trim()) {
+      hasInvalidEmail = true
+      issues.push({
+        type: 'email',
+        field: 'email',
+        title: 'Missing Email',
+        description: 'No email address registered on record',
+        severity: 'error',
+      })
+    } else if (!isValidEmailSyntax(c.email)) {
+      hasInvalidEmail = true
+      issues.push({
+        type: 'email',
+        field: 'email',
+        title: 'Invalid Email Syntax',
+        description: `"${c.email}" violates RFC-5322 standard email syntax`,
+        severity: 'error',
+      })
+    }
+
+    // 2. Phone check
+    if (!c.phone || !c.phone.trim()) {
+      hasInvalidPhone = true
+      issues.push({
+        type: 'phone',
+        field: 'phone',
+        title: 'Missing Phone',
+        description: 'No primary phone number on record',
+        severity: 'warning',
+      })
+    } else if (!isValidPhoneFormat(c.phone)) {
+      hasInvalidPhone = true
+      issues.push({
+        type: 'phone',
+        field: 'phone',
+        title: 'Unformatted Phone',
+        description: `"${c.phone}" fails E.164 10-15 digit format standard`,
+        severity: 'warning',
+      })
+    }
+
+    // 3. Incomplete record check
+    if (!c.address || (c.tags && c.tags.length === 0)) {
+      hasMissingFields = true
+      const missingDetails: string[] = []
+      if (!c.address) missingDetails.push('Address')
+      if (!c.tags || c.tags.length === 0) missingDetails.push('Tags')
+      issues.push({
+        type: 'missing',
+        field: 'profile',
+        title: 'Incomplete Record',
+        description: `Missing: ${missingDetails.join(', ')}`,
+        severity: 'info',
+      })
+    }
+
+    // Filter to only records with invalid email or invalid phone
+    if (hasInvalidEmail || hasInvalidPhone) {
+      if (filterType === 'email' && !hasInvalidEmail) continue
+      if (filterType === 'phone' && !hasInvalidPhone) continue
+
+      if (search && search.trim()) {
+        const q = search.toLowerCase().trim()
+        const fullName = `${c.firstName} ${c.lastName}`.toLowerCase()
+        const emailMatch = (c.email || '').toLowerCase().includes(q)
+        const phoneMatch = (c.phone || '').toLowerCase().includes(q)
+        if (!fullName.includes(q) && !emailMatch && !phoneMatch) {
+          continue
+        }
+      }
+
+      const [dealCount, activityCount] = await Promise.all([
+        Deal.countDocuments({ contactId: c._id, isDeleted: false }),
+        Activity.countDocuments({ contactId: c._id }),
+      ])
+
+      results.push({
+        id: c._id.toString(),
+        firstName: c.firstName,
+        lastName: c.lastName,
+        email: c.email || '',
+        phone: c.phone || '',
+        secondaryPhone: c.secondaryPhone,
+        address: c.address,
+        city: c.city,
+        state: c.state,
+        zipCode: c.zipCode,
+        leadSource: c.leadSource || 'Manual Entry',
+        leadScore: c.leadScore ?? 50,
+        status: c.status || 'active',
+        tags: c.tags || [],
+        notes: c.notes,
+        propertyInterests: c.propertyInterests || [],
+        assignedAgentName: c.assignedAgentId ? (c as any).assignedAgentName : undefined,
+        dealCount,
+        activityCount,
+        createdAt: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: c.updatedAt ? new Date(c.updatedAt).toISOString() : new Date().toISOString(),
+        lastContactedAt: c.lastContactedAt ? new Date(c.lastContactedAt).toISOString() : undefined,
+        hasInvalidEmail,
+        hasInvalidPhone,
+        hasMissingFields,
+        issues,
+      })
+    }
+  }
+
+  return results
+}
+

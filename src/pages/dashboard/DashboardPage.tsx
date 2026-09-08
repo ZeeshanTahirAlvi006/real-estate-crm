@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
 import { MaterialIcon } from '@/components/ui/MaterialIcon'
-import { StatCard } from '@/components/shared/StatCard'
+import { KpiCard } from '@/components/shared/KpiCard'
 import { LeadSourceChart } from './components/LeadSourceChart'
 import { LeadsOverTimeChart } from './components/LeadsOverTimeChart'
 import { ActivityFeed } from './components/ActivityFeed'
@@ -48,12 +48,12 @@ function ParallaxRevealSection({
   return (
     <div
       ref={sectionRef}
-      style={{ transitionDelay: `${delay}ms` }}
+      style={{
+        transitionDelay: `${delay}ms`,
+      }}
       className={cn(
-        'transition-all duration-500 ease-out transform will-change-transform',
-        isVisible
-          ? 'translate-y-0 opacity-100 scale-100'
-          : 'translate-y-8 opacity-0 scale-[0.99]',
+        'transition-all duration-700 ease-out transform',
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6',
         className
       )}
     >
@@ -85,8 +85,6 @@ export function DashboardPage() {
   const isAgent = user?.role === UserRole.AGENT
   const isTeamLead = (user?.role as any) === UserRole.TEAM_LEAD
 
-  const myContactsCount = totalContacts
-  const myDealsCount = activeDeals
   const myDealsValue = pipelineValue
   const myEstCommission = Math.round(myDealsValue * 0.03 * 0.7) // 3% commission, 70% agent split
   const avgSpeed = dashboardKpis?.avgSpeedSeconds || 24
@@ -141,31 +139,31 @@ export function DashboardPage() {
           {isAgent ? (
             /* Agent Perspective */
             <>
-              <StatCard
+              <KpiCard
                 title="My Assigned Contacts"
                 value={animatedTotalContacts.toLocaleString()}
-                icon={<MaterialIcon name="group" size={20} />}
+                icon="group"
                 trend={{ value: 8.5, isPositive: true }}
                 subtitle="vs last month"
               />
-              <StatCard
+              <KpiCard
                 title="My Active Deals"
                 value={`${animatedActiveDeals} Deals`}
-                icon={<MaterialIcon name="work" size={20} />}
+                icon="work"
                 trend={{ value: 15.0, isPositive: true }}
                 subtitle="pipeline progress"
               />
-              <StatCard
+              <KpiCard
                 title="Est. Commission Split"
                 value={`$${(animatedEstCommission / 1000).toFixed(1)}k`}
-                icon={<MaterialIcon name="payments" size={20} />}
+                icon="payments"
                 trend={{ value: 12.0, isPositive: true }}
                 subtitle="projected revenue"
               />
-              <StatCard
+              <KpiCard
                 title="Hot Leads (80+ Score)"
                 value={animatedHighPriorityLeads}
-                icon={<MaterialIcon name="bolt" size={20} />}
+                icon="bolt"
                 trend={{ value: 20.0, isPositive: true }}
                 subtitle="high conversion"
               />
@@ -173,31 +171,31 @@ export function DashboardPage() {
           ) : isTeamLead ? (
             /* Team Lead Perspective */
             <>
-              <StatCard
+              <KpiCard
                 title="Team CRM Contacts"
                 value={animatedTotalContacts.toLocaleString()}
-                icon={<MaterialIcon name="group" size={20} />}
+                icon="group"
                 trend={{ value: 10.2, isPositive: true }}
                 subtitle="team coverage"
               />
-              <StatCard
+              <KpiCard
                 title="High-Intent Inquiries"
                 value={animatedHighPriorityLeads}
-                icon={<MaterialIcon name="bolt" size={20} />}
+                icon="bolt"
                 trend={{ value: 18.2, isPositive: true }}
                 subtitle="urgent follow-ups"
               />
-              <StatCard
+              <KpiCard
                 title="Active Team Pipeline"
                 value={`$${(animatedPipelineValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k`}
-                icon={<MaterialIcon name="work" size={20} />}
+                icon="work"
                 trend={{ value: 14.5, isPositive: true }}
                 subtitle="open transaction volume"
               />
-              <StatCard
+              <KpiCard
                 title="Avg. Speed-to-Lead"
                 value={`${animatedAvgSpeed}s`}
-                icon={<MaterialIcon name="schedule" size={20} />}
+                icon="schedule"
                 trend={{ value: -12.0, isPositive: true }}
                 subtitle="first response time"
               />
@@ -205,31 +203,31 @@ export function DashboardPage() {
           ) : (
             /* Brokerage Owner / Super Admin Perspective */
             <>
-              <StatCard
+              <KpiCard
                 title="Total Contacts"
                 value={animatedTotalContacts.toLocaleString()}
-                icon={<MaterialIcon name="group" size={20} />}
+                icon="group"
                 trend={{ value: 12.4, isPositive: true }}
                 subtitle="all broker stages"
               />
-              <StatCard
+              <KpiCard
                 title="Pipeline Volume"
                 value={`$${(animatedPipelineValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k`}
-                icon={<MaterialIcon name="payments" size={20} />}
+                icon="payments"
                 trend={{ value: 16.8, isPositive: true }}
                 subtitle="under contract"
               />
-              <StatCard
+              <KpiCard
                 title="Forecast"
                 value={`$${(animatedForecast / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k`}
-                icon={<MaterialIcon name="trending_up" size={20} />}
+                icon="trending_up"
                 trend={{ value: 9.4, isPositive: true }}
                 subtitle="expected closing"
               />
-              <StatCard
+              <KpiCard
                 title="Team Seats"
                 value={`${animatedActiveUsers} Seats`}
-                icon={<MaterialIcon name="apartment" size={20} />}
+                icon="apartment"
                 trend={{ value: 4.5, isPositive: true }}
                 subtitle="licensed agents"
               />

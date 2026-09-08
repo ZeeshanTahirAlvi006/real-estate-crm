@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useMemo } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
 import {
   useGetConversationsQuery,
   useGetMessagesQuery,
   useSendMessageMutation,
   useToggleAiIsaMutation,
   useGetQuickTemplatesQuery,
+  useStartConversationMutation,
 } from '@/store/api/communicationApi'
 import { ConversationList } from './components/ConversationList'
 import { EmailConversationList } from './components/EmailConversationList'
@@ -18,10 +21,14 @@ import { CopilotDrawer } from '@/components/ai-copilot/CopilotDrawer'
 import { useSocket } from '@/providers/SocketProvider'
 import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { ChannelType } from '@/types/communication'
+import type { ChannelType, ConversationThread } from '@/types/communication'
 import { toast } from 'sonner'
 
 export function InboxPage() {
+  const user = useAppSelector((state) => state.auth.user)
+  const navigate = useNavigate()
+  const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN
+
   const { socket } = useSocket()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -58,15 +65,100 @@ export function InboxPage() {
 
   // 1. Fetch Conversations List for Active Channel
   const {
-    data: conversations = [],
+    data: fetchedConversations = [],
     isLoading: loadingConversations,
-  } = useGetConversationsQuery({
-    channel: selectedChannelFilter !== 'all' ? selectedChannelFilter : undefined,
-    search: searchQuery.trim() || undefined,
-  })
+  } = useGetConversationsQuery(
+    {
+      channel: selectedChannelFilter !== 'all' ? selectedChannelFilter : undefined,
+      search: searchQuery.trim() || undefined,
+    },
+    {
+      skip: isSuperAdmin,
+    }
+  )
 
-  // Auto-select first conversation on tablet & desktop if none selected
+  const [fallbackConversations, setFallbackConversations] = useState<ConversationThread[]>([])
+
+  const conversations = useMemo(() => {
+    const list = [...fetchedConversations]
+    fallbackConversations.forEach((fc) => {
+      if (!list.some((c) => c.id === fc.id || c.contactId === fc.contactId)) {
+        list.unshift(fc)
+      }
+    })
+    return list
+  }, [fetchedConversations, fallbackConversations])
+
+  const [startConversationMutation] = useStartConversationMutation()
+  const [handledContactId, setHandledContactId] = useState<string | null>(null)
+
+  // Handle contactId search param: Auto-select or start conversation
   useEffect(() => {
+    const contactIdParam = searchParams.get('contactId')
+    if (!contactIdParam || handledContactId === contactIdParam || loadingConversations) return
+
+    const existing = conversations.find(
+      (c) => c.contactId === contactIdParam || c.id === contactIdParam
+    )
+
+    if (existing) {
+      setSelectedConversationId(existing.id)
+      setMobileView('chat')
+      setHandledContactId(contactIdParam)
+    } else {
+      setHandledContactId(contactIdParam)
+      startConversationMutation({
+        contactId: contactIdParam,
+        channel: selectedChannelFilter !== 'all' ? selectedChannelFilter : 'whatsapp',
+      })
+        .unwrap()
+        .then((newConv) => {
+          setSelectedConversationId(newConv.id)
+          setMobileView('chat')
+        })
+        .catch(() => {
+          // If already created or in mock/offline mode, synthesize conversation so user can chat & call
+          const nameParam = searchParams.get('name') || 'Lead Contact'
+          const phoneParam = searchParams.get('phone') || ''
+          const fallbackConv: ConversationThread = {
+            id: `conv-${contactIdParam}`,
+            contactId: contactIdParam,
+            contactName: nameParam,
+            contactPhone: phoneParam,
+            contactEmail: '',
+            lastChannel: (selectedChannelFilter !== 'all' ? selectedChannelFilter : 'whatsapp') as ChannelType,
+            unreadCount: 0,
+            isStarred: false,
+            lastMessage: {
+              body: 'Conversation started',
+              createdAt: new Date().toISOString(),
+              senderType: 'agent',
+              channel: (selectedChannelFilter !== 'all' ? selectedChannelFilter : 'whatsapp') as ChannelType,
+            },
+            dncStatus: 'clean',
+            aiIsaEnabled: false,
+            leadScore: 75,
+            tags: [],
+          }
+          setFallbackConversations((prev) => [fallbackConv, ...prev.filter((c) => c.id !== fallbackConv.id)])
+          setSelectedConversationId(fallbackConv.id)
+          setMobileView('chat')
+        })
+    }
+  }, [
+    searchParams,
+    conversations,
+    loadingConversations,
+    handledContactId,
+    selectedChannelFilter,
+    startConversationMutation,
+  ])
+
+  // Auto-select first conversation on tablet & desktop if none selected and no contactId requested
+  useEffect(() => {
+    const contactIdParam = searchParams.get('contactId')
+    if (contactIdParam) return
+
     if (
       conversations.length > 0 &&
       (!selectedConversationId || !conversations.some((c) => c.id === selectedConversationId))
@@ -76,7 +168,7 @@ export function InboxPage() {
         setSelectedConversationId(conversations[0].id)
       }
     }
-  }, [conversations, selectedConversationId])
+  }, [conversations, selectedConversationId, searchParams])
 
   // Join/Leave socket room for active conversation
   useEffect(() => {
@@ -155,6 +247,40 @@ export function InboxPage() {
 
   const handleOpenCopilot = () => {
     setIsCopilotOpen(true)
+  }
+
+  if (isSuperAdmin) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-6 text-center min-h-[70vh]">
+        <div className="max-w-md w-full bg-white dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/40 rounded-2xl p-8 shadow-xl">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 mb-5 border border-amber-500/20">
+            <MaterialIcon name="shield" size={32} />
+          </div>
+          <h2 className="text-xl font-bold text-[#273338] dark:text-white mb-2">
+            Communication Privacy Restricted
+          </h2>
+          <p className="text-sm text-[#75887E] dark:text-[#A0B2A6] leading-relaxed mb-6">
+            Super Administrator accounts are restricted from accessing WhatsApp, Email, and omnichannel inboxes of brokerage owners and other users to ensure client confidentiality and enforce cross-brokerage data privacy boundaries.
+          </p>
+          <div className="rounded-xl bg-[#EDF2EB] dark:bg-[#273338] p-4 text-xs text-left text-[#4A5D54] dark:text-[#CBD5E1] mb-6 space-y-2 border border-[#D8E2D6] dark:border-[#618764]/30">
+            <div className="flex items-center gap-2 font-semibold text-[#273338] dark:text-white">
+              <MaterialIcon name="lock" size={16} className="text-[#618764] dark:text-[#9CB080]" />
+              <span>Multi-Tenant Privacy Guard Active</span>
+            </div>
+            <p>
+              Direct messaging, WhatsApp threads, and email inboxes remain confidential to brokerage owners and assigned agents.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#2B5748] hover:bg-[#202B2F] text-white px-5 py-2.5 text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+          >
+            <MaterialIcon name="arrow_back" size={18} />
+            <span>Return to Dashboard</span>
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (loadingConversations && conversations.length === 0) {

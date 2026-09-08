@@ -23,7 +23,7 @@ const navTabs: NavTab[] = [
   { to: '/pipeline', label: 'Pipeline', icon: 'view_kanban', permission: 'managePipeline' },
   { to: '/transactions', label: 'Transactions', icon: 'receipt_long', permission: 'managePipeline' },
   { to: '/commissions', label: 'Commissions', icon: 'payments', permission: 'managePipeline' },
-  { to: '/inbox/?channel=all', label: 'Inbox', icon: 'chat', permission: 'manageContacts' },
+  { to: '/inbox/?channel=all', label: 'Inbox', icon: 'chat', permission: 'viewInbox' },
   { to: '/smart-lists', label: 'Smart Lists', icon: 'filter_list', permission: 'manageSmartLists' },
   { to: '/ai-isa', label: 'AI ISA', icon: 'smart_toy', permission: 'managePipeline' },
 ]

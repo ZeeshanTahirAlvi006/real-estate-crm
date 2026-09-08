@@ -8,7 +8,7 @@ import {
   startConversationHandler,
 } from './inbox.controller.js'
 import { authenticate } from '../../middleware/authenticate.js'
-import { tenantScope } from '../../middleware/tenantScope.js'
+import { strictCommunicationScope } from '../../middleware/tenantScope.js'
 import { validate } from '../../middleware/validate.js'
 import {
   sendMessageSchema,
@@ -18,8 +18,8 @@ import {
 
 const router = Router()
 
-// All inbox routes require authenticated session & tenant scoping
-router.use(authenticate, tenantScope)
+// All inbox routes require authenticated session & strict communication tenant scoping
+router.use(authenticate, strictCommunicationScope)
 
 // Conversations list
 router.get('/conversations', getConversationsHandler)

@@ -1,5 +1,6 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { PageHeader } from '@/components/shared/PageHeader'
+import { useState, useMemo } from 'react'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
+import { ResponsivePageNav, type NavTabItem } from '@/components/navigation/ResponsivePageNav'
 import { ProfileTab } from './components/ProfileTab'
 import { TeamManagementTab } from './components/TeamManagementTab'
 import { AuditLogsTab } from './components/AuditLogsTab'
@@ -21,118 +22,112 @@ export function SettingsPage() {
 
   const canManageTeam = (isSuperAdmin || isBrokerageOwner) && !isClient
 
+  const tabs: NavTabItem[] = useMemo(() => {
+    const list: NavTabItem[] = [
+      { id: 'profile', label: isClient ? 'My Profile' : 'Profile', icon: 'person' },
+    ]
+
+    if (!isClient && canManageTeam) {
+      list.push({ id: 'team', label: 'Team Management', icon: 'groups' })
+      list.push({ id: 'whatsapp', label: 'WhatsApp API', icon: 'chat' })
+    }
+
+    if (!isClient && (isSuperAdmin || isBrokerageOwner)) {
+      list.push({ id: 'audit', label: 'Audit Logs', icon: 'history' })
+    }
+
+    if (!isClient && isSuperAdmin) {
+      list.push({ id: 'feature-flags', label: 'Feature Flags', icon: 'toggle_on' })
+      list.push({ id: 'brokerages', label: 'Tenant Brokerages', icon: 'domain' })
+    }
+
+    if (!isClient) {
+      list.push({ id: 'compliance', label: 'TCPA Compliance', icon: 'verified_user' })
+      list.push({ id: 'playbook', label: 'Objection Playbook', icon: 'menu_book' })
+    }
+
+    list.push({ id: 'security', label: 'Password Security', icon: 'lock' })
+
+    return list
+  }, [isClient, canManageTeam, isSuperAdmin, isBrokerageOwner])
+
+  const [activeTab, setActiveTab] = useState<string>('profile')
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <PageHeader
-        title={isClient ? 'Account & Preferences' : 'Settings & Platform Governance'}
-        description={
-          isClient
-            ? 'Manage your personal profile, contact information, and security credentials'
-            : 'Manage your profile, team seats, multi-tenant brokerages, feature kill-switches, and security audit trails'
-        }
-      />
-      <Tabs defaultValue="profile">
-        <TabsList className="bg-muted/40 p-1 rounded-2xl border border-border/60 flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="profile" className="rounded-xl text-xs font-semibold">
-            {isClient ? 'My Profile' : 'Profile'}
-          </TabsTrigger>
+    <div className="space-y-6 pb-12">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        {/* Unified Responsive Navigation: identical sliding pill for mobile & tablet (< lg), horizontal track on desktop (lg+) */}
+        <ResponsivePageNav
+          tabs={tabs}
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          sticky
+        />
 
-          {!isClient && canManageTeam && (
-            <TabsTrigger value="team" className="rounded-xl text-xs font-semibold">
-              Team Management
-            </TabsTrigger>
+        {/* Page Title & Concise Subtitle (2-3 words naming) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 max-w-7xl mx-auto">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#273338] dark:text-white">
+              System Settings
+            </h1>
+            <p className="text-xs sm:text-sm text-[#4A5D54] dark:text-[#A0B2A6] mt-0.5">
+              {isClient ? 'Account and preferences' : 'Platform governance and team settings'}
+            </p>
+          </div>
+        </div>
+
+        {/* Tab Contents */}
+        <div className="max-w-7xl mx-auto">
+          <TabsContent value="profile" className="mt-0 focus-visible:outline-none">
+            <ProfileTab />
+          </TabsContent>
+
+          {canManageTeam && (
+            <TabsContent value="team" className="mt-0 focus-visible:outline-none">
+              <TeamManagementTab />
+            </TabsContent>
           )}
 
-          {!isClient && canManageTeam && (
-            <TabsTrigger value="whatsapp" className="rounded-xl text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              WhatsApp Cloud API
-            </TabsTrigger>
+          {canManageTeam && (
+            <TabsContent value="whatsapp" className="mt-0 focus-visible:outline-none">
+              <WhatsAppIntegrationSettings />
+            </TabsContent>
           )}
 
-          {!isClient && (isSuperAdmin || isBrokerageOwner) && (
-            <TabsTrigger value="audit" className="rounded-xl text-xs font-semibold">
-              Security & Audit Logs
-            </TabsTrigger>
-          )}
-
-          {!isClient && isSuperAdmin && (
-            <TabsTrigger value="feature-flags" className="rounded-xl text-xs font-semibold">
-              Feature Kill-Switches
-            </TabsTrigger>
-          )}
-
-          {!isClient && isSuperAdmin && (
-            <TabsTrigger value="brokerages" className="rounded-xl text-xs font-semibold">
-              Tenant Brokerages
-            </TabsTrigger>
-          )}
-
-          {!isClient && (
-            <TabsTrigger value="compliance" className="rounded-xl text-xs font-semibold text-primary">
-              Compliance & TCPA
-            </TabsTrigger>
+          {(isSuperAdmin || isBrokerageOwner) && (
+            <TabsContent value="audit" className="mt-0 focus-visible:outline-none">
+              <AuditLogsTab />
+            </TabsContent>
           )}
 
           {!isClient && (
-            <TabsTrigger value="playbook" className="rounded-xl text-xs font-semibold text-amber-400">
-              Objection Playbook
-            </TabsTrigger>
+            <TabsContent value="compliance" className="mt-0 focus-visible:outline-none">
+              <ComplianceTab />
+            </TabsContent>
           )}
 
-          <TabsTrigger value="security" className="rounded-xl text-xs font-semibold">
-            Change Password
-          </TabsTrigger>
-        </TabsList>
+          {!isClient && (
+            <TabsContent value="playbook" className="mt-0 focus-visible:outline-none">
+              <ObjectionPlaybookTab />
+            </TabsContent>
+          )}
 
-        <TabsContent value="profile" className="mt-4">
-          <ProfileTab />
-        </TabsContent>
+          {isSuperAdmin && (
+            <TabsContent value="feature-flags" className="mt-0 focus-visible:outline-none">
+              <FeatureFlagsTab />
+            </TabsContent>
+          )}
 
-        {canManageTeam && (
-          <TabsContent value="team" className="mt-4">
-            <TeamManagementTab />
+          {isSuperAdmin && (
+            <TabsContent value="brokerages" className="mt-0 focus-visible:outline-none">
+              <BrokeragesTab />
+            </TabsContent>
+          )}
+
+          <TabsContent value="security" className="mt-0 focus-visible:outline-none">
+            <SecurityTab />
           </TabsContent>
-        )}
-
-        {canManageTeam && (
-          <TabsContent value="whatsapp" className="mt-4">
-            <WhatsAppIntegrationSettings />
-          </TabsContent>
-        )}
-
-        {(isSuperAdmin || isBrokerageOwner) && (
-          <TabsContent value="audit" className="mt-4">
-            <AuditLogsTab />
-          </TabsContent>
-        )}
-
-        {!isClient && (
-          <TabsContent value="compliance" className="mt-4">
-            <ComplianceTab />
-          </TabsContent>
-        )}
-
-        {!isClient && (
-          <TabsContent value="playbook" className="mt-4">
-            <ObjectionPlaybookTab />
-          </TabsContent>
-        )}
-
-        {isSuperAdmin && (
-          <TabsContent value="feature-flags" className="mt-4">
-            <FeatureFlagsTab />
-          </TabsContent>
-        )}
-
-        {isSuperAdmin && (
-          <TabsContent value="brokerages" className="mt-4">
-            <BrokeragesTab />
-          </TabsContent>
-        )}
-
-        <TabsContent value="security" className="mt-4">
-          <SecurityTab />
-        </TabsContent>
+        </div>
       </Tabs>
     </div>
   )

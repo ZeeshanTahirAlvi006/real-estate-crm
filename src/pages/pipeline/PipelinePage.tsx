@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react'
-import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import {
   useGetPipelinesQuery,
   useGetKanbanDataQuery,
@@ -13,6 +12,7 @@ import {
   useLazyGetMultipleStageDealsQuery,
 } from '@/store/api/pipelineApi'
 import type { Deal, PipelineStage, KanbanStage } from '@/types'
+import { monitorForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { PipelineColumn } from './components/PipelineColumn'
 import { DealModal } from './components/DealModal'
 import { DealDetailDrawer } from './components/DealDetailDrawer'
@@ -32,8 +32,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { StatCard } from '@/components/shared/StatCard'
+import { KpiCard } from '@/components/shared/KpiCard'
 import { useCountUp } from '@/hooks/useCountUp'
+import { TableGridToggle, TableGridToggleButton, type TableColumn, type TableGridViewMode } from '@/components/shared/TableGridToggle'
 
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat('en-US', {
@@ -101,7 +102,134 @@ export function PipelinePage() {
   // UI state
   const [searchQuery, setSearchQuery] = useState('')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
-  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
+  const [viewMode, setViewMode] = useState<TableGridViewMode>(() => {
+    const saved = localStorage.getItem('crm_pipeline_view_mode')
+    return saved === 'grid' || saved === 'stages' || saved === 'table'
+      ? (saved as TableGridViewMode)
+      : 'stages'
+  })
+
+  const handleViewModeChange = (newMode: TableGridViewMode) => {
+    setViewMode(newMode)
+    localStorage.setItem('crm_pipeline_view_mode', newMode)
+  }
+
+  const dealColumns: TableColumn<Deal>[] = [
+    {
+      id: 'contact',
+      header: 'Contact',
+      className: '',
+      cell: (deal) => (
+        <span className="font-bold text-xs text-[#273338] dark:text-white">
+          {deal.contactName}
+        </span>
+      ),
+    },
+    {
+      id: 'property',
+      header: 'Property',
+      className: '',
+      cell: (deal) => (
+        <span className="text-xs text-[#75887E] dark:text-[#A0B2A6]">
+          {deal.propertyAddress}
+        </span>
+      ),
+    },
+    {
+      id: 'stage',
+      header: 'Stage',
+      cell: (deal) => (
+        <Badge
+          variant="outline"
+          className="text-[10px] border-[#618764] text-[#2B5748] dark:text-[#9CB080] bg-[#618764]/10"
+        >
+          {deal.stageName || deal.stageId}
+        </Badge>
+      ),
+    },
+    {
+      id: 'value',
+      header: 'Deal Value',
+      cell: (deal) => (
+        <span className="font-bold font-mono text-xs text-[#273338] dark:text-white">
+          ${deal.dealValue.toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      id: 'priority',
+      header: 'Priority',
+      cell: (deal) => (
+        <Badge
+          variant="outline"
+          className="text-[10px] uppercase font-bold border-[#618764]/40 text-[#2B5748] dark:text-[#E2ECE4]"
+        >
+          {deal.priority}
+        </Badge>
+      ),
+    },
+    {
+      id: 'agent',
+      header: 'Agent',
+      cell: (deal) => (
+        <span className="text-xs text-[#75887E] dark:text-[#A0B2A6]">
+          {deal.assignedAgentName}
+        </span>
+      ),
+    },
+    {
+      id: 'days',
+      header: 'Days in Stage',
+      className: 'text-right',
+      cell: (deal) => (
+        <span className="font-mono text-xs text-[#75887E] dark:text-[#A0B2A6]">
+          {deal.daysInStage}d
+        </span>
+      ),
+    },
+  ]
+
+  const renderDealCard = (deal: Deal) => (
+    <div
+      key={deal.id}
+      onClick={() => setSelectedDeal(deal)}
+      className="p-4 rounded-xl border border-[#D8E2D6] dark:border-[#618764]/50 bg-white dark:bg-[#202B2F] shadow-xs hover:border-[#618764] transition-all cursor-pointer space-y-3"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h4 className="font-bold text-sm text-[#273338] dark:text-white truncate">
+            {deal.contactName}
+          </h4>
+          <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] truncate mt-0.5">
+            {deal.propertyAddress}
+          </p>
+        </div>
+        <Badge
+          variant="outline"
+          className="text-[10px] uppercase font-bold border-[#618764]/40 text-[#2B5748] dark:text-[#E2ECE4] shrink-0"
+        >
+          {deal.priority}
+        </Badge>
+      </div>
+
+      <div className="flex items-center justify-between text-xs pt-2 border-t border-[#D8E2D6]/60 dark:border-[#618764]/30">
+        <Badge
+          variant="outline"
+          className="text-[10px] border-[#618764] text-[#2B5748] dark:text-[#9CB080] bg-[#618764]/10"
+        >
+          {deal.stageName || deal.stageId}
+        </Badge>
+        <span className="font-bold font-mono text-sm text-[#273338] dark:text-white">
+          ${deal.dealValue.toLocaleString()}
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+        <span>Agent: {deal.assignedAgentName}</span>
+        <span className="font-mono">{deal.daysInStage}d in stage</span>
+      </div>
+    </div>
+  )
 
   // Modals state
   const [dealModalOpen, setDealModalOpen] = useState(false)
@@ -185,7 +313,7 @@ export function PipelinePage() {
     })
   }, [metadataKanban, loadedStageIds, stageDealsMap])
 
-  // Set up pragmatic drag and drop monitor
+  // Pragmatic drag and drop monitor to change stages of deals
   useEffect(() => {
     return monitorForElements({
       onDrop({ source, location }) {
@@ -568,31 +696,31 @@ export function PipelinePage() {
 
         {/* ═══════ 4 Financial & Pipeline KPI Cards ═══════ */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 gap-y-6 pt-3">
-          <StatCard
+          <KpiCard
             title="Pipeline Value"
             value={formatCurrency(animatedTotalValue)}
-            icon={<MaterialIcon name="payments" size={20} />}
+            icon="payments"
             trend={{ value: 14.5, isPositive: true }}
             subtitle="vs last month"
           />
-          <StatCard
+          <KpiCard
             title="Forecast"
             value={formatCurrency(animatedWeightedForecast)}
-            icon={<MaterialIcon name="trending_up" size={20} />}
+            icon="trending_up"
             trend={{ value: forecastPercent > 0 ? forecastPercent : 15.0, isPositive: true }}
             subtitle="pipeline close rate"
           />
-          <StatCard
+          <KpiCard
             title="Deal Volume"
             value={`${animatedTotalDeals} Deals`}
-            icon={<MaterialIcon name="work" size={20} />}
+            icon="work"
             trend={{ value: 8.5, isPositive: true }}
             subtitle="active in pipeline"
           />
-          <StatCard
+          <KpiCard
             title="Total Revenue"
             value={formatCurrency(animatedClosedWonValue)}
-            icon={<MaterialIcon name="verified" size={20} />}
+            icon="verified"
             trend={{ value: 18.2, isPositive: true }}
             subtitle="converted & closed"
           />
@@ -627,164 +755,73 @@ export function PipelinePage() {
             </Select>
           </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex items-center p-1 rounded-xl bg-[#EDF2EB] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/60">
-            <button
-              onClick={() => setViewMode('kanban')}
-              className={`p-1.5 rounded-lg transition-all ${viewMode === 'kanban'
-                ? 'bg-white dark:bg-[#2B5748] text-[#273338] dark:text-white shadow-xs font-bold'
-                : 'text-[#75887E] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white'
-                }`}
-              title="Kanban Board"
-            >
-              <MaterialIcon name="view_kanban" size={18} />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-lg transition-all ${viewMode === 'list'
-                ? 'bg-white dark:bg-[#2B5748] text-[#273338] dark:text-white shadow-xs font-bold'
-                : 'text-[#75887E] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white'
-                }`}
-              title="List View"
-            >
-              <MaterialIcon name="view_list" size={18} />
-            </button>
-          </div>
+          {/* Table vs Grid (2 per row) vs Stages (Kanban) Toggle */}
+          <TableGridToggleButton
+            view={viewMode}
+            onViewChange={handleViewModeChange}
+            storageKey="crm_pipeline_view_mode"
+            tableTitle="Deals Table View"
+            gridTitle="Deals Grid View (2 per row)"
+            stagesTitle="Pipeline Stages View (Drag & Drop)"
+            showStages={true}
+          />
         </div>
       </div>
 
-      {/* Main Content Area: Responsive across Desktop, Tablet & Mobile */}
-      <div className="flex-1 overflow-hidden">
-        {viewMode === 'kanban' ? (
-          <>
-            {/* DESKTOP LAYOUT (lg:): Keep current UI/UX with smooth horizontal columns */}
-            <div className="hidden lg:flex gap-4 overflow-x-auto pb-4 h-full scrollbar-thin">
-              {filteredStages.map((stage) => {
-                const isLoaded = loadedStageIds.has(stage.id) || isAllDealsLoaded
-                return (
-                  <PipelineColumn
-                    key={stage.id}
-                    stage={stage}
-                    deals={stage.deals}
-                    isLoaded={isLoaded}
-                    isLoadingDeals={loadingStageId === stage.id || isFetchingDeals}
-                    onSelectDeal={(deal) => setSelectedDeal(deal)}
-                    onLoadStageDeals={() => handleLoadStageDeals(stage.id)}
-                  />
-                )
-              })}
+      {/* Main Content Area: Stages (wrap on desktop, 2-per-row grid on mobile/tablet), Table, or Grid */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {viewMode === 'stages' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap gap-4 overflow-y-auto pb-6">
+            {filteredStages.map((stage) => {
+              const isLoaded = loadedStageIds.has(stage.id) || isAllDealsLoaded
+              return (
+                <PipelineColumn
+                  key={stage.id}
+                  stage={stage}
+                  deals={stage.deals}
+                  isLoaded={isLoaded}
+                  isLoadingDeals={loadingStageId === stage.id || isFetchingDeals}
+                  onSelectDeal={(deal) => setSelectedDeal(deal)}
+                  onLoadStageDeals={() => handleLoadStageDeals(stage.id)}
+                />
+              )
+            })}
+          </div>
+        ) : !isAllDealsLoaded && Object.values(stageDealsMap).flat().length === 0 ? (
+          <div className="rounded-2xl border border-[#D8E2D6] dark:border-[#618764]/70 bg-white dark:bg-[#202B2F] p-12 text-center space-y-3 flex flex-col items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-[#EDF2EB] dark:bg-[#2B5748] flex items-center justify-center text-[#2B5748] dark:text-[#9CB080]">
+              <MaterialIcon name="table_rows" size={24} />
             </div>
-
-            {/* TABLET LAYOUT (md to lg): Responsive grid with max 2 stages in one row */}
-            <div className="hidden md:grid md:grid-cols-2 lg:hidden gap-4 overflow-y-auto pb-6 h-full">
-              {filteredStages.map((stage) => {
-                const isLoaded = loadedStageIds.has(stage.id) || isAllDealsLoaded
-                return (
-                  <PipelineColumn
-                    key={stage.id}
-                    stage={stage}
-                    deals={stage.deals}
-                    isLoaded={isLoaded}
-                    isLoadingDeals={loadingStageId === stage.id || isFetchingDeals}
-                    onSelectDeal={(deal) => setSelectedDeal(deal)}
-                    onLoadStageDeals={() => handleLoadStageDeals(stage.id)}
-                  />
-                )
-              })}
+            <div>
+              <h3 className="text-sm font-bold text-[#273338] dark:text-white">Deals are not loaded</h3>
+              <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] mt-0.5 max-w-sm">
+                Deals are kept on-demand to optimize server resources upon navigation. Click below to load all records into the {viewMode === 'grid' ? 'grid' : 'table'}.
+              </p>
             </div>
-
-            {/* MOBILE LAYOUT (< md): Stack stages on top of each other with dedicated load deals */}
-            <div className="flex flex-col md:hidden gap-4 overflow-y-auto pb-6 h-full">
-              {filteredStages.map((stage) => {
-                const isLoaded = loadedStageIds.has(stage.id) || isAllDealsLoaded
-                return (
-                  <PipelineColumn
-                    key={stage.id}
-                    stage={stage}
-                    deals={stage.deals}
-                    isLoaded={isLoaded}
-                    isLoadingDeals={loadingStageId === stage.id || isFetchingDeals}
-                    onSelectDeal={(deal) => setSelectedDeal(deal)}
-                    onLoadStageDeals={() => handleLoadStageDeals(stage.id)}
-                    isMobile={true}
-                  />
-                )
-              })}
-            </div>
-          </>
+            <Button
+              onClick={handleLoadAllDeals}
+              disabled={isFetchingDeals}
+              className="bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs gap-1.5 cursor-pointer"
+            >
+              <MaterialIcon name="download" size={16} />
+              <span>Load Deals ({summary.totalDeals})</span>
+            </Button>
+          </div>
         ) : (
-          /* List View */
-          <div className="h-full overflow-y-auto rounded-2xl border border-[#D8E2D6] dark:border-[#618764]/70 bg-white dark:bg-[#202B2F] p-4">
-            {!isAllDealsLoaded && Object.values(stageDealsMap).flat().length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-[#EDF2EB] dark:bg-[#2B5748] flex items-center justify-center text-[#2B5748] dark:text-[#9CB080]">
-                  <MaterialIcon name="table_rows" size={24} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-[#273338] dark:text-white">Deals are not loaded</h3>
-                  <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] mt-0.5 max-w-sm">
-                    Deals are kept on-demand to optimize server resources upon navigation. Click below to load all records into the table.
-                  </p>
-                </div>
-                <Button
-                  onClick={handleLoadAllDeals}
-                  disabled={isFetchingDeals}
-                  className="bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs gap-1.5"
-                >
-                  <MaterialIcon name="download" size={16} />
-                  <span>Load Deals ({summary.totalDeals})</span>
-                </Button>
-              </div>
-            ) : (
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-[#D8E2D6] dark:border-[#618764]/60 text-[#75887E] dark:text-[#A0B2A6] font-semibold">
-                    <th className="pb-3">Contact</th>
-                    <th className="pb-3">Property</th>
-                    <th className="pb-3">Stage</th>
-                    <th className="pb-3">Deal Value</th>
-                    <th className="pb-3">Priority</th>
-                    <th className="pb-3">Agent</th>
-                    <th className="pb-3">Days in Stage</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#D8E2D6] dark:divide-[#618764]/40">
-                  {filteredStages
-                    .flatMap((s) => s.deals)
-                    .map((deal) => (
-                      <tr
-                        key={deal.id}
-                        onClick={() => setSelectedDeal(deal)}
-                        className="hover:bg-[#F5F7F4] dark:hover:bg-[#2B5748]/30 cursor-pointer transition-colors"
-                      >
-                        <td className="py-3 font-bold text-[#273338] dark:text-white">{deal.contactName}</td>
-                        <td className="py-3 text-[#75887E] dark:text-[#A0B2A6]">{deal.propertyAddress}</td>
-                        <td className="py-3">
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] border-[#618764] text-[#2B5748] dark:text-[#9CB080] bg-[#618764]/10"
-                          >
-                            {deal.stageName || deal.stageId}
-                          </Badge>
-                        </td>
-                        <td className="py-3 font-bold font-mono text-[#273338] dark:text-white">
-                          ${deal.dealValue.toLocaleString()}
-                        </td>
-                        <td className="py-3">
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] uppercase font-bold border-[#618764]/40 text-[#2B5748] dark:text-[#E2ECE4]"
-                          >
-                            {deal.priority}
-                          </Badge>
-                        </td>
-                        <td className="py-3 text-[#75887E] dark:text-[#A0B2A6]">{deal.assignedAgentName}</td>
-                        <td className="py-3 font-mono text-[#75887E] dark:text-[#A0B2A6]">{deal.daysInStage}d</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            )}
+          <div className="rounded-2xl border border-[#D8E2D6] dark:border-[#618764]/70 bg-white dark:bg-[#202B2F] p-4">
+            <TableGridToggle<Deal>
+              data={filteredStages.flatMap((s) => s.deals)}
+              view={viewMode}
+              onViewChange={handleViewModeChange}
+              storageKey="crm_pipeline_view_mode"
+              hideToggle={true}
+              columns={dealColumns}
+              renderCard={renderDealCard}
+              onRowClick={(deal) => setSelectedDeal(deal)}
+              emptyIcon="work_off"
+              emptyTitle="No deals found"
+              emptyDescription="No deals matched your search filter or priority selection."
+            />
           </div>
         )}
       </div>

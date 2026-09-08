@@ -2,28 +2,16 @@ import React, { useState } from 'react'
 import {
   useGetConversationsQuery,
   useGetMessagesQuery,
-  useTestWhatsAppHandshakeMutation,
   useSimulateWhatsAppInboundMutation,
   useToggleAiIsaMutation,
 } from '@/store/api/communicationApi'
-import {
-  ChatBubbleLeftRightIcon,
-  PaperAirplaneIcon,
-  SparklesIcon,
-  ArrowTopRightOnSquareIcon,
-  DevicePhoneMobileIcon,
-  ShieldCheckIcon,
-} from '@heroicons/react/24/outline'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 export const LiveAiConversations: React.FC = () => {
   const navigate = useNavigate()
-  const [phoneNumber, setPhoneNumber] = useState('')
-  const [leadName, setLeadName] = useState('')
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
-
-  const [sendHandshake, { isLoading: isSendingHandshake }] = useTestWhatsAppHandshakeMutation()
   const [simulateInbound, { isLoading: isSimulatingInbound }] = useSimulateWhatsAppInboundMutation()
   const [toggleAiIsa] = useToggleAiIsaMutation()
   const [inboundReplyText, setInboundReplyText] = useState('')
@@ -44,39 +32,18 @@ export const LiveAiConversations: React.FC = () => {
     skip: !activeConvId,
   })
 
-  const handleSendTestHandshake = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!phoneNumber.trim()) {
-      toast.error('Please enter a WhatsApp phone number')
-      return
-    }
-
-    try {
-      const res = await sendHandshake({
-        phone: phoneNumber.trim(),
-        leadName: leadName.trim() || 'My WhatsApp Lead',
-      }).unwrap()
-
-      toast.success(res.message || 'WhatsApp message sent! Check your phone.')
-      setSelectedConversationId(res.conversationId)
-      refetch()
-    } catch (err: any) {
-      toast.error(err?.data?.message || err?.message || 'Failed to send WhatsApp message')
-    }
-  }
-
   const handleSimulateInbound = async (customText?: string) => {
     const textToSend = customText || inboundReplyText
     if (!textToSend.trim() || !activeConversation) return
 
     try {
-      const phone = activeConversation.contactPhone || phoneNumber || '13105550199'
+      const phone = activeConversation.contactPhone || '13105550199'
       await simulateInbound({
         fromPhone: phone,
         text: textToSend.trim(),
       }).unwrap()
 
-      toast.success('Inbound WhatsApp message processed by AI ISA!')
+      toast.success('Inbound message processed by AI ISA')
       setInboundReplyText('')
       refetch()
     } catch (err: any) {
@@ -87,7 +54,7 @@ export const LiveAiConversations: React.FC = () => {
   const handleToggleAutopilot = async (conversationId: string, currentStatus?: boolean) => {
     try {
       await toggleAiIsa({ conversationId, enabled: !currentStatus }).unwrap()
-      toast.success(!currentStatus ? 'AI Autopilot enabled for lead' : 'AI Autopilot paused (Human Takeover)')
+      toast.success(!currentStatus ? 'AI Autopilot active' : 'AI Autopilot paused')
     } catch {
       toast.error('Failed to toggle AI state')
     }
@@ -95,108 +62,42 @@ export const LiveAiConversations: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner: Interactive WhatsApp Test Launcher */}
-      <div className="bg-linear-to-br from-emerald-500/10 via-card to-card border border-emerald-500/30 rounded-3xl p-6 shadow-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-          <div className="lg:col-span-6 space-y-2">
-            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
-              <DevicePhoneMobileIcon className="w-4 h-4" />
-              <span>Live WhatsApp Omnichannel AI Connection</span>
-            </div>
-            <h3 className="text-xl font-extrabold text-foreground">
-              Experience the AI ISA on Your WhatsApp Phone
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Enter your WhatsApp number below to receive an instant live inquiry greeting from the AI ISA. When you reply from your phone, the AI ISA will qualify you autonomously in real time!
-            </p>
-          </div>
-
-          <div className="lg:col-span-6">
-            <form onSubmit={handleSendTestHandshake} className="bg-background/80 backdrop-blur-sm border border-border/80 rounded-2xl p-4 shadow-sm space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-                    Your Name
-                  </label>
-                  <input
-                    type="text"
-                    value={leadName}
-                    onChange={(e) => setLeadName(e.target.value)}
-                    placeholder="e.g. John Doe"
-                    className="w-full p-2.5 rounded-xl bg-card border border-border/70 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
-                    WhatsApp Phone Number (with Country Code)
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="e.g. +1 512 555 0199 or +92 300..."
-                    className="w-full p-2.5 rounded-xl bg-card border border-border/70 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Verified Meta WhatsApp Cloud API / Simulator</span>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSendingHandshake}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all hover:scale-[1.02] flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  <PaperAirplaneIcon className="w-3.5 h-3.5" />
-                  <span>{isSendingHandshake ? 'Dispatching...' : 'Send WhatsApp Message'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
       {/* Live AI Active Conversations Split View */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-125">
-        {/* Left Column: Active AI Lead Queue */}
-        <div className="lg:col-span-5 bg-card border border-border/80 rounded-3xl p-5 shadow-sm space-y-4 flex flex-col">
-          <div className="flex items-center justify-between pb-3 border-b border-border/60">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[520px]">
+        {/* Left Column: Active AI Lead Queue (5 cols on lg) */}
+        <div className="lg:col-span-5 bg-white dark:bg-[#254238] border border-[#D8E2D6] dark:border-[#618764] rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col">
+          <div className="flex items-center justify-between pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/40">
             <div className="flex items-center gap-2">
-              <ChatBubbleLeftRightIcon className="w-4 h-4 text-primary" />
-              <h4 className="font-bold text-sm text-foreground">
-                Active AI Lead Conversations ({aiConversations.length})
+              <MaterialIcon name="forum" size={18} className="text-[#2B5748] dark:text-[#9CB080]" />
+              <h4 className="font-bold text-sm text-[#273338] dark:text-white">
+                Active Conversations ({aiConversations.length})
               </h4>
             </div>
 
             <button
               type="button"
               onClick={() => navigate('/inbox')}
-              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+              className="text-xs font-semibold text-[#2B5748] dark:text-[#9CB080] hover:underline flex items-center gap-1 cursor-pointer"
             >
               <span>Full Inbox</span>
-              <ArrowTopRightOnSquareIcon className="w-3 h-3" />
+              <MaterialIcon name="open_in_new" size={14} />
             </button>
           </div>
 
           {loadingConversations ? (
             <div className="space-y-3 py-4">
-              <div className="h-16 bg-muted/40 rounded-2xl animate-pulse" />
-              <div className="h-16 bg-muted/40 rounded-2xl animate-pulse" />
-              <div className="h-16 bg-muted/40 rounded-2xl animate-pulse" />
+              <div className="h-16 bg-[#EDF2EB] dark:bg-[#1A2E26] rounded-xl animate-pulse" />
+              <div className="h-16 bg-[#EDF2EB] dark:bg-[#1A2E26] rounded-xl animate-pulse" />
+              <div className="h-16 bg-[#EDF2EB] dark:bg-[#1A2E26] rounded-xl animate-pulse" />
             </div>
           ) : aiConversations.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-xs space-y-2 my-auto">
-              <p>No active conversations yet.</p>
-              <p className="text-[11px]">Send a test WhatsApp message above to start a live lead conversation!</p>
+            <div className="text-center py-12 text-[#75887E] dark:text-[#A0B2A6] text-xs space-y-1.5 my-auto">
+              <MaterialIcon name="chat_bubble_outline" size={32} className="mx-auto opacity-40 text-[#4A5D54] dark:text-[#A0B2A6]" />
+              <p className="font-semibold text-sm text-[#273338] dark:text-white">No active leads</p>
+              <p className="text-[11px]">Incoming WhatsApp and email leads will appear here</p>
             </div>
           ) : (
-            <div className="space-y-2 overflow-y-auto max-h-130 pr-1">
+            <div className="space-y-2 overflow-y-auto max-h-[500px] pr-1">
               {aiConversations.map((c) => {
                 const isSelected = c.id === activeConvId
                 const isWhatsApp = c.lastChannel === 'whatsapp'
@@ -205,44 +106,46 @@ export const LiveAiConversations: React.FC = () => {
                   <div
                     key={c.id}
                     onClick={() => setSelectedConversationId(c.id)}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all text-xs space-y-1.5 ${isSelected
-                        ? 'bg-primary/10 border-primary shadow-sm'
-                        : 'bg-muted/20 border-border/60 hover:bg-muted/40'
-                      }`}
+                    className={`p-3.5 rounded-xl border cursor-pointer transition-all text-xs space-y-1.5 ${
+                      isSelected
+                        ? 'bg-[#EDF2EB] dark:bg-[#1A2E26] border-[#9CB080] shadow-xs'
+                        : 'bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/50 hover:bg-[#F5F7F4] dark:hover:bg-[#1E282D]'
+                    }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-foreground">
-                          {c.contactName || c.contactPhone || 'Unknown Lead'}
+                        <span className="font-bold text-[#273338] dark:text-white">
+                          {c.contactName || c.contactPhone || 'Lead'}
                         </span>
                         <span
-                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isWhatsApp
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                              : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30'
-                            }`}
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                            isWhatsApp
+                              ? 'bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/40'
+                              : 'bg-[#EDF2EB] dark:bg-[#2B5748] text-[#4A5D54] dark:text-[#E2ECE4] border border-[#D8E2D6] dark:border-[#618764]'
+                          }`}
                         >
                           {c.lastChannel}
                         </span>
                       </div>
 
-                      <span className="text-[10px] text-muted-foreground font-mono">
+                      <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] font-mono">
                         {c.lastMessage?.createdAt
                           ? new Date(c.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                           : ''}
                       </span>
                     </div>
 
-                    <p className="text-muted-foreground line-clamp-1 text-[11px]">
+                    <p className="text-[#4A5D54] dark:text-[#A0B2A6] line-clamp-1 text-[11px]">
                       {c.lastMessage?.body || 'Conversation active'}
                     </p>
 
                     <div className="flex items-center justify-between pt-1 text-[10px]">
-                      <span className="text-muted-foreground font-mono">
+                      <span className="text-[#75887E] dark:text-[#A0B2A6] font-mono">
                         {c.contactPhone || 'No phone'}
                       </span>
-                      <span className="font-bold text-emerald-500 flex items-center gap-1">
-                        <SparklesIcon className="w-3 h-3" />
-                        <span>AI Autopilot</span>
+                      <span className="font-bold text-[#2B5748] dark:text-[#9CB080] flex items-center gap-1">
+                        <MaterialIcon name="smart_toy" size={14} />
+                        <span>Autopilot</span>
                       </span>
                     </div>
                   </div>
@@ -252,24 +155,24 @@ export const LiveAiConversations: React.FC = () => {
           )}
         </div>
 
-        {/* Right Column: Live Conversation Transcript & AI Lead Qualification Card */}
-        <div className="lg:col-span-7 bg-card border border-border/80 rounded-3xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
+        {/* Right Column: Live Conversation Transcript (7 cols on lg) */}
+        <div className="lg:col-span-7 bg-white dark:bg-[#254238] border border-[#D8E2D6] dark:border-[#618764] rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col justify-between">
           {activeConversation ? (
             <>
               {/* Transcript Header */}
-              <div className="flex flex-wrap items-center justify-between pb-3 border-b border-border/60 gap-2">
+              <div className="flex flex-wrap items-center justify-between pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/40 gap-2">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-foreground">
+                    <span className="font-bold text-sm text-[#273338] dark:text-white">
                       {activeConversation.contactName || 'Lead'}
                     </span>
-                    <span className="text-xs text-muted-foreground font-mono">
-                      ({activeConversation.contactPhone || 'WhatsApp'})
+                    <span className="text-xs text-[#75887E] dark:text-[#A0B2A6] font-mono">
+                      ({activeConversation.contactPhone || 'Channel'})
                     </span>
                   </div>
-                  <span className="text-[11px] text-emerald-500 font-semibold flex items-center gap-1 mt-0.5">
-                    <SparklesIcon className="w-3 h-3" />
-                    <span>Autonomous AI Qualification in Progress</span>
+                  <span className="text-[11px] text-[#2B5748] dark:text-[#9CB080] font-semibold flex items-center gap-1 mt-0.5">
+                    <MaterialIcon name="smart_toy" size={14} />
+                    <span>Autonomous AI Qualification</span>
                   </span>
                 </div>
 
@@ -277,29 +180,29 @@ export const LiveAiConversations: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleToggleAutopilot(activeConversation.id, activeConversation.aiIsaEnabled)}
-                    className="px-3 py-1.5 rounded-xl border border-border/70 hover:bg-muted text-xs font-semibold transition-all"
+                    className="px-3 py-1.5 rounded-lg border border-[#D8E2D6] dark:border-[#618764] hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] text-xs font-semibold text-[#273338] dark:text-white transition-all cursor-pointer"
                   >
-                    {activeConversation.aiIsaEnabled !== false ? 'Pause AI (Takeover)' : 'Resume AI'}
+                    {activeConversation.aiIsaEnabled !== false ? 'Pause AI' : 'Resume AI'}
                   </button>
 
                   <button
                     type="button"
                     onClick={() => navigate('/inbox')}
-                    className="px-3 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-lg bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] text-xs font-bold transition-all flex items-center gap-1 shadow-xs cursor-pointer"
                   >
-                    <span>Open in Unified Inbox</span>
-                    <ArrowTopRightOnSquareIcon className="w-3 h-3" />
+                    <span>Open Inbox</span>
+                    <MaterialIcon name="open_in_new" size={14} />
                   </button>
                 </div>
               </div>
 
               {/* Message Bubbles Container */}
-              <div className="space-y-3 overflow-y-auto max-h-95 p-2">
+              <div className="space-y-3 overflow-y-auto max-h-[380px] p-2">
                 {loadingMessages ? (
-                  <div className="text-center text-xs text-muted-foreground py-8">Loading live messages...</div>
+                  <div className="text-center text-xs text-[#75887E] dark:text-[#A0B2A6] py-8">Loading messages...</div>
                 ) : messages.length === 0 ? (
-                  <div className="text-center text-xs text-muted-foreground py-8">
-                    No messages yet in this thread. Text from your phone to start chatting!
+                  <div className="text-center text-xs text-[#75887E] dark:text-[#A0B2A6] py-8">
+                    No messages in thread yet.
                   </div>
                 ) : (
                   messages.map((m) => {
@@ -309,17 +212,18 @@ export const LiveAiConversations: React.FC = () => {
                         key={m.id}
                         className={`flex flex-col ${isLead ? 'items-start' : 'items-end'}`}
                       >
-                        <span className="text-[10px] text-muted-foreground px-1 mb-0.5 font-medium">
-                          {isLead ? `${activeConversation.contactName || 'Lead'} (via WhatsApp)` : 'AI ISA Engine'}
+                        <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] px-1 mb-0.5 font-medium">
+                          {isLead ? `${activeConversation.contactName || 'Lead'}` : 'AI ISA'}
                         </span>
                         <div
-                          className={`max-w-[85%] rounded-2xl p-3.5 text-xs shadow-sm ${isLead
-                              ? 'bg-muted/60 text-foreground border border-border/70 rounded-tl-sm'
-                              : 'bg-emerald-600 text-white rounded-tr-sm'
-                            }`}
+                          className={`max-w-[85%] rounded-xl p-3 text-xs shadow-xs ${
+                            isLead
+                              ? 'bg-[#EDF2EB] dark:bg-[#202B2F] text-[#273338] dark:text-white border border-[#D8E2D6] dark:border-[#618764]/60 rounded-tl-xs'
+                              : 'bg-[#2B5748] text-white border border-[#618764] rounded-tr-xs'
+                          }`}
                         >
                           <p className="leading-relaxed whitespace-pre-wrap">{m.body}</p>
-                          <span className={`text-[9px] block text-right mt-1 opacity-75 font-mono`}>
+                          <span className="text-[9px] block text-right mt-1 opacity-75 font-mono">
                             {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                           </span>
                         </div>
@@ -329,23 +233,23 @@ export const LiveAiConversations: React.FC = () => {
                 )}
               </div>
 
-              {/* Interactive Inbound Webhook Simulator Bar */}
-              <div className="pt-3 border-t border-border/60 space-y-2">
+              {/* Inbound Simulator Bar */}
+              <div className="pt-3 border-t border-[#D8E2D6] dark:border-[#618764]/40 space-y-2">
                 <div className="flex flex-wrap gap-1.5 items-center">
-                  <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
-                    Quick Buyer Inquiry:
+                  <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] font-semibold uppercase tracking-wider">
+                    Quick Inquiry:
                   </span>
                   {[
-                    'My budget is around $750k in downtown, looking to move in 60 days.',
-                    'Yes, I have pre-approval ready with Chase. Can someone call me?',
-                    'I need to sell my existing home first before buying.',
+                    'My budget is $750k in downtown, moving in 60 days.',
+                    'Yes, I have pre-approval ready with Chase.',
+                    'I need to sell my existing home first.',
                   ].map((quickText, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => handleSimulateInbound(quickText)}
                       disabled={isSimulatingInbound}
-                      className="text-[10px] px-2.5 py-1 rounded-lg bg-muted/40 hover:bg-muted border border-border/60 text-foreground transition-all truncate max-w-70"
+                      className="text-[10px] px-2.5 py-1 rounded-md bg-[#EDF2EB] dark:bg-[#202B2F] hover:bg-[#D8E2D6] dark:hover:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/50 text-[#273338] dark:text-white transition-all truncate max-w-[200px] cursor-pointer"
                     >
                       {quickText}
                     </button>
@@ -357,33 +261,25 @@ export const LiveAiConversations: React.FC = () => {
                     type="text"
                     value={inboundReplyText}
                     onChange={(e) => setInboundReplyText(e.target.value)}
-                    placeholder="Type a lead reply to trigger Meta WhatsApp Inbound Webhook & AI ISA qualification..."
-                    className="flex-1 text-xs p-2.5 rounded-xl bg-background border border-border/70 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    placeholder="Type a lead reply to test AI qualification..."
+                    className="flex-1 text-xs p-2.5 rounded-lg bg-[#F5F7F4] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white placeholder-[#75887E] dark:placeholder-[#A0B2A6] focus:outline-none focus:border-[#9CB080]"
                   />
                   <button
                     type="submit"
                     disabled={isSimulatingInbound || !inboundReplyText.trim()}
-                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 flex items-center gap-1.5"
+                    className="px-4 py-2.5 rounded-lg bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs shadow-xs transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                   >
-                    <PaperAirplaneIcon className="w-3.5 h-3.5" />
-                    <span>{isSimulatingInbound ? 'Processing...' : 'Send as Lead'}</span>
+                    <MaterialIcon name="send" size={16} />
+                    <span>{isSimulatingInbound ? 'Sending...' : 'Send'}</span>
                   </button>
                 </form>
-
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Live Webhook Pipeline Active</span>
-                  </div>
-                  <span>Triggering this webhook runs full AI ISA extraction, Fair Housing check & auto-reply</span>
-                </div>
               </div>
             </>
           ) : (
-            <div className="text-center my-auto py-16 text-muted-foreground text-xs space-y-2">
-              <ChatBubbleLeftRightIcon className="w-8 h-8 mx-auto opacity-40 text-primary" />
-              <p className="font-bold text-sm text-foreground">Select a Live Conversation</p>
-              <p>Or send a test WhatsApp message using the tool above to see live qualification.</p>
+            <div className="text-center my-auto py-16 text-[#75887E] dark:text-[#A0B2A6] text-xs space-y-2">
+              <MaterialIcon name="chat" size={32} className="mx-auto opacity-40 text-[#4A5D54] dark:text-[#A0B2A6]" />
+              <p className="font-bold text-sm text-[#273338] dark:text-white">Select Conversation</p>
+              <p>Choose an active conversation from the list to view live qualification.</p>
             </div>
           )}
         </div>
@@ -391,3 +287,4 @@ export const LiveAiConversations: React.FC = () => {
     </div>
   )
 }
+

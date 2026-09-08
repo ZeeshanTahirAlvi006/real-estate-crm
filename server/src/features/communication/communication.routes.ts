@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate.js'
-import { tenantScope } from '../../middleware/tenantScope.js'
+import { strictCommunicationScope } from '../../middleware/tenantScope.js'
 import { validate } from '../../middleware/validate.js'
 import {
   verifyWebhook,
@@ -44,8 +44,8 @@ router.post('/whatsapp/webhook', handleWebhook)
 router.get('/webhook', verifyWebhook)
 router.post('/webhook', handleWebhook)
 
-// ── Authenticated Communication Endpoints ────────────────
-router.use(authenticate, tenantScope)
+// ── Authenticated Communication Endpoints (Strict Tenant Scoping) ────────
+router.use(authenticate, strictCommunicationScope)
 
 // ── Unified Multi-Channel Endpoints (Email / SMS / WhatsApp / Voice) ──
 router.post('/send', validate(sendUnifiedSchema), sendUnifiedHandler)

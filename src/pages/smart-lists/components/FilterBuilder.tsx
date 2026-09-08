@@ -1,7 +1,7 @@
-import { TrashIcon, PlusIcon } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import type { SmartListFilter, FilterOperator } from '@/types'
 
 interface FilterBuilderProps {
@@ -61,8 +61,16 @@ export function FilterBuilder({ filters, onChange }: FilterBuilderProps) {
 
         return (
           <div key={f.id} className="flex flex-wrap items-center gap-2">
-            {i > 0 && <span className="text-xs font-semibold uppercase text-muted-foreground w-10 text-center">AND</span>}
-            {i === 0 && <span className="text-xs font-semibold uppercase text-muted-foreground w-10 text-center">WHERE</span>}
+            {i > 0 && (
+              <span className="text-xs font-bold uppercase text-[#75887E] dark:text-[#A0B2A6] w-12 text-center">
+                AND
+              </span>
+            )}
+            {i === 0 && (
+              <span className="text-xs font-bold uppercase text-[#75887E] dark:text-[#A0B2A6] w-12 text-center">
+                WHERE
+              </span>
+            )}
 
             {/* Field */}
             <Select
@@ -77,11 +85,15 @@ export function FilterBuilder({ filters, onChange }: FilterBuilderProps) {
                 }
               }}
             >
-              <SelectTrigger className="w-35 h-9">
+              <SelectTrigger className="w-36 h-9 text-xs border-[#D8E2D6] dark:border-[#618764]/40 bg-white dark:bg-[#202B2F]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FIELD_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                {FIELD_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -92,17 +104,21 @@ export function FilterBuilder({ filters, onChange }: FilterBuilderProps) {
                 if (v) updateFilter(f.id, { operator: v as FilterOperator })
               }}
             >
-              <SelectTrigger className="w-35 h-9">
+              <SelectTrigger className="w-36 h-9 text-xs border-[#D8E2D6] dark:border-[#618764]/40 bg-white dark:bg-[#202B2F]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {availableOps.map(op => <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>)}
+                {availableOps.map(op => (
+                  <SelectItem key={op.value} value={op.value} className="text-xs">
+                    {op.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
             {/* Value */}
             <Input
-              className="w-40 h-9"
+              className="w-40 h-9 text-xs border-[#D8E2D6] dark:border-[#618764]/40 bg-white dark:bg-[#202B2F]"
               placeholder="Value"
               value={String(f.value || '')}
               onChange={e => updateFilter(f.id, { value: e.target.value })}
@@ -112,18 +128,24 @@ export function FilterBuilder({ filters, onChange }: FilterBuilderProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 text-muted-foreground hover:text-destructive"
+              className="h-9 w-9 text-[#75887E] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
               onClick={() => removeFilter(f.id)}
               disabled={filters.length <= 1}
             >
-              <TrashIcon className="h-4 w-4" />
+              <MaterialIcon name="delete" size={16} />
             </Button>
           </div>
         )
       })}
 
-      <Button variant="outline" size="sm" onClick={addFilter} className="mt-2">
-        <PlusIcon className="mr-1 h-3.5 w-3.5" /> Add Condition
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={addFilter}
+        className="mt-2 text-xs h-8 border-[#D8E2D6] dark:border-[#618764]/40 text-[#273338] dark:text-white cursor-pointer"
+      >
+        <MaterialIcon name="add" size={15} className="mr-1 text-[#2B5748] dark:text-[#9CB080]" />
+        Add Condition
       </Button>
     </div>
   )

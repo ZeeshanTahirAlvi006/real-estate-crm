@@ -30,9 +30,9 @@ const mainNavItems: NavItemDef[] = [
   { to: '/pipeline', icon: 'view_kanban', label: 'Pipeline', featureKey: 'deals_pipeline', permission: 'managePipeline' },
   { to: '/transactions', icon: 'receipt_long', label: 'Transactions', permission: 'managePipeline' },
   { to: '/commissions', icon: 'payments', label: 'Commissions', permission: 'managePipeline' },
-  { to: '/inbox?channel=all', icon: 'forum', label: 'Unified Inbox', featureKey: 'ai_chatbot', permission: 'manageContacts' },
-  { to: '/inbox?channel=whatsapp', icon: 'chat', label: 'WhatsApp Inbox', featureKey: 'ai_chatbot', permission: 'manageContacts' },
-  { to: '/inbox?channel=email', icon: 'mail', label: 'Email Inbox', featureKey: 'ai_chatbot', permission: 'manageContacts' },
+  { to: '/inbox?channel=all', icon: 'forum', label: 'Unified Inbox', featureKey: 'ai_chatbot', permission: 'viewInbox' },
+  { to: '/inbox?channel=whatsapp', icon: 'chat', label: 'WhatsApp Inbox', featureKey: 'ai_chatbot', permission: 'viewInbox' },
+  { to: '/inbox?channel=email', icon: 'mail', label: 'Email Inbox', featureKey: 'ai_chatbot', permission: 'viewInbox' },
   { to: '/smart-lists', icon: 'filter_list', label: 'Smart Lists', permission: 'manageSmartLists' },
 ]
 

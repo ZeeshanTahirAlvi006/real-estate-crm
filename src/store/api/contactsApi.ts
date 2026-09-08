@@ -72,7 +72,7 @@ export const contactsApi = baseApi.injectEndpoints({
         body: data,
       }),
       transformResponse: (response: ApiResponse<Contact>) => response.data,
-      invalidatesTags: (_result, _error, { id }) => ['Contacts', { type: 'ContactDetail', id }],
+      invalidatesTags: (_result, _error, { id }) => ['Contacts', { type: 'ContactDetail', id }, 'DataHealth'],
     }),
 
     deleteContact: builder.mutation<{ success: boolean }, string>({

@@ -1,9 +1,8 @@
-import { NavLink } from 'react-router-dom'
-import { MaterialIcon } from '@/components/ui/MaterialIcon'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAppSelector } from '@/store/hooks'
 import { ROLE_PERMISSIONS } from '@/constants/roles'
 import { UserRole } from '@/types/auth'
-import { cn } from '@/lib/utils'
+import { MobileTabletNavPill, type NavTabItem } from '@/components/navigation/ResponsivePageNav'
 
 interface TabNavItem {
   to: string
@@ -18,7 +17,7 @@ const navItems: TabNavItem[] = [
   { to: '/pipeline', label: 'Pipeline', icon: 'view_kanban', permission: 'managePipeline' },
   { to: '/transactions', label: 'Transactions', icon: 'receipt_long', permission: 'managePipeline' },
   { to: '/commissions', label: 'Commissions', icon: 'payments', permission: 'managePipeline' },
-  { to: '/inbox', label: 'Inbox', icon: 'chat', permission: 'manageContacts' },
+  { to: '/inbox', label: 'Inbox', icon: 'chat', permission: 'viewInbox' },
   { to: '/smart-lists', label: 'Smart Lists', icon: 'filter_list', permission: 'manageSmartLists' },
   { to: '/lead-ingestion', label: 'Ingestion', icon: 'sensors', permission: 'manageLeadIngestion' },
   { to: '/data-health', label: 'Data Health', icon: 'verified_user', permission: 'viewDataHealth' },
@@ -28,56 +27,8 @@ const navItems: TabNavItem[] = [
 
 export function TabletTopNav() {
   const user = useAppSelector((state) => state.auth.user)
-
-  // If client lead, render simplified lead portal links
-  if (user?.role === UserRole.LEAD) {
-    return (
-      <nav className="hidden md:flex lg:hidden sticky top-16 z-20 w-full bg-white dark:bg-[#273338] border-b border-[#D8E2D6] dark:border-[#618764]/40 px-4 py-2 gap-2 overflow-x-auto no-scrollbar">
-        <NavLink
-          to="/dashboard"
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all',
-              isActive
-                ? 'bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] font-bold border border-[#9CB080]/50'
-                : 'text-[#4A5D54] dark:text-[#A0B2A6] hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] hover:text-[#273338] dark:hover:text-white border border-transparent'
-            )
-          }
-        >
-          <MaterialIcon name="dashboard" size={16} />
-          <span>Dashboard</span>
-        </NavLink>
-        <NavLink
-          to="/inbox"
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all',
-              isActive
-                ? 'bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] font-bold border border-[#9CB080]/50'
-                : 'text-[#4A5D54] dark:text-[#A0B2A6] hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] hover:text-[#273338] dark:hover:text-white border border-transparent'
-            )
-          }
-        >
-          <MaterialIcon name="chat" size={16} />
-          <span>Advisor Chat</span>
-        </NavLink>
-        <NavLink
-          to="/settings"
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all',
-              isActive
-                ? 'bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] font-bold border border-[#9CB080]/50'
-                : 'text-[#4A5D54] dark:text-[#A0B2A6] hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] hover:text-[#273338] dark:hover:text-white border border-transparent'
-            )
-          }
-        >
-          <MaterialIcon name="settings" size={16} />
-          <span>Settings</span>
-        </NavLink>
-      </nav>
-    )
-  }
+  const location = useLocation()
+  const navigate = useNavigate()
 
   const rolePermissions = user?.role ? ROLE_PERMISSIONS[user.role] : undefined
   const filteredItems = navItems.filter((item) => {
@@ -85,26 +36,39 @@ export function TabletTopNav() {
     return rolePermissions[item.permission] !== false
   })
 
+  const isLead = user?.role === UserRole.LEAD
+  const displayItems = isLead
+    ? [
+        { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+        { to: '/inbox', label: 'Advisor Chat', icon: 'chat' },
+        { to: '/settings', label: 'Settings', icon: 'settings' },
+      ]
+    : filteredItems
+
+  const tabs: NavTabItem[] = displayItems.map((item) => ({
+    id: item.to,
+    label: item.label,
+    icon: item.icon,
+  }))
+
+  const activeTab =
+    displayItems.find((item) =>
+      item.to === '/dashboard'
+        ? location.pathname === '/' || location.pathname === '/dashboard'
+        : location.pathname.startsWith(item.to)
+    )?.to || (tabs[0]?.id ?? '/dashboard')
+
   return (
-    <nav className="hidden md:flex lg:hidden sticky top-16 z-20 w-full bg-white dark:bg-[#273338] border-b border-[#D8E2D6] dark:border-[#618764]/40 px-4 py-2 gap-1.5 overflow-x-auto no-scrollbar">
-      {filteredItems.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          className={({ isActive }) =>
-            cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all',
-              isActive
-                ? 'bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] font-bold border border-[#9CB080]/50'
-                : 'text-[#4A5D54] dark:text-[#A0B2A6] hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] hover:text-[#273338] dark:hover:text-white border border-transparent'
-            )
-          }
-        >
-          <MaterialIcon name={item.icon} size={16} />
-          <span>{item.label}</span>
-        </NavLink>
-      ))}
+    <nav
+      aria-label="Tablet navigation"
+      className="hidden md:flex lg:hidden sticky top-16 z-20 w-full bg-[#F5F7F4]/95 dark:bg-[#1E282D]/95 backdrop-blur-md border-b border-[#D8E2D6] dark:border-[#618764]/40 shadow-xs px-3 sm:px-4 py-2"
+    >
+      <MobileTabletNavPill
+        tabs={tabs}
+        activeTab={activeTab}
+        onSelectTab={(to) => navigate(to)}
+        variant="sage"
+      />
     </nav>
   )
 }
-

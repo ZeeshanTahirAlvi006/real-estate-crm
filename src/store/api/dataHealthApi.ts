@@ -31,6 +31,43 @@ export interface ScanResult {
   message: string
 }
 
+export interface ContactDataIssue {
+  type: 'email' | 'phone' | 'missing'
+  field: string
+  title: string
+  description: string
+  severity: 'error' | 'warning' | 'info'
+}
+
+export interface ContactWithDataIssues {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  secondaryPhone?: string
+  address?: string
+  city?: string
+  state?: string
+  zipCode?: string
+  leadSource: string
+  leadScore: number
+  status: string
+  tags: string[]
+  notes?: string
+  propertyInterests?: string[]
+  assignedAgentName?: string
+  dealCount: number
+  activityCount: number
+  createdAt: string
+  updatedAt: string
+  lastContactedAt?: string
+  hasInvalidEmail: boolean
+  hasInvalidPhone: boolean
+  hasMissingFields: boolean
+  issues: ContactDataIssue[]
+}
+
 export const dataHealthApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getDataHealth: builder.query<DataHealthScore, void>({
@@ -43,6 +80,18 @@ export const dataHealthApi = baseApi.injectEndpoints({
       query: () => '/data-health/duplicates',
       transformResponse: (response: ApiResponse<DuplicatePair[]>) => response.data || [],
       providesTags: ['Duplicates'],
+    }),
+
+    getDataIssues: builder.query<
+      ContactWithDataIssues[],
+      { type?: 'all' | 'email' | 'phone'; search?: string } | void
+    >({
+      query: (params) => ({
+        url: '/data-health/issues',
+        params: params || {},
+      }),
+      transformResponse: (response: ApiResponse<ContactWithDataIssues[]>) => response.data || [],
+      providesTags: ['DataHealth', 'Contacts'],
     }),
 
     mergeDuplicate: builder.mutation<{ success: boolean }, MergeDuplicatePayload>({
@@ -103,6 +152,7 @@ export const dataHealthApi = baseApi.injectEndpoints({
 export const {
   useGetDataHealthQuery,
   useGetDuplicatesQuery,
+  useGetDataIssuesQuery,
   useMergeDuplicateMutation,
   useDismissDuplicateMutation,
   useTriggerDeduplicationMutation,
@@ -110,3 +160,4 @@ export const {
   useTriggerEmailValidationMutation,
   useTriggerFullScanMutation,
 } = dataHealthApi
+

@@ -16,8 +16,10 @@ import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { StatCard } from '@/components/shared/StatCard'
+import { KpiCard } from '@/components/shared/KpiCard'
 import { useCountUp } from '@/hooks/useCountUp'
+import { TableGridToggle, TableGridToggleButton, type TableColumn, type TableGridViewMode } from '@/components/shared/TableGridToggle'
+import type { AgentCommissionReport } from '@/types/commission'
 
 export function CommissionsPage() {
   const user = useAppSelector((state) => state.auth.user)
@@ -130,6 +132,180 @@ export function CommissionsPage() {
     }).format(amount)
   }
 
+  const [leaderboardView, setLeaderboardView] = useState<TableGridViewMode>('table')
+
+  const leaderboardColumns: TableColumn<AgentCommissionReport>[] = [
+    {
+      header: 'Agent',
+      accessorKey: 'agentName',
+      className: '',
+      cell: (agent) => (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#EDF2EB] dark:bg-[#202B2F] text-[#2B5748] dark:text-[#9CB080] border border-[#D8E2D6] dark:border-[#618764]/50 font-bold flex items-center justify-center text-xs shrink-0 font-mono">
+            {agent.agentName.slice(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <div className="font-bold text-sm text-[#273338] dark:text-white">
+              {agent.agentName}
+            </div>
+            <p className="text-xs text-[#75887E] dark:text-[#A0B2A6]">
+              {agent.agentEmail || 'Agent'}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Status',
+      accessorKey: 'isCapped',
+      cell: (agent) =>
+        agent.isCapped ? (
+          <Badge className="bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/30 text-[10px] font-bold">
+            Capped
+          </Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className="text-[10px] border-[#D8E2D6] dark:border-[#618764] text-[#75887E] dark:text-[#A0B2A6]"
+          >
+            Progress
+          </Badge>
+        ),
+    },
+    {
+      header: 'Cap Progress',
+      accessorKey: 'capPercent',
+      className: '',
+      cell: (agent) => (
+        <div className="space-y-1.5 w-full max-w-[11rem]">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-[#75887E] dark:text-[#A0B2A6]">Cap</span>
+            <span className="font-bold font-mono text-[#273338] dark:text-white">
+              {formatCurrency(agent.capContributionYtd)} / {formatCurrency(agent.annualCap)} ({agent.capPercent}%)
+            </span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-[#EDF2EB] dark:bg-[#202B2F] border border-[#D8E2D6]/40 dark:border-[#618764]/30 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                agent.isCapped ? 'bg-[#9CB080]' : 'bg-[#618764]'
+              }`}
+              style={{ width: `${Math.min(100, agent.capPercent)}%` }}
+            />
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Deals',
+      accessorKey: 'totalDealsClosed',
+      className: 'text-right',
+      cell: (agent) => (
+        <div className="font-mono font-bold text-sm text-[#273338] dark:text-white">
+          {agent.totalDealsClosed}
+        </div>
+      ),
+    },
+    {
+      header: 'GCI',
+      accessorKey: 'totalGrossCommission',
+      className: 'text-right',
+      cell: (agent) => (
+        <div className="font-mono font-bold text-sm text-[#273338] dark:text-white">
+          {formatCurrency(agent.totalGrossCommission)}
+        </div>
+      ),
+    },
+    {
+      header: 'Net Payout',
+      accessorKey: 'totalAgentNetPayout',
+      className: 'text-right',
+      cell: (agent) => (
+        <div className="font-mono font-bold text-sm text-[#2B5748] dark:text-[#9CB080]">
+          {formatCurrency(agent.totalAgentNetPayout)}
+        </div>
+      ),
+    },
+  ]
+
+  const renderLeaderboardCard = (agent: AgentCommissionReport) => (
+    <Card
+      key={agent.agentId}
+      className="rounded-xl border border-[#D8E2D6] dark:border-[#618764]/50 bg-white dark:bg-[#202B2F] p-4 shadow-xs hover:border-[#618764] transition-all space-y-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-[#EDF2EB] dark:bg-[#202B2F] text-[#2B5748] dark:text-[#9CB080] border border-[#D8E2D6] dark:border-[#618764]/50 font-bold flex items-center justify-center text-xs shrink-0 font-mono">
+            {agent.agentName.slice(0, 2).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <div className="font-bold text-sm text-[#273338] dark:text-white truncate">
+              {agent.agentName}
+            </div>
+            <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] truncate">
+              {agent.agentEmail || 'Agent'}
+            </p>
+          </div>
+        </div>
+        {agent.isCapped ? (
+          <Badge className="bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/30 text-[10px] font-bold shrink-0">
+            Capped
+          </Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className="text-[10px] border-[#D8E2D6] dark:border-[#618764] text-[#75887E] dark:text-[#A0B2A6] shrink-0"
+          >
+            Progress
+          </Badge>
+        )}
+      </div>
+
+      <div className="space-y-1.5 bg-[#F5F7F4] dark:bg-[#273338]/60 p-3 rounded-lg border border-[#D8E2D6]/60 dark:border-[#618764]/30">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="text-[#75887E] dark:text-[#A0B2A6] font-medium">Cap Progression</span>
+          <span className="font-bold font-mono text-[#273338] dark:text-white">
+            {formatCurrency(agent.capContributionYtd)} / {formatCurrency(agent.annualCap)} ({agent.capPercent}%)
+          </span>
+        </div>
+        <div className="w-full h-2 rounded-full bg-[#EDF2EB] dark:bg-[#202B2F] border border-[#D8E2D6]/40 dark:border-[#618764]/30 overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${
+              agent.isCapped ? 'bg-[#9CB080]' : 'bg-[#618764]'
+            }`}
+            style={{ width: `${Math.min(100, agent.capPercent)}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-[#D8E2D6]/60 dark:border-[#618764]/30 text-center">
+        <div className="bg-[#EDF2EB]/30 dark:bg-[#202B2F]/40 p-2 rounded-lg">
+          <p className="text-[10px] uppercase font-semibold text-[#75887E] dark:text-[#A0B2A6]">
+            Deals
+          </p>
+          <p className="text-sm font-bold font-mono text-[#273338] dark:text-white">
+            {agent.totalDealsClosed}
+          </p>
+        </div>
+        <div className="bg-[#EDF2EB]/30 dark:bg-[#202B2F]/40 p-2 rounded-lg">
+          <p className="text-[10px] uppercase font-semibold text-[#75887E] dark:text-[#A0B2A6]">
+            GCI
+          </p>
+          <p className="text-sm font-bold font-mono text-[#273338] dark:text-white truncate">
+            {formatCurrency(agent.totalGrossCommission)}
+          </p>
+        </div>
+        <div className="bg-[#EDF2EB]/30 dark:bg-[#202B2F]/40 p-2 rounded-lg">
+          <p className="text-[10px] uppercase font-semibold text-[#75887E] dark:text-[#A0B2A6]">
+            Net
+          </p>
+          <p className="text-sm font-bold font-mono text-[#2B5748] dark:text-[#9CB080] truncate">
+            {formatCurrency(agent.totalAgentNetPayout)}
+          </p>
+        </div>
+      </div>
+    </Card>
+  )
+
   return (
     <div className="-m-4 sm:-m-6 min-h-[calc(100vh-4rem)] p-4 sm:p-6 pb-20 md:pb-8 bg-[#F5F7F4] dark:bg-[#273338] space-y-6 transition-colors duration-200">
       {/* ═══════ Top Header: Clean, Simple One-Word Title ═══════ */}
@@ -157,31 +333,31 @@ export function CommissionsPage() {
 
       {/* ═══════ Global KPI Cards with Single-Word Precise Titles ═══════ */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 gap-y-6 pt-3">
-        <StatCard
+        <KpiCard
           title="GCI"
           value={formatCurrency(animatedGci)}
-          icon={<MaterialIcon name="payments" size={20} />}
+          icon="payments"
           trend={{ value: 14.8, isPositive: true }}
           subtitle="gross revenue"
         />
-        <StatCard
+        <KpiCard
           title="Payouts"
           value={formatCurrency(animatedPayouts)}
-          icon={<MaterialIcon name="account_balance_wallet" size={20} />}
+          icon="account_balance_wallet"
           trend={{ value: 11.2, isPositive: true }}
           subtitle="agent net"
         />
-        <StatCard
+        <KpiCard
           title="Retained"
           value={formatCurrency(animatedRetained)}
-          icon={<MaterialIcon name="savings" size={20} />}
+          icon="savings"
           trend={{ value: 18.5, isPositive: true }}
           subtitle="brokerage net"
         />
-        <StatCard
+        <KpiCard
           title="Pending"
           value={`${animatedPending}`}
-          icon={<MaterialIcon name="schedule" size={20} />}
+          icon="schedule"
           trend={{ value: 0, isPositive: true }}
           subtitle="under review"
         />
@@ -207,106 +383,30 @@ export function CommissionsPage() {
         {/* ─── Tab 1: Leaderboard ─── */}
         <TabsContent value="leaderboard" className="focus-visible:outline-none">
           <Card className="rounded-xl border border-[#D8E2D6] dark:border-[#618764] bg-white dark:bg-[#2B5748] shadow-xs overflow-hidden">
-            <CardHeader className="p-4 sm:p-5 pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/40 bg-[#EDF2EB]/40 dark:bg-[#202B2F]/40">
+            <CardHeader className="p-4 sm:p-5 pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/40 bg-[#EDF2EB]/40 dark:bg-[#202B2F]/40 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-[#273338] dark:text-white flex items-center gap-2">
                 <MaterialIcon name="leaderboard" size={18} className="text-[#618764] dark:text-[#9CB080]" />
                 <span>Leaderboard</span>
               </CardTitle>
+              <TableGridToggleButton
+                view={leaderboardView}
+                onViewChange={setLeaderboardView}
+                storageKey="crm_commissions_leaderboard_view"
+              />
             </CardHeader>
             <CardContent className="p-4 sm:p-5">
-              {reportLoading ? (
-                <div className="py-12 text-center text-xs text-[#75887E] dark:text-[#A0B2A6]">
-                  Loading...
-                </div>
-              ) : !report?.agentReports || report.agentReports.length === 0 ? (
-                <div className="py-12 text-center text-xs text-[#75887E] dark:text-[#A0B2A6]">
-                  No settlements recorded.
-                </div>
-              ) : (
-                <div className="divide-y divide-[#D8E2D6]/60 dark:divide-[#618764]/40">
-                  {report.agentReports.map((agent) => (
-                    <div
-                      key={agent.agentId}
-                      className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 group"
-                    >
-                      {/* Agent Identity */}
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#EDF2EB] dark:bg-[#202B2F] text-[#2B5748] dark:text-[#9CB080] border border-[#D8E2D6] dark:border-[#618764]/50 font-bold flex items-center justify-center text-xs shrink-0 font-mono">
-                          {agent.agentName.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-[#273338] dark:text-white">
-                              {agent.agentName}
-                            </span>
-                            {agent.isCapped ? (
-                              <Badge className="bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/30 text-[10px] font-bold">
-                                Capped
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] border-[#D8E2D6] dark:border-[#618764] text-[#75887E] dark:text-[#A0B2A6]"
-                              >
-                                Progress
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] mt-0.5">
-                            {agent.agentEmail || 'Agent'}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Cap Progress Bar with Theme Colors */}
-                      <div className="w-full md:w-64 space-y-1.5">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-[#75887E] dark:text-[#A0B2A6]">Cap</span>
-                          <span className="font-bold font-mono text-[#273338] dark:text-white">
-                            {formatCurrency(agent.capContributionYtd)} / {formatCurrency(agent.annualCap)} ({agent.capPercent}%)
-                          </span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-[#EDF2EB] dark:bg-[#202B2F] border border-[#D8E2D6]/40 dark:border-[#618764]/30 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              agent.isCapped ? 'bg-[#9CB080]' : 'bg-[#618764]'
-                            }`}
-                            style={{ width: `${Math.min(100, agent.capPercent)}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Financial Metrics with Simple Single-Word Labels */}
-                      <div className="flex items-center gap-6 text-right shrink-0">
-                        <div>
-                          <p className="text-[10px] uppercase font-semibold text-[#75887E] dark:text-[#A0B2A6]">
-                            Deals
-                          </p>
-                          <p className="text-sm font-bold font-mono text-[#273338] dark:text-white">
-                            {agent.totalDealsClosed}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase font-semibold text-[#75887E] dark:text-[#A0B2A6]">
-                            GCI
-                          </p>
-                          <p className="text-sm font-bold font-mono text-[#273338] dark:text-white">
-                            {formatCurrency(agent.totalGrossCommission)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase font-semibold text-[#75887E] dark:text-[#A0B2A6]">
-                            Net
-                          </p>
-                          <p className="text-sm font-bold font-mono text-[#2B5748] dark:text-[#9CB080]">
-                            {formatCurrency(agent.totalAgentNetPayout)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <TableGridToggle<AgentCommissionReport>
+                data={report?.agentReports || []}
+                keyExtractor={(agent) => agent.agentId}
+                columns={leaderboardColumns}
+                renderCard={renderLeaderboardCard}
+                view={leaderboardView}
+                onViewChange={setLeaderboardView}
+                storageKey="crm_commissions_leaderboard_view"
+                hideToggle={true}
+                isLoading={reportLoading}
+                emptyTitle="No settlements recorded."
+              />
             </CardContent>
           </Card>
         </TabsContent>

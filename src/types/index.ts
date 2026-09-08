@@ -318,18 +318,29 @@ export interface SavedSmartList {
   updatedAt: string
 }
 
-// ── Notification ─────────────────────────────────────
 export interface Notification {
   id: string
+  userId?: string
+  brokerageId?: string
   type: NotificationType
   title: string
   message: string
   isRead: boolean
+  isDeleted?: boolean
+  deletedAt?: string
   createdAt: string
+  updatedAt?: string
   linkTo?: string
+  metadata?: Record<string, any>
 }
 
-export type NotificationType = 'new_lead' | 'stage_change' | 'data_health' | 'team_activity' | 'system'
+export type NotificationType =
+  | 'new_lead'
+  | 'stage_change'
+  | 'data_health'
+  | 'team_activity'
+  | 'system'
+  | 'new_message'
 
 // ── Integration ──────────────────────────────────────
 export interface Integration {

@@ -20,7 +20,8 @@ import {
   useDeleteStageMutation,
   useDeletePipelineMutation,
 } from '@/store/api/pipelineApi'
-import type { Pipeline } from '@/types'
+import type { Pipeline, PipelineStage } from '@/types'
+import { TableGridToggle, TableGridToggleButton, type TableGridViewMode } from '@/components/shared/TableGridToggle'
 import { toast } from 'sonner'
 
 interface PipelineSettingsModalProps {
@@ -54,6 +55,7 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
   if (!pipeline) return null
 
   const [pipelineName, setPipelineName] = useState(pipeline.name)
+  const [stagesView, setStagesView] = useState<TableGridViewMode>('table')
   const [editingStageId, setEditingStageId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [editingColor, setEditingColor] = useState('#6366f1')
@@ -221,7 +223,7 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
 
           {/* Stages List */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Sequential Stages ({sortedStages.length})
@@ -230,30 +232,134 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
                   Deals move step-by-step through these stages in order.
                 </p>
               </div>
-              {!isAddingStage && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIsAddingStage(true)}
-                  className="h-8 text-xs gap-1 border-dashed"
-                >
-                  <MaterialIcon name="add" size={14} />
-                  Add Stage
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                <TableGridToggleButton
+                  view={stagesView}
+                  onViewChange={setStagesView}
+                  tableTitle="Table View"
+                  gridTitle="Grid View (2 per row)"
+                />
+                {!isAddingStage && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsAddingStage(true)}
+                    className="h-8 text-xs gap-1 border-dashed"
+                  >
+                    <MaterialIcon name="add" size={14} />
+                    Add Stage
+                  </Button>
+                )}
+              </div>
             </div>
 
-            {/* Stages Stack */}
-            <div className="space-y-2">
-              {sortedStages.map((stage, idx) => {
+            {/* Stages Table / Grid (2 per row) View */}
+            <TableGridToggle<PipelineStage>
+              data={sortedStages}
+              view={stagesView}
+              onViewChange={setStagesView}
+              hideToggle={true}
+              emptyIcon="format_list_numbered"
+              emptyTitle="No stages defined"
+              emptyDescription="Add stages to define your deal pipeline."
+              columns={[
+                {
+                  id: 'order',
+                  header: '#',
+                  className: 'w-10 text-center font-bold text-muted-foreground',
+                  cell: (_, idx) => idx + 1,
+                },
+                {
+                  id: 'name',
+                  header: 'Stage Name',
+                  cell: (stage) => (
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs"
+                        style={{ backgroundColor: stage.color }}
+                      />
+                      <span className="font-bold text-xs text-foreground">
+                        {stage.name}
+                      </span>
+                    </div>
+                  ),
+                },
+                {
+                  id: 'probability',
+                  header: 'Win Prob.',
+                  cell: (stage) => (
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] px-2 py-0.5 font-mono text-muted-foreground"
+                    >
+                      {stage.probability}%
+                    </Badge>
+                  ),
+                },
+                {
+                  id: 'deals',
+                  header: 'Deals',
+                  cell: (stage) => (
+                    <span className="text-xs text-muted-foreground">
+                      {stage.dealCount || 0} deals
+                    </span>
+                  ),
+                },
+                {
+                  id: 'actions',
+                  header: 'Actions',
+                  align: 'right',
+                  cell: (stage, idx) => (
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={idx === 0 || reorderingStages}
+                        onClick={() => handleMoveStage(idx, 'up')}
+                        className="h-7 w-7 p-0"
+                        title="Move up"
+                      >
+                        <MaterialIcon name="arrow_upward" size={13} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={idx === sortedStages.length - 1 || reorderingStages}
+                        onClick={() => handleMoveStage(idx, 'down')}
+                        className="h-7 w-7 p-0"
+                        title="Move down"
+                      >
+                        <MaterialIcon name="arrow_downward" size={13} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleStartEditStage(stage)}
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                        title="Edit stage"
+                      >
+                        <MaterialIcon name="edit" size={13} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={deletingStage || sortedStages.length <= 1}
+                        onClick={() => handleDeleteStage(stage.id, stage.name)}
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                        title="Delete stage"
+                      >
+                        <MaterialIcon name="delete" size={13} />
+                      </Button>
+                    </div>
+                  ),
+                },
+              ]}
+              renderCard={(stage, idx) => {
                 const isEditing = editingStageId === stage.id
 
                 if (isEditing) {
                   return (
-                    <div
-                      key={stage.id}
-                      className="p-3 rounded-xl border border-primary/40 bg-primary/5 space-y-3 animate-in fade-in"
-                    >
+                    <div className="col-span-full p-4 rounded-xl border border-primary/40 bg-primary/5 space-y-3 animate-in fade-in">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <Label className="text-[11px]">Stage Name</Label>
@@ -318,55 +424,27 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
                 }
 
                 return (
-                  <div
-                    key={stage.id}
-                    className="flex items-center justify-between p-2.5 rounded-xl border border-border/70 bg-card hover:border-border transition-all"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {/* Step Number & Color Pill */}
-                      <div
-                        className="w-3 h-3 rounded-full shrink-0 shadow-xs"
-                        style={{ backgroundColor: stage.color }}
-                      />
-                      <span className="text-xs font-bold text-muted-foreground w-4 shrink-0">
-                        {idx + 1}
-                      </span>
-                      <span className="text-xs font-bold text-foreground truncate">
-                        {stage.name}
-                      </span>
+                  <div className="h-full flex flex-col justify-between p-3 rounded-xl border border-border/70 bg-card hover:border-border transition-all shadow-xs space-y-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs"
+                          style={{ backgroundColor: stage.color }}
+                        />
+                        <span className="text-xs font-bold text-muted-foreground">
+                          #{idx + 1}
+                        </span>
+                        <span className="text-xs font-bold text-foreground truncate">
+                          {stage.name}
+                        </span>
+                      </div>
+
                       <Badge
                         variant="secondary"
-                        className="text-[10px] px-1.5 py-0 font-mono text-muted-foreground"
+                        className="text-[10px] px-1.5 py-0 font-mono text-muted-foreground shrink-0"
                       >
-                        {stage.probability}% Win Prob
+                        {stage.probability}%
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                        {stage.dealCount || 0} deals
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      {/* Reorder Buttons */}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        disabled={idx === 0 || reorderingStages}
-                        onClick={() => handleMoveStage(idx, 'up')}
-                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        title="Move Up"
-                      >
-                        <MaterialIcon name="keyboard_arrow_up" size={16} />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        disabled={idx === sortedStages.length - 1 || reorderingStages}
-                        onClick={() => handleMoveStage(idx, 'down')}
-                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        title="Move Down"
-                      >
-                        <MaterialIcon name="keyboard_arrow_down" size={16} />
-                      </Button>
 
                       {/* Edit */}
                       <Button
@@ -392,8 +470,8 @@ export const PipelineSettingsModal: React.FC<PipelineSettingsModalProps> = ({
                     </div>
                   </div>
                 )
-              })}
-            </div>
+              }}
+            />
 
             {/* Add Stage Inline Form */}
             {isAddingStage && (

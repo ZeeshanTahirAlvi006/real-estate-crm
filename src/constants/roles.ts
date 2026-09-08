@@ -23,6 +23,7 @@ export const ROLE_COLORS: Record<UserRole, string> = {
 export const ROLE_PERMISSIONS: Record<UserRole, Record<string, boolean>> = {
   [UserRole.SUPER_ADMIN]: {
     viewDashboard: true,
+    viewInbox: false, // Super Admin is restricted from viewing private WhatsApp, Email, & Omnichannel inboxes
     manageContacts: true,
     managePipeline: true,
     manageLeadIngestion: true,
@@ -37,6 +38,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<string, boolean>> = {
   },
   [UserRole.BROKERAGE_OWNER]: {
     viewDashboard: true,
+    viewInbox: true,
     manageContacts: true,
     managePipeline: true,
     manageLeadIngestion: true,
@@ -51,6 +53,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<string, boolean>> = {
   },
   [UserRole.TEAM_LEAD]: {
     viewDashboard: true,
+    viewInbox: true,
     manageContacts: true,
     managePipeline: true,
     manageLeadIngestion: true,
@@ -65,6 +68,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<string, boolean>> = {
   },
   [UserRole.AGENT]: {
     viewDashboard: true,
+    viewInbox: true,
     manageContacts: true,
     managePipeline: true,
     manageLeadIngestion: false,
@@ -79,6 +83,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<string, boolean>> = {
   },
   [UserRole.LEAD]: {
     viewDashboard: true,
+    viewInbox: false,
     manageContacts: false,
     managePipeline: false,
     manageLeadIngestion: false,

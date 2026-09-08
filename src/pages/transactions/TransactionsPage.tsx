@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MaterialIcon } from '@/components/ui/MaterialIcon'
-import { StatCard } from '@/components/shared/StatCard'
+import { KpiCard } from '@/components/shared/KpiCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -268,31 +268,31 @@ export function TransactionsPage() {
 
       {/* ═══════ KPI Cards — Positioned at TOP for All Screen Sizes ═══════ */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 gap-y-6 pt-3">
-        <StatCard
+        <KpiCard
           title="Total Volume"
           value={formatCurrency(animatedVolume)}
-          icon={<MaterialIcon name="attach_money" size={20} />}
+          icon="attach_money"
           trend={{ value: 12.4, isPositive: true }}
           subtitle="active escrow pipeline"
         />
-        <StatCard
+        <KpiCard
           title="Under Contract"
           value={`${animatedActiveCount}`}
-          icon={<MaterialIcon name="apartment" size={20} />}
+          icon="apartment"
           trend={{ value: 15.0, isPositive: true }}
           subtitle="pending inspection & title"
         />
-        <StatCard
-          title="Closed "
+        <KpiCard
+          title="Closed"
           value={`${animatedClosedCount}`}
-          icon={<MaterialIcon name="task_alt" size={20} />}
+          icon="task_alt"
           trend={{ value: 8.2, isPositive: true }}
           subtitle="recorded & disbursed"
         />
-        <StatCard
+        <KpiCard
           title="Escrow Compliance"
           value={`${animatedCompliance}%`}
-          icon={<MaterialIcon name="verified_user" size={20} />}
+          icon="verified_user"
           trend={{ value: 0, isPositive: true }}
           subtitle="docs & disclosures tracked"
         />

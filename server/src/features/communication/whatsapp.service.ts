@@ -13,6 +13,7 @@ import { handleInboundLeadChat } from '../ai-isa/aiIsa.service.js'
 import { logAuditEvent } from '../../utils/auditLogger.js'
 import { logger } from '../../utils/logger.js'
 import { encrypt } from '../../utils/cryptoHelper.js'
+import { USER_ROLES } from '../../utils/constants.js'
 import {
   WhatsAppTemplateDto,
   SendWhatsAppInput,
@@ -137,7 +138,7 @@ const formatBroadcastDto = (b: IWhatsAppBroadcast): WhatsAppBroadcastDto => ({
 
 // ── 1. Get or Seed WhatsApp Templates ───────────────────
 export const getWhatsAppTemplates = async (
-  tenantFilter: Record<string, any>,
+  _tenantFilter: Record<string, any>,
   caller: IUser
 ): Promise<WhatsAppTemplateDto[]> => {
   const brokerageId = caller.brokerageId
@@ -157,7 +158,7 @@ export const getWhatsAppTemplates = async (
     }
   }
 
-  const templates = (await WhatsAppTemplate.find(tenantFilter).lean()) as unknown as IWhatsAppTemplate[]
+  const templates = (await WhatsAppTemplate.find({ brokerageId }).lean()) as unknown as IWhatsAppTemplate[]
 
   // Sort so hello_world is always first
   const sorted = [...templates].sort((a, b) => {
@@ -211,14 +212,19 @@ export const sendWhatsAppMessage = async (
   // 1. Resolve Conversation if conversationId provided
   if (input.conversationId && mongoose.Types.ObjectId.isValid(input.conversationId)) {
     conversation = await Conversation.findOne({ _id: input.conversationId, brokerageId })
+    if (conversation && caller.role === USER_ROLES.SUPER_ADMIN) {
+      if (!conversation.assignedAgentId || conversation.assignedAgentId.toString() !== caller._id.toString()) {
+        throw new Error('Access denied: Super Admin is restricted from sending WhatsApp messages on behalf of other users.')
+      }
+    }
     if (conversation?.contactId) {
-      contact = await Contact.findById(conversation.contactId)
+      contact = await Contact.findOne({ _id: conversation.contactId, brokerageId })
     }
   }
 
   // 2. Resolve Contact if contactId or toPhone provided
   if (!contact && input.contactId && mongoose.Types.ObjectId.isValid(input.contactId)) {
-    contact = await Contact.findById(input.contactId)
+    contact = await Contact.findOne({ _id: input.contactId, brokerageId })
   } else if (!contact && input.toPhone) {
     const cleanPhone = input.toPhone.replace(/\D/g, '')
     const searchDigits = cleanPhone.length > 10 ? cleanPhone.slice(-10) : cleanPhone
@@ -684,9 +690,12 @@ export const createAndExecuteBroadcast = async (
 
 // ── 6. Get Broadcast History ────────────────────────────
 export const getWhatsAppBroadcasts = async (
-  tenantFilter: Record<string, any>
+  tenantFilter: Record<string, any>,
+  caller?: IUser
 ): Promise<WhatsAppBroadcastDto[]> => {
-  const list = (await WhatsAppBroadcast.find(tenantFilter).sort({ createdAt: -1 }).limit(50).lean()) as unknown as IWhatsAppBroadcast[]
+  const brokerageId = caller?.brokerageId || tenantFilter?.brokerageId
+  const filter = brokerageId ? { brokerageId } : tenantFilter
+  const list = (await WhatsAppBroadcast.find(filter).sort({ createdAt: -1 }).limit(50).lean()) as unknown as IWhatsAppBroadcast[]
   return list.map(formatBroadcastDto)
 }
 

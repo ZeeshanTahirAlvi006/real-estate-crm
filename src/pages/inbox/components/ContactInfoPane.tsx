@@ -63,7 +63,7 @@ export const ContactInfoPane: React.FC<ContactInfoPaneProps> = ({
           <div className="flex items-center justify-center gap-6 pt-2 text-[#008069] dark:text-[#00a884]">
             {cleanPhone ? (
               <a
-                href={`https://wa.me/${cleanPhone}`}
+                href={`https://web.whatsapp.com/send?phone=${cleanPhone}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"
@@ -77,7 +77,7 @@ export const ContactInfoPane: React.FC<ContactInfoPaneProps> = ({
 
             {cleanPhone ? (
               <a
-                href={`https://wa.me/${cleanPhone}`}
+                href={`https://web.whatsapp.com/send?phone=${cleanPhone}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"

@@ -44,9 +44,71 @@ export const settingsApi = baseApi.injectEndpoints({
       transformResponse: (response: any) => {
         if (Array.isArray(response)) return response
         if (Array.isArray(response?.data)) return response.data
+        if (Array.isArray(response?.data?.notifications)) return response.data.notifications
         return []
       },
       providesTags: ['Notifications'],
+    }),
+
+    getPaginatedNotifications: builder.query<
+      PaginatedNotificationsResult,
+      { page: number; limit?: number; status?: 'all' | 'unread' }
+    >({
+      query: ({ page, limit = 10, status = 'all' }) => ({
+        url: '/notifications',
+        params: { page, limit, status },
+      }),
+      transformResponse: (response: any) => {
+        const payload = response?.data || response
+        return {
+          notifications: Array.isArray(payload?.notifications)
+            ? payload.notifications
+            : Array.isArray(payload)
+            ? payload
+            : [],
+          total: payload?.total || 0,
+          page: payload?.page || 1,
+          limit: payload?.limit || 10,
+          hasMore: Boolean(payload?.hasMore),
+          unreadCount: payload?.unreadCount || 0,
+        }
+      },
+      providesTags: ['Notifications'],
+    }),
+
+    deleteNotification: builder.mutation<DeleteNotificationResponse, string>({
+      query: (id) => ({
+        url: `/notifications/${id}`,
+        method: 'DELETE',
+      }),
+      // Optimistic update — immediately remove deleted and backfill replacement in cache
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        const patchResult = dispatch(
+          settingsApi.util.updateQueryData('getNotifications', undefined, (draft) => {
+            const index = draft.findIndex((n) => n.id === id)
+            if (index !== -1) {
+              draft.splice(index, 1)
+            }
+          })
+        )
+        try {
+          const { data } = await queryFulfilled
+          const resultData = (data as any)?.data || data
+          if (resultData?.replacementNotification) {
+            dispatch(
+              settingsApi.util.updateQueryData('getNotifications', undefined, (draft) => {
+                const exists = draft.some((n) => n.id === resultData.replacementNotification.id)
+                if (!exists) {
+                  draft.push(resultData.replacementNotification)
+                }
+              })
+            )
+          }
+        } catch {
+          patchResult.undo()
+        }
+      },
+      invalidatesTags: ['Notifications'],
     }),
 
     markNotificationRead: builder.mutation<{ success: boolean }, string>({
@@ -98,6 +160,22 @@ export const settingsApi = baseApi.injectEndpoints({
   }),
 })
 
+export interface PaginatedNotificationsResult {
+  notifications: Notification[]
+  total: number
+  page: number
+  limit: number
+  hasMore: boolean
+  unreadCount: number
+}
+
+export interface DeleteNotificationResponse {
+  success: boolean
+  deletedId: string
+  replacementNotification: Notification
+  unreadCount: number
+}
+
 export const {
   useUpdateProfileMutation,
   useGetTeamMembersQuery,
@@ -105,6 +183,9 @@ export const {
   useGetIntegrationsQuery,
   useGetNotificationPreferencesQuery,
   useGetNotificationsQuery,
+  useGetPaginatedNotificationsQuery,
+  useLazyGetPaginatedNotificationsQuery,
+  useDeleteNotificationMutation,
   useMarkNotificationReadMutation,
   useMarkAllNotificationsReadMutation,
 } = settingsApi

@@ -2,15 +2,7 @@ import React, { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  SparklesIcon,
-  HomeModernIcon,
-  ShareIcon,
-  UserGroupIcon,
-  CheckCircleIcon,
-  ArrowTopRightOnSquareIcon,
-  ClipboardDocumentCheckIcon,
-} from '@heroicons/react/24/outline'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { toast } from 'sonner'
 import {
   useGenerateCmaMutation,
@@ -88,7 +80,7 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
       }).unwrap()
 
       setNarrativeResult(result)
-      toast.success(`AI Valuation Story synthesized in ${storyMode.toUpperCase()} mode!`)
+      toast.success(`AI narrative synthesized in ${storyMode} mode!`)
     } catch {
       toast.error('Failed to synthesize AI narrative. Using local calculation.')
     }
@@ -97,7 +89,7 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
   const handleCopyMarkdownStory = async () => {
     if (!narrativeResult) return
     await navigator.clipboard?.writeText(narrativeResult.formattedMarkdown)
-    toast.success('AI Valuation Story (Markdown) copied to clipboard!')
+    toast.success('AI narrative copied to clipboard!')
   }
 
   const handleGenerateAndShare = async (openTab: boolean = false) => {
@@ -114,7 +106,7 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
       setGeneratedShareUrl(shareLink)
 
       await navigator.clipboard?.writeText(shareLink)
-      toast.success('Live Micro-CMA link copied to clipboard & queued!')
+      toast.success('Live Micro-CMA link copied!')
 
       if (openTab) {
         window.open(shareLink, '_blank')
@@ -132,137 +124,134 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-[#273338] border border-[#D8E2D6] dark:border-[#618764]/50">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-gradient-to-tr from-primary to-chart-3 text-primary-foreground">
-                <SparklesIcon className="w-5 h-5" />
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-[#EDF2EB] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/40 text-[#2B5748] dark:text-[#9CB080]">
+                <MaterialIcon name="analytics" size={22} />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold">
-                  Automated Micro-CMA & Equity Report
+                <DialogTitle className="text-base font-bold text-[#273338] dark:text-white">
+                  Micro-CMA Report
                 </DialogTitle>
-                <p className="text-xs text-muted-foreground">{leadData.address}</p>
+                <p className="text-xs text-[#75887E] dark:text-[#A0B2A6]">{leadData.address}</p>
               </div>
             </div>
-            <Badge variant="secondary" className="text-xs font-semibold">
-              Sprint 24 Live AI Story
-            </Badge>
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex items-center gap-2 pt-3 border-b border-border/60">
+          <div className="flex items-center gap-2 pt-3 border-b border-[#D8E2D6] dark:border-[#618764]/40">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`pb-2 text-xs font-bold transition-colors border-b-2 ${
+              className={`pb-2 text-xs font-bold transition-colors border-b-2 cursor-pointer ${
                 activeTab === 'overview'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                  ? 'border-[#2B5748] text-[#2B5748] dark:border-[#9CB080] dark:text-[#9CB080]'
+                  : 'border-transparent text-[#75887E] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white'
               }`}
             >
               Valuation & Comps
             </button>
             <button
               onClick={() => setActiveTab('story')}
-              className={`pb-2 text-xs font-bold transition-colors border-b-2 flex items-center gap-1.5 ${
+              className={`pb-2 text-xs font-bold transition-colors border-b-2 flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'story'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                  ? 'border-[#2B5748] text-[#2B5748] dark:border-[#9CB080] dark:text-[#9CB080]'
+                  : 'border-transparent text-[#75887E] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white'
               }`}
             >
-              <SparklesIcon className="w-3.5 h-3.5 text-amber-500" />
-              AI Narrative & Equity Story
+              <MaterialIcon name="auto_awesome" size={14} className="text-[#618764] dark:text-[#9CB080]" />
+              AI Narrative
               {narrativeResult && (
-                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
               )}
             </button>
           </div>
         </DialogHeader>
 
         {activeTab === 'overview' ? (
-          <div className="space-y-6 pt-2 text-xs">
-            {/* Valuation Hero Banner */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-primary/10 via-chart-3/5 to-chart-2/10 border border-primary/20 space-y-4">
+          <div className="space-y-5 pt-2 text-xs">
+            {/* Valuation Hero Banner - Plain Solid Unicolor */}
+            <div className="p-5 rounded-2xl bg-[#EDF2EB] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/50 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
+                  <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6] font-semibold uppercase tracking-wider">
                     Target Market Valuation
                   </span>
-                  <p className="text-3xl font-black text-foreground font-mono mt-0.5">
+                  <p className="text-3xl font-black text-[#273338] dark:text-white font-mono mt-0.5">
                     ${targetValue.toLocaleString()}
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="text-[11px] text-muted-foreground font-semibold">Estimated Net Equity</span>
-                  <p className="text-xl font-extrabold text-emerald-500 font-mono">
+                  <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6] font-semibold">Estimated Net Equity</span>
+                  <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
                     +${(leadData.equityAmount || 0).toLocaleString()}
                   </p>
                 </div>
               </div>
 
               {/* Valuation Range Meter */}
-              <div className="space-y-1.5 pt-2 border-t border-border/60">
-                <div className="flex justify-between text-[11px] font-mono text-muted-foreground">
+              <div className="space-y-1.5 pt-2 border-t border-[#D8E2D6] dark:border-[#618764]/40">
+                <div className="flex justify-between text-[11px] font-mono text-[#75887E] dark:text-[#A0B2A6]">
                   <span>Low: ${lowRange.toLocaleString()}</span>
-                  <span className="text-primary font-bold">Target: ${targetValue.toLocaleString()}</span>
+                  <span className="text-[#2B5748] dark:text-[#9CB080] font-bold">Target: ${targetValue.toLocaleString()}</span>
                   <span>High: ${highRange.toLocaleString()}</span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-muted overflow-hidden flex">
-                  <div className="h-full bg-blue-400 w-1/3" />
-                  <div className="h-full bg-primary w-1/3" />
+                <div className="h-2 w-full rounded-full bg-[#D8E2D6] dark:bg-[#273338] overflow-hidden flex">
+                  <div className="h-full bg-sky-500 w-1/3" />
+                  <div className="h-full bg-[#618764] w-1/3" />
                   <div className="h-full bg-emerald-500 w-1/3" />
                 </div>
               </div>
             </div>
 
             {/* Active Buyer Demand Signal */}
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-4">
+            <div className="p-4 rounded-2xl bg-[#F5F7F4] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/50 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-500 text-white font-bold">
-                  <UserGroupIcon className="w-5 h-5" />
+                <div className="p-2.5 rounded-xl bg-[#2B5748] text-white">
+                  <MaterialIcon name="group" size={20} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-foreground">
-                    48 Active Pre-Approved PropPulse Buyers
+                  <h4 className="font-bold text-sm text-[#273338] dark:text-white">
+                    48 Active Buyers
                   </h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Searching for homes matching this specification in the immediate 1.5-mile radius.
+                  <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] mt-0.5">
+                    Pre-approved buyers searching within a 1.5-mile radius.
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 font-bold text-xs border border-emerald-200 dark:border-emerald-800/40">
                 High Demand
               </span>
             </div>
 
-            {/* Recent Comparable Neighborhood Sales */}
+            {/* Verified Local Comparable Sales */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <HomeModernIcon className="w-4 h-4 text-primary" />
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-foreground">
-                    Verified Local Comparable Sales (Last 45 Days)
+                  <MaterialIcon name="home_work" size={16} className="text-[#618764] dark:text-[#9CB080]" />
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-[#273338] dark:text-white">
+                    Verified Comps (Last 45 Days)
                   </h4>
                 </div>
-                <span className="text-[11px] text-muted-foreground">Radius: 0.8 Miles</span>
+                <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">0.8 Miles Radius</span>
               </div>
 
               <div className="space-y-2">
                 {mockComps.map((comp, idx) => (
                   <div
                     key={idx}
-                    className="p-3 rounded-xl bg-card border border-border/70 flex flex-wrap items-center justify-between gap-2 hover:border-primary/40 transition-colors"
+                    className="p-3 rounded-xl bg-white dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/40 flex flex-wrap items-center justify-between gap-2 hover:border-[#618764] transition-colors"
                   >
                     <div>
-                      <span className="font-bold text-xs text-foreground block">{comp.address}</span>
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="font-bold text-xs text-[#273338] dark:text-white block">{comp.address}</span>
+                      <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
                         {comp.beds} bd • {comp.sqft} sqft • ${comp.pricePerSqft}/sqft
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="font-bold text-xs font-mono text-primary block">{comp.price}</span>
-                      <span className="text-[10px] text-muted-foreground">Sold in {comp.dom} days</span>
+                      <span className="font-bold text-xs font-mono text-[#2B5748] dark:text-[#9CB080] block">{comp.price}</span>
+                      <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6]">Sold in {comp.dom} days</span>
                     </div>
                   </div>
                 ))}
@@ -271,118 +260,117 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
           </div>
         ) : (
           /* AI Storytelling Engine Tab */
-          <div className="space-y-5 pt-2 text-xs">
+          <div className="space-y-4 pt-2 text-xs">
             {/* Story Configuration Controls */}
-            <div className="p-4 rounded-xl bg-muted/40 border border-border/80 flex flex-wrap items-center justify-between gap-3">
-              <div className="space-y-1">
-                <span className="font-bold text-xs text-foreground block">Audience Perspective</span>
-                <p className="text-[11px] text-muted-foreground">
-                  Select whether this narrative is customized for a selling homeowner or an acquiring buyer.
+            <div className="p-3.5 rounded-xl bg-[#F5F7F4] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/40 flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <span className="font-bold text-xs text-[#273338] dark:text-white block">Audience Perspective</span>
+                <p className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+                  Select whether this narrative targets the homeowner or a prospective buyer.
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setStoryMode('seller')}
-                  className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
                     storyMode === 'seller'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-card text-muted-foreground hover:text-foreground border border-border'
+                      ? 'bg-[#2B5748] text-white shadow-xs'
+                      : 'bg-white dark:bg-[#273338] text-[#75887E] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white border border-[#D8E2D6] dark:border-[#618764]/40'
                   }`}
                 >
-                  🏡 Seller Equity Mode
+                  Seller Mode
                 </button>
                 <button
                   onClick={() => setStoryMode('buyer')}
-                  className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all ${
+                  className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
                     storyMode === 'buyer'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'bg-card text-muted-foreground hover:text-foreground border border-border'
+                      ? 'bg-[#2B5748] text-white shadow-xs'
+                      : 'bg-white dark:bg-[#273338] text-[#75887E] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white border border-[#D8E2D6] dark:border-[#618764]/40'
                   }`}
                 >
-                  🤝 Buyer Valuation Mode
+                  Buyer Mode
                 </button>
               </div>
             </div>
 
-            {/* Synthesize Button */}
+            {/* Synthesize Prompt Card */}
             {!narrativeResult && (
-              <div className="p-8 rounded-2xl border-2 border-dashed border-border/80 text-center space-y-3">
-                <SparklesIcon className="w-8 h-8 text-primary mx-auto opacity-75" />
-                <h4 className="font-bold text-sm text-foreground">
-                  Generate AI Micro-CMA Story & Equity Analysis
+              <div className="p-8 rounded-2xl border-2 border-dashed border-[#D8E2D6] dark:border-[#618764]/40 text-center space-y-3">
+                <MaterialIcon name="auto_awesome" size={32} className="text-[#618764] dark:text-[#9CB080] mx-auto opacity-80" />
+                <h4 className="font-bold text-sm text-[#273338] dark:text-white">
+                  Generate AI Micro-CMA Story
                 </h4>
-                <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                  Our dual-perspective engine synthesizes MLS comp rates, calculates annualized CAGR %,
-                  and crafts an objective, Fair Housing-compliant narrative ready for public embedding.
+                <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] max-w-md mx-auto">
+                  Dual-perspective engine synthesizing verified comp rates and generating Fair Housing-compliant narrative.
                 </p>
                 <Button
                   onClick={handleGenerateStory}
                   disabled={isSynthesizing}
                   size="sm"
-                  className="font-bold shadow-xs"
+                  className="bg-[#2B5748] hover:bg-[#24463a] text-white font-bold shadow-xs cursor-pointer"
                 >
-                  <SparklesIcon className="w-4 h-4 mr-1.5" />
-                  {isSynthesizing ? 'Synthesizing Narrative...' : `Synthesize ${storyMode.toUpperCase()} Narrative`}
+                  <MaterialIcon name="auto_awesome" size={16} className="mr-1.5" />
+                  {isSynthesizing ? 'Synthesizing...' : `Synthesize Narrative`}
                 </Button>
               </div>
             )}
 
             {/* Rendered Narrative Output */}
             {narrativeResult && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Headline Card */}
-                <div className="p-4 rounded-xl bg-card border border-border/80 space-y-2">
+                <div className="p-4 rounded-xl bg-white dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/40 space-y-2">
                   <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="text-[10px] font-bold">
-                      {narrativeResult.mode === 'seller' ? '🏡 Seller Equity Narrative' : '🤝 Buyer Fair-Value Advisory'}
+                    <Badge variant="outline" className="text-[10px] font-bold border-[#D8E2D6] dark:border-[#618764]/50">
+                      {narrativeResult.mode === 'seller' ? 'Seller Equity Advisory' : 'Buyer Fair-Value Advisory'}
                     </Badge>
-                    <span className="text-[11px] text-muted-foreground font-medium">
-                      Velocity: <strong className="text-foreground">{narrativeResult.metrics.marketVelocity}</strong>
+                    <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6] font-medium">
+                      Velocity: <strong className="text-[#273338] dark:text-white">{narrativeResult.metrics.marketVelocity}</strong>
                     </span>
                   </div>
-                  <h3 className="font-extrabold text-sm text-foreground leading-snug">
+                  <h3 className="font-extrabold text-sm text-[#273338] dark:text-white leading-snug">
                     {narrativeResult.headline}
                   </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                  <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] leading-relaxed">
                     {narrativeResult.executiveSummary}
                   </p>
                 </div>
 
                 {/* Appreciation & Comps Breakdown */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="p-3.5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-1.5">
-                    <span className="font-bold text-[11px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
-                      Equity & Appreciation Story
+                  <div className="p-3.5 rounded-xl bg-[#F5F7F4] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/40 space-y-1.5">
+                    <span className="font-bold text-[11px] text-emerald-700 dark:text-emerald-300 uppercase tracking-wider block">
+                      Equity & Appreciation
                     </span>
-                    <p className="text-xs text-foreground leading-relaxed">
+                    <p className="text-xs text-[#273338] dark:text-slate-200 leading-relaxed">
                       {narrativeResult.appreciationStory}
                     </p>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1.5">
-                    <span className="font-bold text-[11px] text-primary uppercase tracking-wider block">
-                      Comparable Sales Benchmark
+                  <div className="p-3.5 rounded-xl bg-[#F5F7F4] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/40 space-y-1.5">
+                    <span className="font-bold text-[11px] text-[#2B5748] dark:text-[#9CB080] uppercase tracking-wider block">
+                      Comps Benchmark
                     </span>
-                    <p className="text-xs text-foreground leading-relaxed">
+                    <p className="text-xs text-[#273338] dark:text-slate-200 leading-relaxed">
                       {narrativeResult.compsAnalysis}
                     </p>
                   </div>
                 </div>
 
                 {/* Recommended Strategy */}
-                <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-1">
-                  <span className="font-bold text-[11px] text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
-                    Recommended Strategic Position
+                <div className="p-3.5 rounded-xl bg-[#F5F7F4] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/40 space-y-1">
+                  <span className="font-bold text-[11px] text-amber-700 dark:text-amber-300 uppercase tracking-wider block">
+                    Recommended Strategy
                   </span>
-                  <p className="text-xs text-foreground leading-relaxed">
+                  <p className="text-xs text-[#273338] dark:text-slate-200 leading-relaxed">
                     {narrativeResult.recommendedStrategy}
                   </p>
                 </div>
 
                 {/* Actions Toolbar */}
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                    <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6] flex items-center gap-1">
+                    <MaterialIcon name="verified" size={14} className="text-emerald-600" />
                     Fair Housing Compliant
                   </span>
                   <div className="flex items-center gap-2">
@@ -390,18 +378,19 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
                       variant="outline"
                       size="sm"
                       onClick={handleCopyMarkdownStory}
-                      className="text-xs h-7"
+                      className="text-xs h-8 border-[#D8E2D6] dark:border-[#618764]/40 cursor-pointer"
                     >
-                      <ClipboardDocumentCheckIcon className="w-3.5 h-3.5 mr-1" />
-                      Copy Markdown Text
+                      <MaterialIcon name="content_copy" size={14} className="mr-1" />
+                      Copy Markdown
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleGenerateStory}
                       disabled={isSynthesizing}
-                      className="text-xs h-7"
+                      className="text-xs h-8 border-[#D8E2D6] dark:border-[#618764]/40 cursor-pointer"
                     >
+                      <MaterialIcon name="refresh" size={14} className="mr-1" />
                       Regenerate
                     </Button>
                   </div>
@@ -413,29 +402,34 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
 
         {/* Share Link Preview if generated */}
         {generatedShareUrl && (
-          <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between gap-2">
-            <span className="text-[11px] font-mono truncate text-primary">{generatedShareUrl}</span>
+          <div className="p-3 rounded-xl bg-[#EDF2EB] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/40 flex items-center justify-between gap-2">
+            <span className="text-[11px] font-mono truncate text-[#2B5748] dark:text-[#9CB080]">{generatedShareUrl}</span>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs"
+              className="h-7 text-xs text-[#2B5748] dark:text-[#9CB080] hover:bg-[#D8E2D6] cursor-pointer"
               onClick={() => window.open(generatedShareUrl, '_blank')}
             >
-              <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5 mr-1" />
-              Open Live CMA
+              <MaterialIcon name="open_in_new" size={14} className="mr-1" />
+              Open CMA
             </Button>
           </div>
         )}
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-border/60 text-xs">
-          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-            <CheckCircleIcon className="w-4 h-4 text-emerald-500" />
-            MLS & Public Tax Registry Verified
+        <div className="flex items-center justify-between pt-3 border-t border-[#D8E2D6] dark:border-[#618764]/40 text-xs">
+          <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6] flex items-center gap-1">
+            <MaterialIcon name="verified_user" size={15} className="text-emerald-600" />
+            MLS Verified
           </span>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="border-[#D8E2D6] dark:border-[#618764]/40 cursor-pointer"
+            >
               Close
             </Button>
             <Button
@@ -443,19 +437,19 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
               size="sm"
               onClick={() => handleGenerateAndShare(true)}
               disabled={isGenerating}
-              className="text-xs"
+              className="text-xs border-[#D8E2D6] dark:border-[#618764]/40 cursor-pointer"
             >
-              <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5 mr-1" />
-              Preview Landing Page
+              <MaterialIcon name="open_in_new" size={14} className="mr-1" />
+              Preview CMA
             </Button>
             <Button
               size="sm"
               onClick={() => handleGenerateAndShare(false)}
               disabled={isGenerating}
-              className="shadow-xs font-semibold"
+              className="bg-[#2B5748] hover:bg-[#24463a] text-white font-semibold cursor-pointer"
             >
-              <ShareIcon className="w-4 h-4 mr-1.5" />
-              {isGenerating ? 'Generating...' : 'Copy Public CMA Link'}
+              <MaterialIcon name="share" size={14} className="mr-1.5" />
+              {isGenerating ? 'Generating...' : 'Copy Link'}
             </Button>
           </div>
         </div>

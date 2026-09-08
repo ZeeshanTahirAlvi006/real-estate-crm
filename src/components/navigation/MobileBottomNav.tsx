@@ -118,26 +118,28 @@ export function MobileBottomNav() {
           </NavLink>
         )}
 
-        <NavLink
-          to="/inbox"
-          className={({ isActive }) =>
-            cn(
-              'flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-[10px] font-medium transition-all',
-              isActive
-                ? 'text-[#2B5748] dark:text-[#9CB080] font-bold'
-                : 'text-[#4A5D54] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white'
-            )
-          }
-        >
-          {({ isActive }) => (
-            <>
-              <div className={cn('p-1 rounded-full mb-0.5 transition-colors', isActive && 'bg-[#9CB080]/20')}>
-                <MaterialIcon name="chat" size={20} />
-              </div>
-              <span>Inbox</span>
-            </>
-          )}
-        </NavLink>
+        {rolePermissions?.viewInbox !== false && (
+          <NavLink
+            to="/inbox"
+            className={({ isActive }) =>
+              cn(
+                'flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-[10px] font-medium transition-all',
+                isActive
+                  ? 'text-[#2B5748] dark:text-[#9CB080] font-bold'
+                  : 'text-[#4A5D54] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white'
+              )
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <div className={cn('p-1 rounded-full mb-0.5 transition-colors', isActive && 'bg-[#9CB080]/20')}>
+                  <MaterialIcon name="chat" size={20} />
+                </div>
+                <span>Inbox</span>
+              </>
+            )}
+          </NavLink>
+        )}
 
         {/* More Drawer Trigger */}
         <button

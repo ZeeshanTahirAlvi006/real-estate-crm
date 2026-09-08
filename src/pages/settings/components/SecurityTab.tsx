@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { useChangePasswordMutation } from '@/store/api/authApi'
-import { ShieldCheckIcon } from '@heroicons/react/24/outline'
 
 export function SecurityTab() {
   const [currentPassword, setCurrentPassword] = useState('')
@@ -40,24 +40,24 @@ export function SecurityTab() {
 
   return (
     <div className="space-y-6 max-w-xl">
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="bg-white dark:bg-[#2B5748] border-[#D8E2D6] dark:border-[#618764] shadow-xs">
+        <CardHeader className="pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/60">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <ShieldCheckIcon className="h-5 w-5" />
+            <div className="p-2 rounded-lg bg-[#9CB080]/20 text-[#273338] dark:text-[#9CB080] flex items-center justify-center">
+              <MaterialIcon name="lock" size={20} />
             </div>
             <div>
-              <CardTitle className="text-base">Change Password</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Passwords must contain uppercase, lowercase, numbers, and special symbols.
+              <CardTitle className="text-base text-[#273338] dark:text-white">Password Security</CardTitle>
+              <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] mt-0.5">
+                Credential complexity rules
               </p>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-5">
           <form onSubmit={handlePasswordChange} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="curr-pass">Current Password *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="curr-pass" className="text-xs font-semibold text-[#4A5D54] dark:text-[#E2ECE4]">Current Password *</Label>
               <Input
                 id="curr-pass"
                 type="password"
@@ -65,10 +65,11 @@ export function SecurityTab() {
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="••••••••"
                 required
+                className="bg-[#F5F7F4] dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-pass">New Password *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-pass" className="text-xs font-semibold text-[#4A5D54] dark:text-[#E2ECE4]">New Password *</Label>
               <Input
                 id="new-pass"
                 type="password"
@@ -76,10 +77,11 @@ export function SecurityTab() {
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Min. 8 chars (upper, lower, digit, symbol)"
                 required
+                className="bg-[#F5F7F4] dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="conf-pass">Confirm New Password *</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="conf-pass" className="text-xs font-semibold text-[#4A5D54] dark:text-[#E2ECE4]">Confirm Password *</Label>
               <Input
                 id="conf-pass"
                 type="password"
@@ -87,10 +89,15 @@ export function SecurityTab() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Re-enter new password"
                 required
+                className="bg-[#F5F7F4] dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white"
               />
             </div>
-            <Button type="submit" disabled={isLoading} className="w-full">
-              {isLoading ? 'Updating Password...' : 'Update Password'}
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs h-9 rounded-lg mt-2 cursor-pointer"
+            >
+              {isLoading ? 'Updating...' : 'Update Password'}
             </Button>
           </form>
         </CardContent>

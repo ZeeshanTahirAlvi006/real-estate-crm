@@ -237,6 +237,15 @@ export const sellerRadarApi = baseApi.injectEndpoints({
       invalidatesTags: ['CmaReports'],
     }),
 
+    getCmaReport: builder.query<any, string>({
+      query: (id) => ({
+        url: `/seller-radar/cma/${id}`,
+        params: { format: 'json' },
+      }),
+      transformResponse: (response: any) => response.data || response,
+      providesTags: ['CmaReports'],
+    }),
+
     triggerAnniversaryScan: builder.mutation<any, { forceAll?: boolean } | void>({
       query: (body) => ({
         url: '/seller-radar/anniversary/trigger',
@@ -255,5 +264,6 @@ export const {
   useAnalyzePropertyMutation,
   useGenerateCmaMutation,
   useGenerateCmaNarrativeMutation,
+  useGetCmaReportQuery,
   useTriggerAnniversaryScanMutation,
 } = sellerRadarApi

@@ -7,6 +7,7 @@ import {
   scanPhones,
   mergeContacts,
   dismissDuplicate,
+  listDataHealthIssues,
 } from './dataHealth.service.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
 import { HTTP_STATUS } from '../../utils/constants.js'
@@ -31,6 +32,17 @@ export const listDuplicates = async (req: Request, res: Response, next: NextFunc
     if (!req.user) return
     const duplicates = await listDuplicateCandidates(req.tenantFilter || {})
     sendSuccess(res, duplicates, 'Duplicate candidates retrieved successfully')
+  } catch (error) { next(error) }
+}
+
+// GET /api/data-health/issues
+export const listIssues = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user) return
+    const type = req.query.type as 'all' | 'email' | 'phone' | undefined
+    const search = req.query.search as string | undefined
+    const issues = await listDataHealthIssues(req.tenantFilter || {}, type, search)
+    sendSuccess(res, issues, 'Data health issues retrieved successfully')
   } catch (error) { next(error) }
 }
 

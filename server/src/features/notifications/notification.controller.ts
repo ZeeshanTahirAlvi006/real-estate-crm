@@ -3,6 +3,7 @@ import {
   listNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  softDeleteNotification,
 } from './notification.service.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
 
@@ -14,12 +15,33 @@ export const getNotificationsHandler = async (
 ): Promise<void> => {
   try {
     if (!req.user) return
-    const notifications = await listNotifications(req.user)
-    sendSuccess(res, notifications, 'Notifications retrieved successfully')
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : undefined
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined
+    const status = req.query.status as 'unread' | 'all' | undefined
+
+    const result = await listNotifications(req.user, { page, limit, status })
+    sendSuccess(res, result, 'Notifications retrieved successfully')
   } catch (error) {
     next(error)
   }
 }
+
+// DELETE /api/notifications/:id
+export const deleteNotificationHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) return
+    const id = req.params.id as string
+    const result = await softDeleteNotification(id, req.user)
+    sendSuccess(res, result, 'Notification deleted successfully')
+  } catch (error) {
+    next(error)
+  }
+}
+
 
 // PATCH /api/notifications/:id/read
 export const markReadHandler = async (

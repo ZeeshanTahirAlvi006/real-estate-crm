@@ -63,10 +63,40 @@ export const formatMessageDto = (m: IMessage): MessageDto => ({
   updatedAt: m.updatedAt ? m.updatedAt.toISOString() : new Date().toISOString(),
 })
 
-// Check tenant access
-const verifyTenantAccess = (caller: IUser, brokerageId: mongoose.Types.ObjectId | string) => {
-  if (caller.role === USER_ROLES.SUPER_ADMIN) return true
-  return caller.brokerageId.toString() === brokerageId.toString()
+// Strict Conversation Access Verification:
+// Enforces tenant isolation (no cross-brokerage) and communication privacy (Super Admin cannot view other people's/brokerage owners' conversations).
+export const verifyConversationAccess = (caller: IUser, conv: IConversation): void => {
+  // 1. Cross-brokerage boundary check
+  if (!caller.brokerageId || !conv.brokerageId || caller.brokerageId.toString() !== conv.brokerageId.toString()) {
+    throw new AppError('Conversation not found', HTTP_STATUS.NOT_FOUND)
+  }
+
+  // 2. Super Admin privacy restriction:
+  // Super admin cannot view or manage conversations belonging to other people or brokerage owners.
+  if (caller.role === USER_ROLES.SUPER_ADMIN) {
+    if (!conv.assignedAgentId || conv.assignedAgentId.toString() !== caller._id.toString()) {
+      throw new AppError(
+        'Access denied: Super Admin is restricted from accessing communications of other users or brokerage owners.',
+        HTTP_STATUS.FORBIDDEN
+      )
+    }
+  }
+
+  // 3. Agent boundary: Agent can only view conversations assigned to them or unassigned
+  if (caller.role === USER_ROLES.AGENT) {
+    if (conv.assignedAgentId && conv.assignedAgentId.toString() !== caller._id.toString()) {
+      throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
+    }
+  }
+
+  // 4. Client lead boundary: Lead can only view their own conversation
+  if (caller.role === USER_ROLES.LEAD) {
+    const matchesEmail = caller.email && conv.contactEmail?.toLowerCase() === caller.email.toLowerCase()
+    const matchesPhone = caller.phone && conv.contactPhone === caller.phone
+    if (!matchesEmail && !matchesPhone) {
+      throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
+    }
+  }
 }
 
 // 1. List Conversations
@@ -77,8 +107,11 @@ export const listConversations = async (
 ): Promise<{ conversations: ConversationDto[]; total: number }> => {
   const conditions: Record<string, any>[] = []
 
-  if (tenantFilter && Object.keys(tenantFilter).length > 0) {
-    conditions.push(tenantFilter)
+  // Always strictly scope by caller's home brokerage to guarantee zero cross-brokerage leakage
+  if (caller.brokerageId) {
+    conditions.push({ brokerageId: caller.brokerageId })
+  } else if (tenantFilter?.brokerageId) {
+    conditions.push({ brokerageId: tenantFilter.brokerageId })
   }
 
   if (query.status) {
@@ -97,8 +130,15 @@ export const listConversations = async (
     })
   }
 
-  // If user is lead/client, they only see their own conversation
-  if (caller.role === USER_ROLES.LEAD) {
+  // Role-based communication privacy & conversation visibility
+  if (caller.role === USER_ROLES.SUPER_ADMIN) {
+    // Super admin is restricted from seeing WhatsApp/email/all inbox of other people (brokerage owners, agents)
+    // Super admin can ONLY see conversations directly assigned to the super admin
+    conditions.push({
+      assignedAgentId: caller._id,
+    })
+  } else if (caller.role === USER_ROLES.LEAD) {
+    // If user is lead/client, they only see their own conversation
     conditions.push({
       $or: [
         { contactEmail: caller.email },
@@ -184,9 +224,7 @@ export const getMessages = async (
 
   const conv = await Conversation.findById(conversationId)
   if (!conv) throw new AppError('Conversation not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyTenantAccess(caller, conv.brokerageId)) {
-    throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
-  }
+  verifyConversationAccess(caller, conv)
 
   const messageFilter: Record<string, any> = { conversationId: conv._id }
   if (channel && channel !== 'all') {
@@ -221,9 +259,7 @@ export const sendMessage = async (
 
   const conv = await Conversation.findById(conversationId)
   if (!conv) throw new AppError('Conversation not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyTenantAccess(caller, conv.brokerageId)) {
-    throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
-  }
+  verifyConversationAccess(caller, conv)
 
   const channel = input.channel || conv.lastChannel || 'sms'
   const isLeadCaller = caller.role === USER_ROLES.LEAD
@@ -315,9 +351,7 @@ export const markConversationRead = async (
 
   const conv = await Conversation.findById(conversationId)
   if (!conv) throw new AppError('Conversation not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyTenantAccess(caller, conv.brokerageId)) {
-    throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
-  }
+  verifyConversationAccess(caller, conv)
 
   conv.unreadCount = 0
   await conv.save()
@@ -343,9 +377,7 @@ export const toggleAiIsa = async (
 
   const conv = await Conversation.findById(conversationId)
   if (!conv) throw new AppError('Conversation not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyTenantAccess(caller, conv.brokerageId)) {
-    throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
-  }
+  verifyConversationAccess(caller, conv)
 
   conv.aiIsaEnabled = enabled
   await conv.save()
@@ -364,8 +396,10 @@ export const startConversation = async (
 
   const contact = await Contact.findById(input.contactId)
   if (!contact) throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyTenantAccess(caller, contact.brokerageId)) {
-    throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
+
+  // Enforce strict tenant isolation (no cross-brokerage conversation initiation)
+  if (!caller.brokerageId || contact.brokerageId.toString() !== caller.brokerageId.toString()) {
+    throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
   }
 
   let conv = await Conversation.findOne({
@@ -373,14 +407,22 @@ export const startConversation = async (
     brokerageId: contact.brokerageId,
   })
 
-  if (!conv) {
+  if (conv) {
+    // If conversation already exists, verify caller has rights to it
+    verifyConversationAccess(caller, conv)
+  } else {
+    // Determine assigned agent
+    const assignedAgent = caller.role === USER_ROLES.SUPER_ADMIN
+      ? caller._id
+      : (contact.assignedAgentId || caller._id)
+
     conv = await Conversation.create({
       brokerageId: contact.brokerageId,
       contactId: contact._id,
       contactName: `${contact.firstName} ${contact.lastName}`,
       contactPhone: contact.phone,
       contactEmail: contact.email,
-      assignedAgentId: contact.assignedAgentId || caller._id,
+      assignedAgentId: assignedAgent,
       assignedAgentName: `${caller.firstName} ${caller.lastName}`,
       lastMessageText: input.initialMessage || 'Conversation initiated',
       lastMessageAt: new Date(),

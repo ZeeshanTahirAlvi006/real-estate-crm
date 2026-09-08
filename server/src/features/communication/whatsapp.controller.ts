@@ -98,8 +98,9 @@ export const createBroadcast = async (req: Request, res: Response): Promise<void
 // 7. Get Broadcast Campaigns (GET)
 export const getBroadcasts = async (req: Request, res: Response): Promise<void> => {
   try {
+    const caller = (req as any).user
     const tenantFilter = (req as any).tenantFilter || {}
-    const broadcasts = await getWhatsAppBroadcasts(tenantFilter)
+    const broadcasts = await getWhatsAppBroadcasts(tenantFilter, caller)
     sendSuccess(res, broadcasts, 'WhatsApp broadcast campaigns retrieved')
   } catch (err: any) {
     sendError(res, err.message, HTTP_STATUS.INTERNAL_SERVER_ERROR)

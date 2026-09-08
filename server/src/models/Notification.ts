@@ -7,6 +7,8 @@ export interface INotification extends Document {
   title: string
   message: string
   isRead: boolean
+  isDeleted: boolean
+  deletedAt?: Date
   linkTo?: string
   metadata?: Record<string, any>
   createdAt: Date
@@ -46,6 +48,14 @@ const notificationSchema = new Schema<INotification>(
       default: false,
       index: true,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+    },
     linkTo: {
       type: String,
     },
@@ -59,7 +69,7 @@ const notificationSchema = new Schema<INotification>(
   }
 )
 
-notificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 })
-notificationSchema.index({ brokerageId: 1, createdAt: -1 })
+notificationSchema.index({ userId: 1, isDeleted: 1, isRead: 1, createdAt: -1 })
+notificationSchema.index({ brokerageId: 1, isDeleted: 1, createdAt: -1 })
 
 export const Notification = mongoose.model<INotification>('Notification', notificationSchema)

@@ -34,9 +34,10 @@ export function SocketProvider({ children }: SocketProviderProps) {
       return
     }
 
-    const socketUrl = import.meta.env.VITE_API_URL
-      ? import.meta.env.VITE_API_URL.replace('/api', '')
-      : 'http://localhost:5000'
+    const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.API_URL
+    const socketUrl = apiUrl
+      ? apiUrl.replace(/\/api\/?$/, '')
+      : 'https://real-estate-crm-4748.onrender.com'
 
     const socket = io(socketUrl, {
       withCredentials: true,

@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://proppulse-os-server.onrender.com/api/:path*"
+      "destination": "https://real-estate-crm-4748.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
@@ -19,7 +19,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://images.unsplash.com https://*.s3.amazonaws.com; connect-src 'self' https://proppulse-os-server.onrender.com wss://proppulse-os-server.onrender.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://images.unsplash.com https://*.s3.amazonaws.com; connect-src 'self' https://real-estate-crm-4748.onrender.com wss://real-estate-crm-4748.onrender.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';"
         },
         {
           "key": "X-Content-Type-Options",

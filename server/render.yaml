@@ -26,6 +26,6 @@ services:
       - key: ENCRYPTION_MASTER_KEY
         generateValue: true
       - key: CLIENT_URL
-        value: https://proppulse.vercel.app
+        value: https://real-estate-grid2xfsj-codewithgoostyhumans-projects.vercel.app
       - key: STORAGE_PROVIDER
         value: local

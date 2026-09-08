@@ -16,9 +16,9 @@ export class SmsProvider implements ICommunicationProvider {
   private isLive: boolean
 
   constructor() {
-    this.accountSid = process.env.TWILIO_ACCOUNT_SID?.trim() || ''
-    this.authToken = process.env.TWILIO_AUTH_TOKEN?.trim() || ''
-    this.fromNumber = process.env.TWILIO_PHONE_NUMBER?.trim() || ''
+    this.accountSid = process.env.TWILIO_ACCOUNT_SID?.trim() as string
+    this.authToken = process.env.TWILIO_AUTH_TOKEN?.trim() as string
+    this.fromNumber = process.env.TWILIO_PHONE_NUMBER?.trim() as string
     this.isLive = Boolean(
       this.accountSid.startsWith('AC') &&
       this.authToken.length > 10 &&

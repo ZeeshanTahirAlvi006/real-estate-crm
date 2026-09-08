@@ -187,7 +187,7 @@ export const startServer = async (): Promise<void> => {
     initSocketServer(httpServer)
 
     const server = httpServer.listen(env.PORT, () => {
-      logger.info(`🚀 Server & WebSocket running on port ${env.PORT} in [${env.NODE_ENV}] mode`)
+      logger.info(`Server & WebSocket running [${env.NODE_ENV}] mode`)
       // Start background cron scheduler
       startScheduler()
       // Start IMAP live email listener

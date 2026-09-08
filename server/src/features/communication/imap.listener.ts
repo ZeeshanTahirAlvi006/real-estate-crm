@@ -29,8 +29,8 @@ export class ImapListenerService {
 
     try {
       this.client = new ImapFlow({
-        host: process.env.IMAP_HOST || 'imap.gmail.com',
-        port: parseInt(process.env.IMAP_PORT || '993', 10),
+        host: process.env.IMAP_HOST as string,
+        port: parseInt(process.env.IMAP_PORT as string, 10),
         secure: true,
         auth: {
           user,
@@ -105,7 +105,7 @@ export class ImapListenerService {
   public async processNewIncomingEmails(): Promise<void> {
     if (!this.client || !this.isRunning) return
 
-    const myEmail = (process.env.SMTP_USER || '').toLowerCase().trim()
+    const myEmail = (process.env.SMTP_USER as string).toLowerCase().trim()
     const lock = await this.client.getMailboxLock('INBOX')
 
     try {

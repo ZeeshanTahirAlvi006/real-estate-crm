@@ -5,7 +5,7 @@ import { Conversation } from '../models/Conversation.js'
 import { Contact } from '../models/Contact.js'
 
 async function inspect() {
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/proppulse_crm')
+  await mongoose.connect(process.env.MONGODB_URI as string)
   console.log('Connected to DB')
 
   const convos = await Conversation.find().limit(10).lean()

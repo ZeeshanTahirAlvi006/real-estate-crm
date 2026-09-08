@@ -5,7 +5,7 @@ import { sendMessage } from '../features/inbox/inbox.service.js'
 import { User } from '../models/User.js'
 
 async function testSend() {
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/proppulse_crm')
+  await mongoose.connect(process.env.MONGODB_URI as string)
   console.log('Connected to DB')
 
   const user = await User.findOne({ email: 'superadmin@proppulse.com' })

@@ -1,0 +1,91 @@
+# Switch Email Service to HTTP Gmail REST API
+
+## Problem & Context
+Render blocks outbound SMTP traffic on ports `25`, `465`, and `587` on standard/free plans to prevent spam abuse. Attempting to connect to `smtp.gmail.com:587` or `465` from Render results in connection timeouts (`ETIMEDOUT`).
+
+To resolve this, we will migrate the email sending pipeline in PropPulse CRM from traditional SMTP to Google's **Gmail REST HTTP API** (`POST https://gmail.googleapis.com/gmail/v1/users/me/messages/send`), communicating over standard HTTPS (port 443).
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> To enable the HTTP Gmail API, you will need 3 Google OAuth credentials in your `.env` and Render environment settings:
+> 1. `GMAIL_CLIENT_ID` (from Google Cloud Console)
+> 2. `GMAIL_CLIENT_SECRET` (from Google Cloud Console)
+> 3. `GMAIL_REFRESH_TOKEN` (generated via Google Developers OAuth Playground)
+> 4. `GMAIL_USER` (e.g. `zeeshantahiralvi123@gmail.com`)
+>
+> Follow the 3-minute setup instructions below to generate these credentials.
+
+### How to get your Google OAuth Credentials in 3 Minutes:
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create a project (or select an existing one).
+2. Go to **APIs & Services > Library**, search for **Gmail API**, and click **Enable**.
+3. Go to **APIs & Services > OAuth consent screen**:
+   - Select **External**, set App Name (e.g. `PropPulse CRM`), and enter your email for user support and developer contact.
+   - In **Test users**, add your own email (`zeeshantahiralvi123@gmail.com`).
+4. Go to **APIs & Services > Credentials**:
+   - Click **Create Credentials > OAuth client ID**.
+   - Application type: **Web application**.
+   - Name: `PropPulse CRM Gmail Client`.
+   - Under **Authorized redirect URIs**, add: `https://developers.google.com/oauthplayground`.
+   - Click **Create** and copy your **Client ID** and **Client Secret**.
+5. Generate the **Refresh Token** using OAuth Playground:
+   - Open [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground/).
+   - Click the **Gear icon (OAuth 2.0 configuration)** in the top right:
+     - Check **Use your own OAuth credentials**.
+     - Paste your **OAuth Client ID** and **OAuth Client Secret**.
+   - In Step 1 (Select & authorize APIs), find **Gmail API v1** and check `https://www.googleapis.com/auth/gmail.send`.
+   - Click **Authorize APIs** and log in with your Gmail account (`zeeshantahiralvi123@gmail.com`).
+   - In Step 2, click **Exchange authorization code for tokens**.
+   - Copy the resulting **Refresh token**.
+
+---
+
+## Proposed Changes
+
+### Server Configuration & Schema
+
+#### [MODIFY] [env.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/config/env.ts)
+- Add optional Google OAuth schema definitions:
+  - `GMAIL_CLIENT_ID`: `z.string().optional()`
+  - `GMAIL_CLIENT_SECRET`: `z.string().optional()`
+  - `GMAIL_REFRESH_TOKEN`: `z.string().optional()`
+  - `GMAIL_USER`: `z.string().optional()`
+- Keep existing `SMTP_*` parameters so local development or alternate SMTP hosts still work seamlessly.
+
+#### [MODIFY] [.env.example](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/.env.example)
+- Add documented environment variables for `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, and `GMAIL_USER`.
+
+---
+
+### Communication Feature Layer
+
+#### [MODIFY] [email.provider.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/features/communication/providers/email.provider.ts)
+- Introduce a high-performance HTTP Gmail API delivery engine:
+  - Automatic OAuth2 token exchange with caching: caches `access_token` until expiry to eliminate redundant token requests.
+  - RFC 2822 MIME generation using `nodemailer/lib/mail-composer` (preserves all formatting, HTML, text, and UTF-8 encoding).
+  - Safe `base64url` payload encoding.
+  - `POST https://gmail.googleapis.com/gmail/v1/users/me/messages/send` via Node native `fetch` over HTTPS (port 443).
+- Graceful priority hierarchy:
+  1. **Gmail REST HTTP API** (if `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` are present) — Render & Cloud Production Ready.
+  2. **SMTP Transport** (if `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` are present) — local/legacy compatibility.
+  3. **Ethereal Email Sandbox** — zero-card local development mode.
+
+---
+
+### Diagnostic & Verification
+
+#### [MODIFY] [testEmail.ts](file:///c:/Users/lenovo/OneDrive/Desktop/Real%20estate%20CRM/real-estate-crm/server/src/scripts/testEmail.ts)
+- Update diagnostic script to test outbound transmission and print the exact provider mode used (Gmail HTTP API vs SMTP vs Ethereal).
+
+---
+
+## Verification Plan
+
+### Automated / Diagnostic Test
+- Run `npm run typecheck` to confirm TypeScript compilation passes without errors.
+- Run `npx tsx src/scripts/testEmail.ts` to verify the diagnostic test executes cleanly.
+
+### Manual Verification
+- Verify that when `GMAIL_*` credentials are set, emails dispatch via HTTPS port 443 and return a valid Gmail message ID.

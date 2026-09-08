@@ -32,7 +32,7 @@ export const getDetailedSystemHealth = async (): Promise<DetailedHealthStatus> =
   // 1. MongoDB Health
   const dbState = mongoose.connection.readyState
   const isDbConnected = dbState === 1
-  const dbName = mongoose.connection.name || 'proppulse_crm'
+  const dbName = mongoose.connection.name
 
   // 2. Redis Health
   let isCacheConnected = false
@@ -72,7 +72,7 @@ export const getDetailedSystemHealth = async (): Promise<DetailedHealthStatus> =
     status,
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.floor(process.uptime()),
-    environment: process.env.NODE_ENV,
+    environment: process.env.NODE_ENV as string,
     database: {
       connected: isDbConnected,
       readyState: dbState,

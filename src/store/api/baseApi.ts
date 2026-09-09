@@ -45,9 +45,9 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
 
   if (result.error) {
     if (result.error.status === 401) {
-      // Session expired or invalid — clear auth state and reset API cache
+      // Session expired or unauthenticated — update auth state without wiping query cache in an infinite cascade
       api.dispatch(logout())
-      api.dispatch(baseApi.util.resetApiState())
+      api.dispatch(setInitialized())
     } else {
       // Network error or server offline — mark session check initialized so UI doesn't hang
       api.dispatch(setInitialized())

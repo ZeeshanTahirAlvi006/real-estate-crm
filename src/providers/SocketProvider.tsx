@@ -37,7 +37,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     const apiUrl = import.meta.env.API_URL
     const socketUrl = apiUrl
       ? apiUrl.replace(/\/api\/?$/, '')
-      : 'https://real-estate-crm-4748.onrender.com'
+      : 'https://proppulseoscrm.onrender.com'
 
     const socket = io(socketUrl, {
       withCredentials: true,

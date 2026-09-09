@@ -33,4 +33,31 @@ export default defineConfig({
       'Referrer-Policy': 'strict-origin-when-cross-origin',
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('recharts') || id.includes('d3-')) {
+              return 'vendor-charts'
+            }
+            if (id.includes('@atlaskit')) {
+              return 'vendor-dnd'
+            }
+            if (id.includes('@reduxjs') || id.includes('react-redux')) {
+              return 'vendor-redux'
+            }
+            if (id.includes('lucide-react') || id.includes('@heroicons')) {
+              return 'vendor-icons'
+            }
+            if (id.includes('socket.io-client')) {
+              return 'vendor-socket'
+            }
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
 })
+

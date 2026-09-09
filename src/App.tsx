@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Provider } from 'react-redux'
 import { Toaster } from 'sonner'
@@ -9,30 +10,31 @@ import { AuthLayout } from '@/layouts/AuthLayout'
 import { AppLayout } from '@/layouts/AppLayout'
 import { PortalLayout } from '@/layouts/PortalLayout'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import { RouteLoadingFallback } from '@/components/shared/RouteLoadingFallback'
 
-// Auth Pages
-import { AuthLandingPage } from '@/pages/auth/AuthLandingPage'
-import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage'
+// Auth Pages (Code Split)
+const AuthLandingPage = lazy(() => import('@/pages/auth/AuthLandingPage').then(m => ({ default: m.AuthLandingPage })))
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })))
 
-// Main Pages
-import { DashboardPage } from '@/pages/dashboard/DashboardPage'
-import { InboxPage } from '@/pages/inbox/InboxPage'
-import { DialerPage } from '@/pages/dialer/DialerPage'
-import { AiIsaPage } from '@/pages/ai-isa/AiIsaPage'
-import { ContactsPage } from '@/pages/contacts/ContactsPage'
-import { ContactDetailPage } from '@/pages/contacts/ContactDetailPage'
-import { PipelinePage } from '@/pages/pipeline/PipelinePage'
-import { TransactionsPage } from '@/pages/transactions/TransactionsPage'
-import { TransactionDetailPage } from '@/pages/transactions/TransactionDetailPage'
-import { SmartListsPage } from '@/pages/smart-lists/SmartListsPage'
-import { DataHealthPage } from '@/pages/data-health/DataHealthPage'
-import { LeadIngestionPage } from '@/pages/leads/LeadIngestionPage'
-import { SettingsPage } from '@/pages/settings/SettingsPage'
-import { LeadPortalPage } from '@/pages/portal/LeadPortalPage'
-import { PortalSettingsPage } from '@/pages/portal/PortalSettingsPage'
-import { CommissionsPage } from '@/pages/commissions/CommissionsPage'
-import { PublicSignPage } from '@/pages/esign/PublicSignPage'
-import { MicroCmaPage } from '@/pages/cma/MicroCmaPage'
+// Main Pages (Code Split)
+const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
+const InboxPage = lazy(() => import('@/pages/inbox/InboxPage').then(m => ({ default: m.InboxPage })))
+const DialerPage = lazy(() => import('@/pages/dialer/DialerPage').then(m => ({ default: m.DialerPage })))
+const AiIsaPage = lazy(() => import('@/pages/ai-isa/AiIsaPage').then(m => ({ default: m.AiIsaPage })))
+const ContactsPage = lazy(() => import('@/pages/contacts/ContactsPage').then(m => ({ default: m.ContactsPage })))
+const ContactDetailPage = lazy(() => import('@/pages/contacts/ContactDetailPage').then(m => ({ default: m.ContactDetailPage })))
+const PipelinePage = lazy(() => import('@/pages/pipeline/PipelinePage').then(m => ({ default: m.PipelinePage })))
+const TransactionsPage = lazy(() => import('@/pages/transactions/TransactionsPage').then(m => ({ default: m.TransactionsPage })))
+const TransactionDetailPage = lazy(() => import('@/pages/transactions/TransactionDetailPage').then(m => ({ default: m.TransactionDetailPage })))
+const SmartListsPage = lazy(() => import('@/pages/smart-lists/SmartListsPage').then(m => ({ default: m.SmartListsPage })))
+const DataHealthPage = lazy(() => import('@/pages/data-health/DataHealthPage').then(m => ({ default: m.DataHealthPage })))
+const LeadIngestionPage = lazy(() => import('@/pages/leads/LeadIngestionPage').then(m => ({ default: m.LeadIngestionPage })))
+const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const LeadPortalPage = lazy(() => import('@/pages/portal/LeadPortalPage').then(m => ({ default: m.LeadPortalPage })))
+const PortalSettingsPage = lazy(() => import('@/pages/portal/PortalSettingsPage').then(m => ({ default: m.PortalSettingsPage })))
+const CommissionsPage = lazy(() => import('@/pages/commissions/CommissionsPage').then(m => ({ default: m.CommissionsPage })))
+const PublicSignPage = lazy(() => import('@/pages/esign/PublicSignPage').then(m => ({ default: m.PublicSignPage })))
+const MicroCmaPage = lazy(() => import('@/pages/cma/MicroCmaPage').then(m => ({ default: m.MicroCmaPage })))
 
 function ThemedToaster() {
   const { resolvedTheme } = useTheme()
@@ -56,7 +58,8 @@ function App() {
           <TooltipProvider>
             <ThemedToaster />
             <BrowserRouter>
-              <Routes>
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <Routes>
                 {/* Public Flagship Marketing & Auth Landing Pages */}
                 <Route path="/" element={<AuthLandingPage />} />
                 <Route path="/login" element={<AuthLandingPage />} />
@@ -114,7 +117,8 @@ function App() {
                 {/* Catch-all redirect */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-            </BrowserRouter>
+            </Suspense>
+          </BrowserRouter>
           </TooltipProvider>
         </SocketProvider>
       </ThemeProvider>

@@ -118,30 +118,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--theme-y', `${Math.round(y)}px`)
     root.style.setProperty('--theme-r', `${Math.ceil(endRadius)}px`)
 
-    // 3. Inject dynamic keyframe matching click coordinates with explicit duration & forwards fill
-    const existingStyle = document.getElementById('theme-transition-styles')
-    if (existingStyle) existingStyle.remove()
-
-    const style = document.createElement('style')
-    style.id = 'theme-transition-styles'
-    style.textContent = `
-      ::view-transition-new(root) {
-        animation: circularReveal 450ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
-      }
-      @keyframes circularReveal {
-        from {
-          clip-path: circle(0px at ${Math.round(x)}px ${Math.round(y)}px);
-        }
-        to {
-          clip-path: circle(${Math.ceil(endRadius)}px at ${Math.round(x)}px ${Math.round(y)}px);
-        }
-      }
-    `
-    document.head.appendChild(style)
-
     const opposite = nextResolved === 'dark' ? 'light' : 'dark'
 
-    // 4. Trigger View Transition with lightweight DOM update inside callback
+    // 3. Trigger View Transition with lightweight DOM update inside callback
     try {
       const transition = (doc as any).startViewTransition(() => {
         root.classList.remove(opposite)
@@ -149,11 +128,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setThemeState(t)
       })
 
-      // Clean up the dynamic style element once animation finishes or aborts
+      // Clean up the dynamic CSS custom properties once animation finishes or aborts
       transition?.finished
         ?.finally(() => {
-          const injectedStyle = document.getElementById('theme-transition-styles')
-          if (injectedStyle) injectedStyle.remove()
           root.style.removeProperty('--theme-x')
           root.style.removeProperty('--theme-y')
           root.style.removeProperty('--theme-r')
@@ -163,8 +140,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.classList.remove(opposite)
       root.classList.add(nextResolved)
       setThemeState(t)
-      const injectedStyle = document.getElementById('theme-transition-styles')
-      if (injectedStyle) injectedStyle.remove()
       root.style.removeProperty('--theme-x')
       root.style.removeProperty('--theme-y')
       root.style.removeProperty('--theme-r')

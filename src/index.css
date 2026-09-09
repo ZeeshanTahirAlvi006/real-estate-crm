@@ -154,10 +154,10 @@
     }
 }
 
-/* ── Hardware-Accelerated View Transition (Buttery Smooth Circular Reveal) ─── */
+/* ── Hardware-Accelerated View Transition (Snappy Circular Reveal) ─── */
 ::view-transition-group(root) {
-    animation-duration: 450ms;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-duration: 240ms;
+    animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 ::view-transition-image-pair(root) {
@@ -181,7 +181,7 @@
 /* The new snapshot expands over the top */
 ::view-transition-new(root) {
     z-index: 9999;
-    animation: circularReveal 450ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: circularReveal 240ms cubic-bezier(0.2, 0, 0, 1) forwards;
 }
 
 @keyframes circularReveal {
@@ -201,17 +201,9 @@
     }
 }
 
-
-/* Synchronized fallback for browsers without View Transition API */
-html.theme-transitioning,
-html.theme-transitioning *,
-html.theme-transitioning *::before,
-html.theme-transitioning *::after {
-    transition: background-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-        border-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-        color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-        box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    transition-delay: 0s !important;
+/* Lightweight fallback for browsers without View Transition API */
+html.theme-transitioning body {
+    transition: background-color 0.2s ease, color 0.2s ease !important;
 }
 
 @keyframes cascadeReveal {

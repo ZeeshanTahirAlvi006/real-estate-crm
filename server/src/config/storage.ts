@@ -10,7 +10,7 @@ export const LOCAL_UPLOADS_DIR = path.resolve(process.cwd(), 'uploads')
 export const initStorage = (): void => {
   if (!fs.existsSync(LOCAL_UPLOADS_DIR)) {
     fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true })
-    logger.info(`📁 Created local uploads directory at: ${LOCAL_UPLOADS_DIR}`)
+    logger.info(`Created local uploads directory at: ${LOCAL_UPLOADS_DIR}`)
   }
 }
 

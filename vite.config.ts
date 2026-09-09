@@ -19,6 +19,7 @@ export default defineConfig({
         target: 'https://proppulseoscrm.onrender.com',
         changeOrigin: true,
         secure: true,
+        cookieDomainRewrite: '',
       },
       '/socket.io': {
         target: 'https://proppulseoscrm.onrender.com',

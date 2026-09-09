@@ -34,7 +34,7 @@ export const initRedis = (): void => {
       logger.warn(`Redis error (${err.message}). Using in-memory cache.`)
     })
   } catch (error) {
-    logger.warn('⚠️ Redis initialization failed. Using in-memory fallback.')
+    logger.warn('Redis initialization failed. Using in-memory fallback.')
     isRedisConnected = false
   }
 }

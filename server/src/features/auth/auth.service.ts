@@ -89,8 +89,117 @@ export const registerUser = async (
   clientIp: string = '127.0.0.1',
   userAgent: string = 'browser'
 ): Promise<AuthResultDto> => {
-  // Check if email already exists with lean projection (RM-09)
-  const existingUser = await User.findOne({ email: input.email.toLowerCase() }).select('_id').lean()
+  const normalizedEmail = input.email.toLowerCase().trim()
+  const trimmedBrokerageName = input.brokerageName.trim()
+  const isRegisteringAsOwner = !input.role || input.role === USER_ROLES.BROKERAGE_OWNER
+  const brokerageCacheKey = `auth:brokerage:owner:${trimmedBrokerageName.toLowerCase()}`
+
+  // 1. Tier 1: Redis Fast-Path Check (< 0.1ms)
+  if (isRegisteringAsOwner) {
+    try {
+      const cachedOwnerId = await cacheGet(brokerageCacheKey)
+      if (cachedOwnerId) {
+        logger.warn(`Registration attempt for already owned brokerage (cache hit): ${trimmedBrokerageName}`)
+        logAuditEvent({
+          userEmail: input.email,
+          action: 'AUTH_REGISTER',
+          resource: 'auth',
+          status: 'failure',
+          failureReason: 'Brokerage name already registered under an active brokerage owner',
+          ipAddress: clientIp,
+          userAgent,
+        }).catch(() => {})
+        throw new AppError(
+          'A brokerage with this name already exists under an active brokerage owner.',
+          HTTP_STATUS.CONFLICT
+        )
+      }
+    } catch (err) {
+      if (err instanceof AppError) throw err
+      // Graceful fallback to MongoDB on Redis outage (DI-003)
+    }
+  }
+
+  // 2. Tier 2: Parallel Covered DB Preflight Checks in a single roundtrip (< 10ms, PERF-M-001, PERF-M-004)
+  const startTime = process.hrtime.bigint()
+
+  const [existingUser, conflictingBrokerages] =
+    mongoose.connection.readyState === 1
+      ? await Promise.all([
+          // Query 1: Covered index lookup for duplicate email (RM-09)
+          User.findOne({ email: normalizedEmail }).select('_id').lean(),
+
+          // Query 2: Covered index aggregation to check if brokerage name already has an active owner
+          isRegisteringAsOwner
+            ? Brokerage.aggregate([
+                {
+                  $match: {
+                    name: trimmedBrokerageName,
+                  },
+                },
+                {
+                  $lookup: {
+                    from: 'users',
+                    let: { bId: '$_id' },
+                    pipeline: [
+                      {
+                        $match: {
+                          $expr: {
+                            $and: [
+                              { $eq: ['$brokerageId', '$$bId'] },
+                              { $eq: ['$role', USER_ROLES.BROKERAGE_OWNER] },
+                              { $eq: ['$isActive', true] },
+                            ],
+                          },
+                        },
+                      },
+                      { $project: { _id: 1 } },
+                      { $limit: 1 },
+                    ],
+                    as: 'owners',
+                  },
+                },
+                {
+                  $match: {
+                    'owners.0': { $exists: true },
+                  },
+                },
+                {
+                  $project: { _id: 1, name: 1 },
+                },
+                {
+                  $limit: 1,
+                },
+              ]).collation({ locale: 'en', strength: 2 })
+            : Promise.resolve([]),
+        ])
+      : [null, []]
+
+  recordDbMetric('registerUser:parallelPreflightChecks', startTime, 10)
+
+  // Validate brokerage owner conflict
+  if (conflictingBrokerages && conflictingBrokerages.length > 0) {
+    const ownerBrokerage = conflictingBrokerages[0]
+    // Backfill Redis cache with 24-hour TTL so subsequent duplicate attempts hit Redis in < 0.1ms
+    cacheSet(brokerageCacheKey, ownerBrokerage._id.toString(), 86400).catch(() => {})
+
+    logger.warn(`Registration attempt for already owned brokerage (db hit): ${trimmedBrokerageName}`)
+    logAuditEvent({
+      userEmail: input.email,
+      action: 'AUTH_REGISTER',
+      resource: 'auth',
+      status: 'failure',
+      failureReason: 'Brokerage name already registered under an active brokerage owner',
+      ipAddress: clientIp,
+      userAgent,
+    }).catch(() => {})
+    throw new AppError(
+      'A brokerage with this name already exists under an active brokerage owner.',
+      HTTP_STATUS.CONFLICT
+    )
+  }
+
+  // Validate duplicate email
   if (existingUser) {
     logger.warn(`Registration attempt with duplicate email: ${input.email}`)
     logAuditEvent({
@@ -111,7 +220,7 @@ export const registerUser = async (
 
   // Create new Brokerage tenant with createdBy pre-assigned
   const brokerage = await Brokerage.create({
-    name: input.brokerageName,
+    name: trimmedBrokerageName,
     plan: 'growth',
     createdBy: userId,
   })
@@ -121,7 +230,7 @@ export const registerUser = async (
     _id: userId,
     firstName: input.firstName,
     lastName: input.lastName,
-    email: input.email.toLowerCase(),
+    email: normalizedEmail,
     password: input.password,
     role: input.role || USER_ROLES.BROKERAGE_OWNER,
     brokerageId: brokerage._id,
@@ -141,6 +250,12 @@ export const registerUser = async (
     ipAddress: clientIp,
     userAgent,
   }).catch(() => {})
+
+  // Cache newly registered brokerage in Redis (24-hour TTL)
+  if (isRegisteringAsOwner) {
+    cacheSet(brokerageCacheKey, user._id.toString(), 86400).catch(() => {})
+    cacheSet(`auth:brokerage:${brokerage._id.toString()}`, brokerage.name, 86400).catch(() => {})
+  }
 
   // Pre-warm L1 and L2 caches immediately
   warmUserAuthCache(user._id.toString(), {

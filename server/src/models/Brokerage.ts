@@ -95,5 +95,11 @@ const brokerageSchema = new Schema<IBrokerage>(
 // Index for rapid multi-tenant inbound webhook resolution
 brokerageSchema.index({ 'whatsappConfig.phoneNumberId': 1 }, { sparse: true })
 
+// Case-insensitive index on brokerage name to eliminate COLLSCAN during registration (PERF-M-001)
+brokerageSchema.index(
+  { name: 1 },
+  { collation: { locale: 'en', strength: 2 }, name: 'idx_brokerage_name_ci' }
+)
+
 export const Brokerage: Model<IBrokerage> =
   mongoose.models.Brokerage || mongoose.model<IBrokerage>('Brokerage', brokerageSchema)

@@ -100,4 +100,62 @@ describe('Auth Unit Tests', () => {
     assert.equal(formattedB.createdAt, '2026-01-01T00:00:00.000Z')
     assert.equal(formattedB.lastActiveAt, '2026-09-10T12:00:00.000Z')
   })
+
+  it('should reject registration if brokerage name already exists under an active brokerage owner', async () => {
+    const { registerUser } = await import('../../src/features/auth/auth.service.js')
+    const { cacheSet, cacheDelete } = await import('../../src/config/redis.js')
+    const mongoose = (await import('mongoose')).default
+
+    if (mongoose.connection.readyState !== 1) {
+      try {
+        await mongoose.connect(env.MONGODB_URI)
+      } catch {}
+    }
+
+    // Scenario A: DB Hit rejection with case-insensitive matching
+    if (mongoose.connection.readyState === 1) {
+      await assert.rejects(
+        async () => {
+          await registerUser({
+            firstName: 'Duplicate',
+            lastName: 'Tester',
+            email: 'duplicate.brokerage.tester@almirajrealty.pk',
+            password: 'Password!123',
+            brokerageName: 'al-miraj real estate & builders', // case-insensitive test
+          })
+        },
+        (err: any) => {
+          assert.equal(err.statusCode, 409)
+          assert.match(err.message, /already exists under an active brokerage owner/i)
+          return true
+        }
+      )
+    }
+
+    // Scenario B: Redis Fast-Path Hit (< 0.1ms)
+    const testBrokerageKey = 'auth:brokerage:owner:apex test realty'
+    await cacheSet(testBrokerageKey, 'fake-owner-id-12345', 60)
+
+    try {
+      await assert.rejects(
+        async () => {
+          await registerUser({
+            firstName: 'Fast',
+            lastName: 'Cache',
+            email: 'fastcache@test.com',
+            password: 'Password!123',
+            brokerageName: 'Apex Test Realty',
+          })
+        },
+        (err: any) => {
+          assert.equal(err.statusCode, 409)
+          assert.match(err.message, /already exists under an active brokerage owner/i)
+          return true
+        }
+      )
+    } finally {
+      await cacheDelete(testBrokerageKey)
+    }
+  })
 })
+

@@ -53,6 +53,7 @@ export const contactsApi = baseApi.injectEndpoints({
       query: (id) => `/contacts/${id}`,
       transformResponse: (response: ApiResponse<Contact>) => response.data,
       providesTags: (_result, _error, id) => [{ type: 'ContactDetail', id }],
+      keepUnusedDataFor: 300,
     }),
 
     createContact: builder.mutation<Contact, Partial<Contact>>({
@@ -72,7 +73,7 @@ export const contactsApi = baseApi.injectEndpoints({
         body: data,
       }),
       transformResponse: (response: ApiResponse<Contact>) => response.data,
-      invalidatesTags: (_result, _error, { id }) => ['Contacts', { type: 'ContactDetail', id }, 'DataHealth'],
+      invalidatesTags: (_result, _error, { id }) => ['Contacts', { type: 'ContactDetail', id }, { type: 'Activities', id }, 'DataHealth'],
     }),
 
     deleteContact: builder.mutation<{ success: boolean }, string>({
@@ -89,6 +90,21 @@ export const contactsApi = baseApi.injectEndpoints({
     getContactActivity: builder.query<ActivityItem[], string>({
       query: (contactId) => `/contacts/${contactId}/activities`,
       transformResponse: (response: ApiResponse<ActivityItem[]>) => response.data || [],
+      providesTags: (_result, _error, contactId) => [{ type: 'Activities', id: contactId }],
+      keepUnusedDataFor: 300,
+    }),
+
+    addContactNote: builder.mutation<ActivityItem, { contactId: string; note: string }>({
+      query: ({ contactId, note }) => ({
+        url: `/contacts/${contactId}/notes`,
+        method: 'POST',
+        body: { note },
+      }),
+      transformResponse: (response: ApiResponse<ActivityItem>) => response.data,
+      invalidatesTags: (_result, _error, { contactId }) => [
+        { type: 'ContactDetail', id: contactId },
+        { type: 'Activities', id: contactId },
+      ],
     }),
 
     getPortalInvite: builder.query<PortalCredentials, string>({
@@ -115,6 +131,7 @@ export const {
   useUpdateContactMutation,
   useDeleteContactMutation,
   useGetContactActivityQuery,
+  useAddContactNoteMutation,
   useGetPortalInviteQuery,
   useGeneratePortalInviteMutation,
 } = contactsApi

@@ -111,14 +111,14 @@ const userSchema = new Schema<IUser>(
   }
 )
 
-// Pre-save hook: Hash password with bcrypt cost factor 12
+// Pre-save hook: Hash password with bcrypt cost factor 10 (OWASP recommended balance for performance & security)
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password') || !this.password) {
     return next()
   }
 
   try {
-    const saltRounds = 12
+    const saltRounds = 10
     const salt = await bcrypt.genSalt(saltRounds)
     this.password = await bcrypt.hash(this.password, salt)
     next()

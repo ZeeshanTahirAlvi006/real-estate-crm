@@ -16,6 +16,7 @@ import { cacheGet, cacheSet, cacheDelete } from '../../config/redis.js'
 import { hashSha256, generateSecureToken } from '../../utils/cryptoHelper.js'
 import { logger } from '../../utils/logger.js'
 import { logAuditEvent } from '../../utils/auditLogger.js'
+import { invalidateUserAuthCache } from '../../middleware/authenticate.js'
 
 // Format user document into safe client response DTO
 export const formatUserResponse = (user: IUser, brokerageName?: string): UserResponseDto => {
@@ -188,8 +189,11 @@ export const loginUser = async (
 
 // Invalidate user session on logout
 export const logoutUser = async (user: IUser, clientIp: string = '127.0.0.1', userAgent: string = 'browser'): Promise<void> => {
-  user.tokenVersion += 1
-  await user.save()
+  const userId = user._id ? user._id.toString() : (user as any).id
+  if (userId) {
+    await User.findByIdAndUpdate(userId, { $inc: { tokenVersion: 1 } })
+    invalidateUserAuthCache(userId)
+  }
 
   await logAuditEvent({
     userId: user._id,
@@ -198,7 +202,7 @@ export const logoutUser = async (user: IUser, clientIp: string = '127.0.0.1', us
     brokerageId: user.brokerageId,
     action: 'AUTH_LOGOUT',
     resource: 'auth',
-    resourceId: user._id.toString(),
+    resourceId: user._id ? user._id.toString() : undefined,
     status: 'success',
     ipAddress: clientIp,
     userAgent,

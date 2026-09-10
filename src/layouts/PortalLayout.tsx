@@ -38,7 +38,7 @@ export function PortalLayout() {
     }
     dispatch(logout())
     dispatch(baseApi.util.resetApiState())
-    navigate('/login')
+    navigate('/login', { replace: true })
   }
 
   const initials = user

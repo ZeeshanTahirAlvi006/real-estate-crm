@@ -93,7 +93,7 @@ export function Sidebar() {
     dispatch(logout())
     dispatch(baseApi.util.resetApiState())
     dispatch(setSidebarDrawerOpen(false))
-    navigate('/login')
+    navigate('/login', { replace: true })
   }
 
   const initials = user

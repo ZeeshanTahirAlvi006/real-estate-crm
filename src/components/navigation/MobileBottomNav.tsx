@@ -27,7 +27,7 @@ export function MobileBottomNav() {
     dispatch(logout())
     dispatch(baseApi.util.resetApiState())
     setMoreOpen(false)
-    navigate('/login')
+    navigate('/login', { replace: true })
   }
 
   const rolePermissions = user?.role ? ROLE_PERMISSIONS[user.role] : undefined

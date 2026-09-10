@@ -5,8 +5,8 @@ import { logger } from '../utils/logger.js'
 // MongoDB connection options
 const mongooseOptions: mongoose.ConnectOptions = {
   autoIndex: env.NODE_ENV !== 'production',
-  maxPoolSize: 20,
-  minPoolSize: 5,
+  maxPoolSize: 100,
+  minPoolSize: 10,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
 }

@@ -1,15 +1,29 @@
 import { Redis } from 'ioredis'
 import { env } from './env.js'
 import { logger } from '../utils/logger.js'
+import { BoundedLruCache } from '../utils/lruCache.js'
 
-// In-memory fallback map when Redis is unreachable
-const inMemoryCache = new Map<string, { value: string; expiry: number }>()
+// In-memory fallback LRU cache (capped at 5,000 keys) when Redis is unreachable
+const inMemoryCache = new BoundedLruCache<string>(5000, 300)
 
 let redisClient: Redis | null = null
 let isRedisConnected = false
 
 // Initialize Redis client with automatic fallback
 export const initRedis = (): void => {
+  // In development, avoid remote cloud Redis network latency (80ms+ ping over public internet).
+  // Uses built-in in-memory fallback unless explicitly overridden with FORCE_REMOTE_REDIS_DEV=true.
+  if (
+    env.NODE_ENV !== 'production' &&
+    env.REDIS_URL.includes('upstash.io') &&
+    process.env.FORCE_REMOTE_REDIS_DEV !== 'true'
+  ) {
+    logger.info('Development environment with remote Upstash detected. Using in-memory fallback for low latency.')
+    isRedisConnected = false
+    redisClient = null
+    return
+  }
+
   try {
     redisClient = new Redis(env.REDIS_URL, {
       maxRetriesPerRequest: 1,
@@ -48,13 +62,7 @@ export const cacheGet = async (key: string): Promise<string | null> => {
       // Fallback to in-memory on failure
     }
   }
-  const item = inMemoryCache.get(key)
-  if (!item) return null
-  if (Date.now() > item.expiry) {
-    inMemoryCache.delete(key)
-    return null
-  }
-  return item.value
+  return inMemoryCache.get(key)
 }
 
 // Unified Cache Set Operation with TTL (seconds)
@@ -67,7 +75,7 @@ export const cacheSet = async (key: string, value: string, ttlSeconds: number = 
       // Fallback to in-memory on failure
     }
   }
-  inMemoryCache.set(key, { value, expiry: Date.now() + ttlSeconds * 1000 })
+  inMemoryCache.set(key, value, ttlSeconds)
 }
 
 // Unified Cache Delete Operation

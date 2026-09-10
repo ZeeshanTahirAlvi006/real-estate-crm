@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ export function SharePortalModal({
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [credentials, setCredentials] = useState<PortalCredentials | null>(initialCredentials || null)
   const [generateInvite, { isLoading }] = useGeneratePortalInviteMutation()
+  const navigate = useNavigate()
 
   React.useEffect(() => {
     if (initialCredentials) {
@@ -71,8 +73,8 @@ Temporary Password: ${tempPassword}`
       toast.error('Contact does not have a phone number')
       return
     }
-    window.open(shareUrl, '_blank')
-    toast.success('Opening WhatsApp')
+    onOpenChange(false)
+    navigate(`/inbox?contactId=${contact.id}&channel=whatsapp&prefillText=${encodeURIComponent(inviteMessage)}`)
   }
 
   return (
@@ -176,7 +178,7 @@ Temporary Password: ${tempPassword}`
               disabled={isLoading || !cleanPhone}
             >
               <MaterialIcon name="send" size={16} />
-              <span>{cleanPhone ? 'Open WhatsApp & Send' : 'No Phone Available'}</span>
+              <span>{cleanPhone ? 'Open in App Inbox' : 'No Phone Available'}</span>
             </button>
 
             <div className="flex justify-end pt-1">

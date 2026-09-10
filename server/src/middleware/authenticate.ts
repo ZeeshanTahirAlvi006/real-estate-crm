@@ -16,6 +16,15 @@ declare global {
 }
 
 import mongoose from 'mongoose'
+import { BoundedLruCache } from '../utils/lruCache.js'
+
+// Short-lived session LRU cache (10s TTL, max 1,000 users) to avoid repeating User.findById queries
+const userAuthCache = new BoundedLruCache<any>(1000, 10)
+
+// Invalidate user auth cache on logout or credential changes
+export const invalidateUserAuthCache = (userId: string): void => {
+  userAuthCache.delete(userId)
+}
 
 // Multi-layer JWT Cookie & Bearer Authentication Middleware
 export const authenticate = async (
@@ -33,10 +42,27 @@ export const authenticate = async (
     try {
       const decoded = verifyAccessToken(accessToken)
 
+      // Check short-lived cache first (must match tokenVersion)
+      const cachedUser = userAuthCache.get(decoded.userId)
+      if (
+        cachedUser &&
+        cachedUser.isActive &&
+        cachedUser.tokenVersion === (decoded.tokenVersion || 0)
+      ) {
+        req.user = cachedUser
+        req.tokenPayload = decoded
+        return next()
+      }
+
       if (mongoose.connection.readyState === 1) {
-        const user = await User.findById(decoded.userId)
-        if (user && user.isActive) {
-          req.user = user
+        const user = await User.findById(decoded.userId).lean()
+        if (
+          user &&
+          user.isActive &&
+          user.tokenVersion === (decoded.tokenVersion || 0)
+        ) {
+          userAuthCache.set(decoded.userId, user, 10)
+          req.user = user as any
           req.tokenPayload = decoded
           return next()
         }

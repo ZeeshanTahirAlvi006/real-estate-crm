@@ -67,6 +67,22 @@ export const WhatsAppChatView: React.FC<WhatsAppChatViewProps> = ({
     }
   }, [searchParams, setSearchParams, conversation.id, conversation.contactName, cleanPhone])
 
+  // When prefillText is present in query parameters, prefill the input box
+  useEffect(() => {
+    const prefill = searchParams.get('prefillText')
+    if (prefill) {
+      setInputText(prefill)
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          next.delete('prefillText')
+          return next
+        },
+        { replace: true }
+      )
+    }
+  }, [searchParams, setSearchParams])
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])

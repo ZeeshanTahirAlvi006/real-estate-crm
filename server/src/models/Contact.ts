@@ -77,7 +77,10 @@ const contactSchema = new Schema<IContact>(
       type: String,
       trim: true,
       lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address'],
+      validate: {
+        validator: (v: string) => !v || /^\S+@\S+\.\S+$/.test(v),
+        message: 'Please enter a valid email address',
+      },
       default: '',
     },
     phone: {
@@ -238,6 +241,11 @@ contactSchema.index({ brokerageId: 1, phone: 1, isDeleted: 1 })
 contactSchema.index({ brokerageId: 1, assignedAgentId: 1, isDeleted: 1 })
 contactSchema.index({ brokerageId: 1, status: 1, isDeleted: 1 })
 contactSchema.index({ brokerageId: 1, nextFollowUpDate: 1 })
+contactSchema.index({ brokerageId: 1, isDeleted: 1 })
+contactSchema.index({ brokerageId: 1, isDeleted: 1, createdAt: -1 })
+contactSchema.index({ brokerageId: 1, assignedAgentId: 1, isDeleted: 1, createdAt: -1 })
+contactSchema.index({ isDeleted: 1, createdAt: -1 })
+contactSchema.index({ isDeleted: 1, status: 1, createdAt: -1 })
 
 export const Contact: Model<IContact> =
   mongoose.models.Contact || mongoose.model<IContact>('Contact', contactSchema)

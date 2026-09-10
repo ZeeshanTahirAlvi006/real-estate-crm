@@ -12,6 +12,7 @@ import { setAuthCookies, clearAuthCookies } from '../../utils/cookieHelper.js'
 import { sendSuccess, sendError } from '../../utils/apiResponse.js'
 import { HTTP_STATUS } from '../../utils/constants.js'
 import { Brokerage } from '../../models/Brokerage.js'
+import { logger } from '../../utils/logger.js'
 
 // Helper to extract IP and user-agent
 const getClientMeta = (req: Request) => ({
@@ -44,16 +45,17 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 }
 
 // POST /api/auth/logout
-export const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const logout = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
   try {
     const { clientIp, userAgent } = getClientMeta(req)
     if (req.user) {
       await logoutUser(req.user, clientIp, userAgent)
     }
+  } catch (error) {
+    logger.error('Error during logout session invalidation:', error)
+  } finally {
     clearAuthCookies(res)
     sendSuccess(res, null, 'Logged out successfully', HTTP_STATUS.OK)
-  } catch (error) {
-    next(error)
   }
 }
 

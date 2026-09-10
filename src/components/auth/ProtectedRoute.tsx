@@ -18,9 +18,9 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
   const location = useLocation()
   const { isAuthenticated, isInitialized, user } = useAppSelector((state) => state.auth)
 
-  // On mount / page refresh, validate session via GET /api/auth/me
-  const { data, isLoading, isError, isSuccess, error } = useGetMeQuery(undefined, {
-    skip: isAuthenticated && isInitialized,
+  // On mount / page refresh, validate session via GET /api/auth/me only before initialization
+  const { data, isError, isSuccess, error } = useGetMeQuery(undefined, {
+    skip: isInitialized,
   })
 
   // Sync getMe result into auth slice
@@ -42,8 +42,8 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
     }
   }, [isInitialized, dispatch])
 
-  // Show loading splash while checking session
-  if (!isInitialized || (isLoading && !isAuthenticated)) {
+  // Show loading splash while initial session check is in-flight
+  if (!isInitialized) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">

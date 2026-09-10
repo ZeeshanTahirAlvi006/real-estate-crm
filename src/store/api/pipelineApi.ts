@@ -185,6 +185,7 @@ export const pipelineApi = baseApi.injectEndpoints({
         method: 'POST',
         body,
       }),
+      transformResponse: (response: ApiResponse<Deal>) => response.data,
       invalidatesTags: ['Deals', 'Pipeline', 'Contacts', 'ContactDetail'],
     }),
 
@@ -194,6 +195,7 @@ export const pipelineApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: data,
       }),
+      transformResponse: (response: ApiResponse<Deal>) => response.data,
       invalidatesTags: ['Deals', 'Pipeline'],
     }),
 
@@ -203,6 +205,7 @@ export const pipelineApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: { stageId },
       }),
+      transformResponse: (response: ApiResponse<Deal>) => response.data,
       invalidatesTags: ['Deals', 'Pipeline', 'Contacts', 'ContactDetail'],
     }),
 
@@ -211,6 +214,7 @@ export const pipelineApi = baseApi.injectEndpoints({
         url: `/deals/${id}`,
         method: 'DELETE',
       }),
+      transformResponse: (response: ApiResponse<{ success: boolean }>) => response.data,
       invalidatesTags: ['Deals', 'Pipeline'],
     }),
 

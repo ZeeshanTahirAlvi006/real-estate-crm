@@ -78,6 +78,23 @@ export const cacheSet = async (key: string, value: string, ttlSeconds: number = 
   inMemoryCache.set(key, value, ttlSeconds)
 }
 
+// Atomic Cache Set if Not Exists (Mutex Lock for SWR / Anti-Thundering-Herd)
+export const cacheSetNx = async (key: string, value: string, ttlSeconds: number = 10): Promise<boolean> => {
+  if (isRedisConnected && redisClient) {
+    try {
+      const res = await redisClient.set(key, value, 'EX', ttlSeconds, 'NX')
+      return res === 'OK'
+    } catch {
+      // Fallback to in-memory on failure
+    }
+  }
+  if (inMemoryCache.has(key)) {
+    return false
+  }
+  inMemoryCache.set(key, value, ttlSeconds)
+  return true
+}
+
 // Unified Cache Delete Operation
 export const cacheDelete = async (key: string): Promise<void> => {
   if (isRedisConnected && redisClient) {

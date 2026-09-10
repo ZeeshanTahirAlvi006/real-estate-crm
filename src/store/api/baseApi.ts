@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query'
-import { logout, setInitialized } from '../slices/authSlice'
+import { logout, setCredentials, setInitialized, STORAGE_KEY_TOKEN, STORAGE_KEY_REFRESH } from '../slices/authSlice'
 
 // Base API configuration — connects to real backend using single API_URL
 const rawApiUrl = import.meta.env.API_URL || ''
@@ -17,14 +17,27 @@ function getCookie(name: string): string | null {
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
-  credentials: 'include', // sends httpOnly cookies with every request
+  credentials: 'include', // sends httpOnly cookies when supported
   timeout: 8000, // 8 second timeout to prevent indefinite pending states
-  prepareHeaders: (headers) => {
+  prepareHeaders: (headers, { getState }) => {
     // Don't override Content-Type for FormData (file uploads)
     if (!headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json')
     }
     headers.set('X-Requested-With', 'XMLHttpRequest')
+
+    // Attach Bearer token for cross-origin deployments (Vercel + Render)
+    const state = getState() as any
+    let token = state?.auth?.token
+    if (!token && typeof window !== 'undefined') {
+      try {
+        token = localStorage.getItem(STORAGE_KEY_TOKEN)
+      } catch {}
+    }
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+
     // Attach CSRF protection header from XSRF-TOKEN cookie
     const xsrfToken = getCookie('XSRF-TOKEN')
     if (xsrfToken) {
@@ -41,15 +54,63 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
   api,
   extraOptions
 ) => {
-  const result = await rawBaseQuery(args, api, extraOptions)
+  let result = await rawBaseQuery(args, api, extraOptions)
 
   if (result.error) {
     if (result.error.status === 401) {
-      // Session expired or unauthenticated — update auth state without wiping query cache in an infinite cascade
-      api.dispatch(logout())
-      api.dispatch(setInitialized())
+      // Avoid infinite loop on auth endpoints
+      const urlStr = typeof args === 'string' ? args : args.url
+      const isAuthPath = urlStr?.includes('/auth/login') || urlStr?.includes('/auth/refresh-token')
+
+      if (!isAuthPath) {
+        let refreshToken: string | null = null
+        if (typeof window !== 'undefined') {
+          try {
+            refreshToken = localStorage.getItem(STORAGE_KEY_REFRESH)
+          } catch {}
+        }
+
+        // Attempt silent token refresh
+        const refreshResult = await rawBaseQuery(
+          {
+            url: '/auth/refresh-token',
+            method: 'POST',
+            body: { refreshToken: refreshToken || undefined },
+          },
+          api,
+          extraOptions
+        )
+
+        if (refreshResult.data) {
+          const resData = (refreshResult.data as any).data || refreshResult.data
+          const newAccessToken = resData.token || resData.accessToken
+          const newRefreshToken = resData.refreshToken
+          const user = resData.user || resData
+
+          if (newAccessToken && user) {
+            api.dispatch(
+              setCredentials({
+                user,
+                token: newAccessToken,
+                refreshToken: newRefreshToken,
+              })
+            )
+            // Retry the original query with the refreshed token
+            result = await rawBaseQuery(args, api, extraOptions)
+          } else {
+            api.dispatch(logout())
+            api.dispatch(setInitialized())
+          }
+        } else {
+          api.dispatch(logout())
+          api.dispatch(setInitialized())
+        }
+      } else {
+        api.dispatch(logout())
+        api.dispatch(setInitialized())
+      }
     } else {
-      // Network error or server offline — mark session check initialized so UI doesn't hang
+      // Mark session check initialized so UI does not hang
       api.dispatch(setInitialized())
     }
   }

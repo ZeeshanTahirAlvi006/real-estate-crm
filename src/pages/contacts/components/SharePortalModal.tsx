@@ -59,7 +59,6 @@ Email: ${loginEmail}
 Temporary Password: ${tempPassword}`
 
   const inviteMessage = credentials?.whatsappInviteMessage || defaultInviteMessage
-  const shareUrl = credentials?.whatsappShareUrl || `https://wa.me/${cleanPhone}?text=${encodeURIComponent(inviteMessage)}`
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text)

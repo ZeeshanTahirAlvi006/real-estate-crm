@@ -21,13 +21,12 @@ export const corsOptions: cors.CorsOptions = {
 
     const cleanOrigin = origin.replace(/\/$/, '')
 
-    // 2. Only allow your project's specific Vercel preview deployments
-    const isYourVercelPreview =
-      /^https:\/\/[a-z0-9-]+-codewithgoostyhumans-projects\.vercel\.app$/.test(cleanOrigin)
+    // 2. Allow any Vercel production or preview deployment
+    const isVercelOrigin = /^https:\/\/[a-z0-9-.]+\.vercel\.app$/.test(cleanOrigin)
 
     if (
       allowedOrigins.has(cleanOrigin) ||
-      isYourVercelPreview ||
+      isVercelOrigin ||
       (env.NODE_ENV !== 'production' && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin))
     ) {
       callback(null, true)
@@ -46,8 +45,10 @@ export const corsOptions: cors.CorsOptions = {
     'X-CSRF-Token',
     'x-xsrf-token',
     'x-csrf-token',
+    'X-Refresh-Token',
+    'x-refresh-token',
   ],
-  exposedHeaders: ['Set-Cookie', 'X-XSRF-Token', 'X-CSRF-Token'],
+  exposedHeaders: ['Set-Cookie', 'X-XSRF-Token', 'X-CSRF-Token', 'Authorization', 'X-Refresh-Token'],
   maxAge: 86400, // Cache preflight response for 24 hours
 }
 

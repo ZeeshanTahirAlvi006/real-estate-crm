@@ -23,7 +23,7 @@ interface SocketProviderProps {
 export function SocketProvider({ children }: SocketProviderProps) {
   const socketRef = useRef<Socket | null>(null)
   const dispatch = useAppDispatch()
-  const { isAuthenticated, user } = useAppSelector((state) => state.auth)
+  const { isAuthenticated, user, token } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -39,7 +39,18 @@ export function SocketProvider({ children }: SocketProviderProps) {
       ? apiUrl.replace(/\/api\/?$/, '')
       : 'https://proppulseoscrm.onrender.com'
 
+    // Retrieve active token for WebSocket authentication (bypasses cross-origin cookie restrictions)
+    let authToken = token
+    if (!authToken && typeof window !== 'undefined') {
+      try {
+        authToken = localStorage.getItem('proppulse_access_token')
+      } catch { }
+    }
+
     const socket = io(socketUrl, {
+      auth: {
+        token: authToken || undefined,
+      },
       withCredentials: true,
       transports: ['websocket', 'polling'],
       autoConnect: true,
@@ -125,7 +136,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [isAuthenticated, user, dispatch])
+  }, [isAuthenticated, user?.id, token, dispatch])
 
   return (
     <SocketContext.Provider

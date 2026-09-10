@@ -43,4 +43,61 @@ describe('Auth Unit Tests', () => {
       jwt.verify(token, env.JWT_ACCESS_SECRET)
     }, /invalid signature/)
   })
+
+  it('should sign and verify valid JWT refresh tokens', () => {
+    const payload = {
+      userId: '507f1f77bcf86cd799439011',
+      email: 'owner@almiraj.com',
+      role: 'brokerage_owner',
+      brokerageId: '507f1f77bcf86cd799439012',
+      tokenVersion: 1,
+    }
+
+    const token = jwt.sign(payload, env.JWT_REFRESH_SECRET, { expiresIn: '7d' })
+    assert.ok(token)
+
+    const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET) as typeof payload
+    assert.equal(decoded.userId, payload.userId)
+    assert.equal(decoded.email, payload.email)
+    assert.equal(decoded.tokenVersion, 1)
+  })
+
+  it('should safely format user responses with date objects or strings without crashing', async () => {
+    const { formatUserResponse } = await import('../../src/features/auth/auth.service.js')
+
+    // Scenario A: Standard Mongoose Date instances
+    const userWithDates = {
+      _id: '507f1f77bcf86cd799439011',
+      firstName: 'Al',
+      lastName: 'Miraj',
+      email: 'owner@almiraj.com',
+      role: 'brokerage_owner',
+      brokerageId: '507f1f77bcf86cd799439012',
+      isActive: true,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      lastActiveAt: new Date('2026-09-10T12:00:00.000Z'),
+    }
+
+    const formattedA = formatUserResponse(userWithDates, 'Al-Miraj Realty')
+    assert.equal(formattedA.createdAt, '2026-01-01T00:00:00.000Z')
+    assert.equal(formattedA.lastActiveAt, '2026-09-10T12:00:00.000Z')
+    assert.equal(formattedA.brokerageName, 'Al-Miraj Realty')
+
+    // Scenario B: Redis / JSON deserialized pre-formatted string dates
+    const userWithStrings = {
+      _id: '507f1f77bcf86cd799439011',
+      firstName: 'Al',
+      lastName: 'Miraj',
+      email: 'owner@almiraj.com',
+      role: 'brokerage_owner',
+      brokerageId: '507f1f77bcf86cd799439012',
+      isActive: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      lastActiveAt: '2026-09-10T12:00:00.000Z',
+    }
+
+    const formattedB = formatUserResponse(userWithStrings)
+    assert.equal(formattedB.createdAt, '2026-01-01T00:00:00.000Z')
+    assert.equal(formattedB.lastActiveAt, '2026-09-10T12:00:00.000Z')
+  })
 })

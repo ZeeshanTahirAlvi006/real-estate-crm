@@ -3,13 +3,27 @@ import { env } from '../config/env.js'
 import { COOKIE_NAMES } from './constants.js'
 
 // Base security cookie options
-const getBaseCookieOptions = (): CookieOptions => ({
-  httpOnly: true, // Prevents access from JavaScript (blocks XSS token theft)
-  secure: env.NODE_ENV === 'production' || env.COOKIE_SECURE, // HTTPS only in prod
-  sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax', // CSRF mitigation
-  domain: env.COOKIE_DOMAIN && env.NODE_ENV === 'production' ? env.COOKIE_DOMAIN : undefined,
-  path: '/',
-})
+const getBaseCookieOptions = (): CookieOptions => {
+  const isProd = env.NODE_ENV === 'production'
+  const isSecure = isProd || env.COOKIE_SECURE
+  // In cross-origin setups (Vercel + Render), domain should only be set if explicitly configured and not localhost
+  const validDomain =
+    env.COOKIE_DOMAIN &&
+    env.COOKIE_DOMAIN !== 'localhost' &&
+    !env.COOKIE_DOMAIN.startsWith('http') &&
+    isProd
+      ? env.COOKIE_DOMAIN
+      : undefined
+
+  return {
+    httpOnly: true, // Prevents access from JavaScript (blocks XSS token theft)
+    secure: isSecure, // HTTPS required for sameSite: 'none'
+    sameSite: isSecure ? 'none' : 'lax', // Required for cross-origin cookie transmission
+    domain: validDomain,
+    path: '/',
+    ...((isSecure ? { partitioned: true } : {}) as any), // Modern browser CHIPS partitioned cookie support
+  }
+}
 
 // Set Authentication Cookies (Access & Refresh Tokens)
 export const setAuthCookies = (

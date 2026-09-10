@@ -237,6 +237,7 @@ export const listContacts = async (
     const sortField = query.sortBy || 'createdAt'
     const projection = 'firstName lastName email phone secondaryPhone address city state zipCode leadSource leadScore tags status assignedAgentId notes propertyInterests socialLinks portalUserId portalEnabled portalAccessEmail createdAt updatedAt lastContactedAt'
 
+    const tDb = process.hrtime.bigint()
     let contacts: any[]
     let total: number
 
@@ -266,6 +267,8 @@ export const listContacts = async (
       contacts = c
       total = t
     }
+    const dbMs = Number(process.hrtime.bigint() - tDb) / 1e6
+    logger.info(`[listContacts:dbQuery] Completed in ${dbMs.toFixed(3)}ms (count: ${contacts.length}, total: ${total})`)
 
     const agentIds = Array.from(new Set(contacts.map((c: any) => c.assignedAgentId?.toString()).filter(Boolean))) as string[]
     const agentMap = await resolveAgentNames(agentIds)
@@ -294,23 +297,36 @@ const buildDuplicateQueries = (
   firstName?: string,
   lastName?: string
 ): Record<string, any>[] => {
-  const startTime = Date.now()
-  logger.info('[contact.service.ts:158] [buildDuplicateQueries] Started')
+  const t0 = process.hrtime.bigint()
+  logger.info('[contact.service.ts:294] [buildDuplicateQueries] Started')
   const queries: Record<string, any>[] = []
   if (email && email.trim()) queries.push({ email: email.trim().toLowerCase() })
   if (phone && phone.trim()) {
     const raw = phone.trim()
     const digitsOnly = raw.replace(/\D/g, '')
-    queries.push({ phone: raw })
-    if (digitsOnly.length >= 7) queries.push({ phone: new RegExp(digitsOnly.slice(-10)) })
+    const phoneCandidates = Array.from(
+      new Set(
+        [
+          raw,
+          digitsOnly,
+          digitsOnly.length >= 10 ? digitsOnly.slice(-10) : null,
+          digitsOnly.length === 10 ? `+1${digitsOnly}` : null,
+          digitsOnly.length === 11 && digitsOnly.startsWith('1') ? `+${digitsOnly}` : null,
+        ].filter(Boolean) as string[]
+      )
+    )
+    queries.push({ phone: { $in: phoneCandidates } })
   }
   if (firstName && lastName && firstName.trim() && lastName.trim()) {
+    const fTrim = firstName.trim()
+    const lTrim = lastName.trim()
     queries.push({
-      firstName: new RegExp(`^${escapeRegExp(firstName.trim())}$`, 'i'),
-      lastName: new RegExp(`^${escapeRegExp(lastName.trim())}$`, 'i'),
+      firstName: new RegExp(`^${escapeRegExp(fTrim)}$`, 'i'),
+      lastName: new RegExp(`^${escapeRegExp(lTrim)}$`, 'i'),
     })
   }
-  logger.info(`[contact.service.ts:173] [buildDuplicateQueries] Completed in ${Date.now() - startTime}ms`)
+  const elapsedMs = Number(process.hrtime.bigint() - t0) / 1e6
+  logger.info(`[contact.service.ts:316] [buildDuplicateQueries] Completed in ${elapsedMs.toFixed(3)}ms`)
   return queries
 }
 
@@ -329,7 +345,7 @@ const throwDuplicateContactError = (
     matchField = `email (${email})`
   } else if (phone && (existing.phone === phone || (existing.phone && existing.phone.replace(/\D/g, '') === phone.replace(/\D/g, '')))) {
     matchField = `phone (${phone})`
-  } else if (firstName && lastName && existing.firstName.toLowerCase() === firstName.trim().toLowerCase() && existing.lastName.toLowerCase() === lastName.trim().toLowerCase()) {
+  } else if (firstName && lastName && existing.firstName?.toLowerCase() === firstName.trim().toLowerCase() && existing.lastName?.toLowerCase() === lastName.trim().toLowerCase()) {
     matchField = `name (${existing.firstName} ${existing.lastName})`
   }
   logger.info(`[contact.service.ts:195] [throwDuplicateContactError] Completed in ${Date.now() - startTime}ms`)
@@ -348,17 +364,23 @@ const checkDuplicateContact = async (
   firstName?: string,
   lastName?: string
 ): Promise<void> => {
-  const startTime = Date.now()
-  logger.info('[contact.service.ts:212] [checkDuplicateContact] Started')
+  const t0 = process.hrtime.bigint()
+  logger.info('[contact.service.ts:347] [checkDuplicateContact] Started')
   try {
     const duplicateQuery = buildDuplicateQueries(email, phone, firstName, lastName)
     if (duplicateQuery.length === 0) return
+    const tQuery = process.hrtime.bigint()
     const existing = await Contact.findOne({ brokerageId, isDeleted: false, $or: duplicateQuery })
+      .select('_id firstName lastName email phone')
+      .lean()
+    const queryMs = Number(process.hrtime.bigint() - tQuery) / 1e6
+    logger.info(`[checkDuplicateContact:dbFind] Completed in ${queryMs.toFixed(3)}ms`)
     if (existing) {
       throwDuplicateContactError(existing, email, phone, firstName, lastName)
     }
   } finally {
-    logger.info(`[contact.service.ts:221] [checkDuplicateContact] Completed in ${Date.now() - startTime}ms`)
+    const elapsedMs = Number(process.hrtime.bigint() - t0) / 1e6
+    logger.info(`[contact.service.ts:364] [checkDuplicateContact] Completed in ${elapsedMs.toFixed(3)}ms`)
   }
 }
 
@@ -552,8 +574,8 @@ export const createContact = async (
   clientIp: string = '127.0.0.1',
   userAgent: string = 'browser'
 ): Promise<ContactResponseDto> => {
-  const startTime = Date.now()
-  logger.info('[contact.service.ts:369] [createContact] Started')
+  const t0 = process.hrtime.bigint()
+  logger.info('[contact.service.ts:571] [createContact] Started')
   try {
     const brokerageId = caller.brokerageId
     await checkDuplicateContact(brokerageId, input.email, input.phone, input.firstName, input.lastName)
@@ -565,22 +587,34 @@ export const createContact = async (
       assignedAgentId = caller._id
     }
 
+    // 1. Explicitly timed DB Write span (PERF-M-004)
+    const tWrite = process.hrtime.bigint()
     const contact = await Contact.create({ ...input, brokerageId, assignedAgentId })
-    await logContactCreation(contact, caller, clientIp, userAgent)
+    const writeMs = Number(process.hrtime.bigint() - tWrite) / 1e6
+    logger.info(`[createContact:insertContactRecord] Completed in ${writeMs.toFixed(3)}ms`)
+
+    // 2. Synchronously clear in-memory L1 cache (< 0.01ms)
     contactsL1Cache.clear()
-    await invalidateTenantFeatureCache(brokerageId.toString(), 'contacts')
 
-    let credentials: PortalCredentials | undefined
-    try {
-      credentials = await provisionLeadPortalUser(contact, caller)
-    } catch {
-      // Non-blocking portal provisioning fallback
-    }
+    // 3. Offload all secondary side-effects (Audit log, Redis invalidation, Portal provisioning) to background
+    setImmediate(async () => {
+      try {
+        await Promise.allSettled([
+          logContactCreation(contact, caller, clientIp, userAgent),
+          invalidateTenantFeatureCache(brokerageId.toString(), 'contacts'),
+          provisionLeadPortalUser(contact, caller),
+        ])
+      } catch (err) {
+        logger.error('[createContact:backgroundTasks] Error in background execution:', err)
+      }
+    })
 
+    // 4. Return contact immediately to client without blocking on background tasks
     const agentName = caller.role === USER_ROLES.AGENT ? `${caller.firstName} ${caller.lastName}` : undefined
-    return formatContactDto(contact, agentName, credentials)
+    return formatContactDto(contact, agentName)
   } finally {
-    logger.info(`[contact.service.ts:395] [createContact] Completed in ${Date.now() - startTime}ms`)
+    const totalElapsedMs = Number(process.hrtime.bigint() - t0) / 1e6
+    logger.info(`[contact.service.ts:605] [createContact] Total critical path completed in ${totalElapsedMs.toFixed(3)}ms`)
   }
 }
 

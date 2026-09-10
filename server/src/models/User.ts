@@ -96,6 +96,7 @@ const userSchema = new Schema<IUser>(
     passwordResetToken: {
       type: String,
       select: false,
+      index: { sparse: true },
     },
     passwordResetExpires: {
       type: Date,
@@ -110,6 +111,12 @@ const userSchema = new Schema<IUser>(
     timestamps: true,
   }
 )
+
+// Covering indexes for high-throughput authentication & tenant queries (PERF-M-001)
+userSchema.index({ email: 1, isActive: 1 })
+userSchema.index({ _id: 1, tokenVersion: 1, isActive: 1 })
+userSchema.index({ brokerageId: 1, isActive: 1 })
+userSchema.index({ brokerageId: 1, role: 1, isActive: 1 })
 
 // Pre-save hook: Hash password with bcrypt cost factor 10 (OWASP recommended balance for performance & security)
 userSchema.pre('save', async function (next) {

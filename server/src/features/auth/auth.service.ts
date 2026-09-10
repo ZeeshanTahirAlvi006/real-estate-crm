@@ -1,4 +1,5 @@
-import { User, IUser } from '../../models/User.js'
+import mongoose from 'mongoose'
+import { User } from '../../models/User.js'
 import { Brokerage } from '../../models/Brokerage.js'
 import {
   RegisterInput,
@@ -9,43 +10,56 @@ import {
   AuthResultDto,
   UserResponseDto,
 } from './auth.types.js'
-import { signAccessToken, signRefreshToken, TokenPayload } from '../../utils/tokenHelper.js'
+import { signAccessToken, signRefreshToken, verifyRefreshToken, TokenPayload } from '../../utils/tokenHelper.js'
 import { AppError } from '../../middleware/errorHandler.js'
 import { GENERIC_AUTH_MESSAGES, HTTP_STATUS, USER_ROLES } from '../../utils/constants.js'
 import { cacheGet, cacheSet, cacheDelete } from '../../config/redis.js'
 import { hashSha256, generateSecureToken } from '../../utils/cryptoHelper.js'
 import { logger } from '../../utils/logger.js'
 import { logAuditEvent } from '../../utils/auditLogger.js'
-import { invalidateUserAuthCache } from '../../middleware/authenticate.js'
+import { invalidateUserAuthCache, warmUserAuthCache } from '../../middleware/authenticate.js'
+import { recordDbMetric } from '../../utils/cacheHelper.js'
+
+// Resilient date conversion helper to prevent TypeError on serialized cache objects (RM-12)
+const toIsoString = (d: any): string | undefined => {
+  if (!d) return undefined
+  if (d instanceof Date) return d.toISOString()
+  if (typeof d === 'string') return d
+  return undefined
+}
 
 // Format user document into safe client response DTO
-export const formatUserResponse = (user: IUser, brokerageName?: string): UserResponseDto => {
+export const formatUserResponse = (user: any, brokerageName?: string): UserResponseDto => {
+  const userId = user._id ? user._id.toString() : (user.id ? String(user.id) : '')
+  const brokerageId = user.brokerageId ? user.brokerageId.toString() : ''
   return {
-    id: user._id.toString(),
+    id: userId,
     firstName: user.firstName,
     lastName: user.lastName,
     email: user.email,
     role: user.role,
-    brokerageId: user.brokerageId.toString(),
-    brokerageName,
+    brokerageId,
+    brokerageName: brokerageName || user.brokerageName,
     phone: user.phone,
     avatarUrl: user.avatarUrl,
     timezone: user.timezone,
-    isActive: user.isActive,
+    isActive: user.isActive ?? true,
     mustChangePassword: user.mustChangePassword ?? false,
-    createdAt: user.createdAt.toISOString(),
-    lastActiveAt: user.lastActiveAt?.toISOString(),
+    createdAt: toIsoString(user.createdAt) || new Date().toISOString(),
+    lastActiveAt: toIsoString(user.lastActiveAt),
   }
 }
 
 // Generate token pair and payload from user
-const generateUserTokens = (user: IUser): { accessToken: string; refreshToken: string } => {
+export const generateUserTokens = (user: any): { accessToken: string; refreshToken: string } => {
+  const userId = user._id ? user._id.toString() : String(user.id)
+  const brokerageId = user.brokerageId ? user.brokerageId.toString() : ''
   const payload: TokenPayload = {
-    userId: user._id.toString(),
+    userId,
     email: user.email,
     role: user.role,
-    brokerageId: user.brokerageId.toString(),
-    tokenVersion: user.tokenVersion,
+    brokerageId,
+    tokenVersion: user.tokenVersion ?? 0,
   }
   return {
     accessToken: signAccessToken(payload),
@@ -53,7 +67,7 @@ const generateUserTokens = (user: IUser): { accessToken: string; refreshToken: s
   }
 }
 
-// Track and enforce login rate limit per email & IP
+// Track and enforce login rate limit per email & IP (RM-11)
 const checkLoginAttempts = async (key: string): Promise<void> => {
   const attemptsStr = await cacheGet(`login_attempts:${key}`)
   const attempts = attemptsStr ? parseInt(attemptsStr, 10) : 0
@@ -69,13 +83,17 @@ const recordFailedLogin = async (key: string): Promise<void> => {
   await cacheSet(`login_attempts:${key}`, (attempts + 1).toString(), 900) // 15 mins
 }
 
-// Register new Brokerage and Initial Brokerage Owner
-export const registerUser = async (input: RegisterInput, clientIp: string = '127.0.0.1', userAgent: string = 'browser'): Promise<AuthResultDto> => {
-  // Check if email already exists
-  const existingUser = await User.findOne({ email: input.email.toLowerCase() })
+// Register new Brokerage and Initial Brokerage Owner (RM-04, RM-09, RM-10)
+export const registerUser = async (
+  input: RegisterInput,
+  clientIp: string = '127.0.0.1',
+  userAgent: string = 'browser'
+): Promise<AuthResultDto> => {
+  // Check if email already exists with lean projection (RM-09)
+  const existingUser = await User.findOne({ email: input.email.toLowerCase() }).select('_id').lean()
   if (existingUser) {
     logger.warn(`Registration attempt with duplicate email: ${input.email}`)
-    await logAuditEvent({
+    logAuditEvent({
       userEmail: input.email,
       action: 'AUTH_REGISTER',
       resource: 'auth',
@@ -83,19 +101,24 @@ export const registerUser = async (input: RegisterInput, clientIp: string = '127
       failureReason: 'Email already registered',
       ipAddress: clientIp,
       userAgent,
-    })
+    }).catch(() => {})
     // Opaque error to avoid email harvesting
     throw new AppError(GENERIC_AUTH_MESSAGES.UNABLE_TO_REGISTER, HTTP_STATUS.BAD_REQUEST)
   }
 
-  // Create new Brokerage tenant
+  // Pre-allocate userId to consolidate mutations from 3 sequential roundtrips down to 2 (RM-10)
+  const userId = new mongoose.Types.ObjectId()
+
+  // Create new Brokerage tenant with createdBy pre-assigned
   const brokerage = await Brokerage.create({
     name: input.brokerageName,
     plan: 'growth',
+    createdBy: userId,
   })
 
-  // Create initial user with role
+  // Create initial user with pre-allocated ID and brokerage link
   const user = await User.create({
+    _id: userId,
     firstName: input.firstName,
     lastName: input.lastName,
     email: input.email.toLowerCase(),
@@ -105,10 +128,8 @@ export const registerUser = async (input: RegisterInput, clientIp: string = '127
     phone: input.phone,
   })
 
-  brokerage.createdBy = user._id
-  await brokerage.save()
-
-  await logAuditEvent({
+  // Asynchronous non-blocking audit logging (RM-04)
+  logAuditEvent({
     userId: user._id,
     userEmail: user.email,
     userRole: user.role,
@@ -119,7 +140,13 @@ export const registerUser = async (input: RegisterInput, clientIp: string = '127
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  })
+  }).catch(() => {})
+
+  // Pre-warm L1 and L2 caches immediately
+  warmUserAuthCache(user._id.toString(), {
+    ...user.toObject(),
+    brokerageName: brokerage.name,
+  }).catch(() => {})
 
   const tokens = generateUserTokens(user)
   return {
@@ -128,7 +155,7 @@ export const registerUser = async (input: RegisterInput, clientIp: string = '127
   }
 }
 
-// Authenticate user credentials and issue session tokens
+// Authenticate user credentials and issue session tokens (RM-04, RM-08, RM-09, RM-13)
 export const loginUser = async (
   input: LoginInput,
   clientIp: string = '127.0.0.1',
@@ -137,15 +164,19 @@ export const loginUser = async (
   const attemptKey = `${clientIp}_${input.email.toLowerCase()}`
   await checkLoginAttempts(attemptKey)
 
-  // Find user and explicitly select password
-  const user = await User.findOne({ email: input.email.toLowerCase() }).select('+password')
+  // Find user and explicitly select required fields (RM-09)
+  const startTime = process.hrtime.bigint()
+  const user = await User.findOne({ email: input.email.toLowerCase() }).select(
+    '+password _id email password role brokerageId isActive tokenVersion firstName lastName phone avatarUrl timezone mustChangePassword createdAt lastActiveAt'
+  )
+  recordDbMetric('loginUser:User.findOne', startTime, 10)
 
   // Enforce constant-time comparison to prevent timing attacks
   const isMatch = user ? await user.comparePassword(input.password) : false
 
   if (!user || !isMatch || !user.isActive) {
     await recordFailedLogin(attemptKey)
-    await logAuditEvent({
+    logAuditEvent({
       userEmail: input.email,
       action: 'AUTH_LOGIN',
       resource: 'auth',
@@ -153,19 +184,25 @@ export const loginUser = async (
       failureReason: !user ? 'User not found' : !isMatch ? 'Invalid password' : 'User deactivated',
       ipAddress: clientIp,
       userAgent,
-    })
+    }).catch(() => {})
     // Small artificial delay to mitigate timing analysis
     await new Promise((resolve) => setTimeout(resolve, 100))
     throw new AppError(GENERIC_AUTH_MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.UNAUTHORIZED)
   }
 
-  // Clear failed attempt counter on success
-  await cacheDelete(`login_attempts:${attemptKey}`)
+  // Clear failed attempt counter on success asynchronously
+  cacheDelete(`login_attempts:${attemptKey}`).catch(() => {})
 
-  user.lastActiveAt = new Date()
-  await user.save()
+  // Non-blocking targeted atomic update for lastActiveAt (DI-002, RM-08)
+  if (mongoose.connection.readyState === 1) {
+    void User.updateOne(
+      { _id: new mongoose.Types.ObjectId(user._id) },
+      { $set: { lastActiveAt: new Date() } }
+    ).catch(() => {})
+  }
 
-  await logAuditEvent({
+  // Non-blocking audit logging (RM-04)
+  logAuditEvent({
     userId: user._id,
     userEmail: user.email,
     userRole: user.role,
@@ -176,40 +213,82 @@ export const loginUser = async (
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  })
+  }).catch(() => {})
 
-  const brokerage = await Brokerage.findById(user.brokerageId)
+  // Parallel / cached brokerage lookup (RM-01)
+  let brokerageName: string | undefined = undefined
+  try {
+    const brokerageKey = `auth:brokerage:${user.brokerageId.toString()}`
+    const cachedName = await cacheGet(brokerageKey)
+    if (cachedName) {
+      brokerageName = cachedName
+    } else if (mongoose.connection.readyState === 1) {
+      const brokerage = await Brokerage.findById(new mongoose.Types.ObjectId(user.brokerageId))
+        .select('name')
+        .lean()
+      if (brokerage?.name) {
+        brokerageName = brokerage.name
+        cacheSet(brokerageKey, brokerage.name, 3600).catch(() => {})
+      }
+    }
+  } catch {
+    // Non-fatal fallback
+  }
+
+  // Pre-warm L1 and L2 user auth caches (RM-02)
+  warmUserAuthCache(user._id.toString(), {
+    ...user.toObject(),
+    brokerageName,
+  }).catch(() => {})
+
   const tokens = generateUserTokens(user)
 
   return {
-    user: formatUserResponse(user, brokerage?.name),
+    user: formatUserResponse(user, brokerageName),
     ...tokens,
   }
 }
 
-// Invalidate user session on logout
-export const logoutUser = async (user: IUser, clientIp: string = '127.0.0.1', userAgent: string = 'browser'): Promise<void> => {
-  const userId = user._id ? user._id.toString() : (user as any).id
-  if (userId) {
-    await User.findByIdAndUpdate(userId, { $inc: { tokenVersion: 1 } })
-    invalidateUserAuthCache(userId)
+// Invalidate user session on logout (DI-001, DI-002, RM-05)
+export const logoutUser = async (
+  user: any,
+  clientIp: string = '127.0.0.1',
+  userAgent: string = 'browser'
+): Promise<void> => {
+  const rawUserId = user._id ? user._id.toString() : (user.id ? String(user.id) : '')
+  if (rawUserId) {
+    // Guard database write: only execute if connected to avoid the 10,000ms Mongoose buffering delay (RM-05)
+    if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(rawUserId)) {
+      try {
+        await User.updateOne(
+          { _id: new mongoose.Types.ObjectId(rawUserId) },
+          { $inc: { tokenVersion: 1 } }
+        )
+      } catch (err: any) {
+        logger.warn(`Failed to increment tokenVersion on logout: ${err.message}`)
+      }
+    }
+
+    // Always invalidate both L1 and L2 cache immediately
+    await invalidateUserAuthCache(rawUserId)
   }
 
-  await logAuditEvent({
-    userId: user._id,
+  // Non-blocking audit log (RM-04)
+  logAuditEvent({
+    userId: rawUserId,
     userEmail: user.email,
     userRole: user.role,
     brokerageId: user.brokerageId,
     action: 'AUTH_LOGOUT',
     resource: 'auth',
-    resourceId: user._id ? user._id.toString() : undefined,
+    resourceId: rawUserId || undefined,
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  })
+  }).catch(() => {})
 }
 
-// Request password reset token
+// Request password reset token (RM-04)
 export const requestPasswordReset = async (
   input: ForgotPasswordInput,
   clientIp: string = '127.0.0.1',
@@ -224,20 +303,20 @@ export const requestPasswordReset = async (
     logger.info(`Password reset requested for user: ${user.email} (token generated)`)
   }
 
-  await logAuditEvent({
+  logAuditEvent({
     userEmail: input.email,
     action: 'AUTH_PASSWORD_RESET_REQUEST',
     resource: 'auth',
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  })
+  }).catch(() => {})
 
   // Return generic message regardless of user existence
   return GENERIC_AUTH_MESSAGES.FORGOT_PASSWORD_SENT
 }
 
-// Reset password with token and current password verification
+// Reset password with token and current password verification (DI-001, RM-04, RM-07)
 export const resetUserPassword = async (
   input: ResetPasswordInput,
   clientIp: string = '127.0.0.1',
@@ -250,20 +329,20 @@ export const resetUserPassword = async (
   }).select('+password +passwordResetToken +passwordResetExpires')
 
   if (!user || !user.isActive) {
-    await logAuditEvent({
+    logAuditEvent({
       action: 'AUTH_PASSWORD_RESET',
       resource: 'auth',
       status: 'failure',
       failureReason: 'Invalid or expired reset token',
       ipAddress: clientIp,
       userAgent,
-    })
+    }).catch(() => {})
     throw new AppError(GENERIC_AUTH_MESSAGES.RESET_PASSWORD_FAILED, HTTP_STATUS.BAD_REQUEST)
   }
 
   const isCurrentMatch = await user.comparePassword(input.currentPassword)
   if (!isCurrentMatch) {
-    await logAuditEvent({
+    logAuditEvent({
       userId: user._id,
       userEmail: user.email,
       action: 'AUTH_PASSWORD_RESET',
@@ -272,7 +351,7 @@ export const resetUserPassword = async (
       failureReason: 'Current password mismatch during reset',
       ipAddress: clientIp,
       userAgent,
-    })
+    }).catch(() => {})
     throw new AppError(GENERIC_AUTH_MESSAGES.RESET_PASSWORD_FAILED, HTTP_STATUS.BAD_REQUEST)
   }
 
@@ -282,7 +361,10 @@ export const resetUserPassword = async (
   user.tokenVersion += 1
   await user.save()
 
-  await logAuditEvent({
+  // Invalidate cached user session immediately (RM-07)
+  await invalidateUserAuthCache(user._id.toString())
+
+  logAuditEvent({
     userId: user._id,
     userEmail: user.email,
     userRole: user.role,
@@ -293,12 +375,12 @@ export const resetUserPassword = async (
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  })
+  }).catch(() => {})
 }
 
-// Change password for authenticated session
+// Change password for authenticated session (DI-001, RM-04, RM-07)
 export const changeUserPassword = async (
-  user: IUser,
+  user: any,
   input: ChangePasswordInput,
   clientIp: string = '127.0.0.1',
   userAgent: string = 'browser'
@@ -307,14 +389,19 @@ export const changeUserPassword = async (
     throw new AppError('New password must be different from current password.', HTTP_STATUS.BAD_REQUEST)
   }
 
-  const userWithPassword = await User.findById(user._id).select('+password')
+  const rawUserId = user._id ? user._id.toString() : String(user.id)
+  if (!mongoose.Types.ObjectId.isValid(rawUserId)) {
+    throw new AppError(GENERIC_AUTH_MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED)
+  }
+
+  const userWithPassword = await User.findById(new mongoose.Types.ObjectId(rawUserId)).select('+password')
   if (!userWithPassword || !userWithPassword.isActive) {
     throw new AppError(GENERIC_AUTH_MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED)
   }
 
   const isCurrentMatch = await userWithPassword.comparePassword(input.currentPassword)
   if (!isCurrentMatch) {
-    await logAuditEvent({
+    logAuditEvent({
       userId: user._id,
       userEmail: user.email,
       action: 'AUTH_PASSWORD_CHANGE',
@@ -323,7 +410,7 @@ export const changeUserPassword = async (
       failureReason: 'Current password incorrect',
       ipAddress: clientIp,
       userAgent,
-    })
+    }).catch(() => {})
     throw new AppError(GENERIC_AUTH_MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.BAD_REQUEST)
   }
 
@@ -332,18 +419,76 @@ export const changeUserPassword = async (
   userWithPassword.tokenVersion += 1
   await userWithPassword.save()
 
-  await logAuditEvent({
+  // Invalidate cached user session immediately (RM-07)
+  await invalidateUserAuthCache(rawUserId)
+
+  logAuditEvent({
     userId: user._id,
     userEmail: user.email,
     userRole: user.role,
     brokerageId: user.brokerageId,
     action: 'AUTH_PASSWORD_CHANGE',
     resource: 'auth',
-    resourceId: user._id.toString(),
+    resourceId: rawUserId,
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  })
+  }).catch(() => {})
 }
+
+// Refresh access token via valid refresh token (Dual Token Support for Render + Vercel)
+export const refreshUserTokens = async (
+  refreshToken: string,
+  clientIp: string = '127.0.0.1',
+  userAgent: string = 'browser'
+): Promise<AuthResultDto> => {
+  const decoded = verifyRefreshToken(refreshToken)
+  const rawUserId = decoded.userId || (decoded as any).id
+
+  if (!rawUserId || !mongoose.Types.ObjectId.isValid(rawUserId)) {
+    throw new AppError(GENERIC_AUTH_MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED)
+  }
+
+  const user = await User.findById(new mongoose.Types.ObjectId(rawUserId))
+    .select(
+      '_id email role brokerageId isActive tokenVersion firstName lastName phone avatarUrl timezone mustChangePassword createdAt lastActiveAt'
+    )
+    .lean()
+
+  if (!user || !user.isActive || (user.tokenVersion ?? 0) !== (decoded.tokenVersion || 0)) {
+    throw new AppError(GENERIC_AUTH_MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED)
+  }
+
+  let brokerageName: string | undefined = undefined
+  try {
+    const b = await Brokerage.findById(new mongoose.Types.ObjectId(user.brokerageId)).select('name').lean()
+    brokerageName = b?.name
+  } catch {
+    // Non-fatal fallback
+  }
+
+  // Pre-warm user session cache
+  warmUserAuthCache(rawUserId, { ...user, brokerageName }).catch(() => {})
+
+  logAuditEvent({
+    userId: user._id,
+    userEmail: user.email,
+    userRole: user.role,
+    brokerageId: user.brokerageId,
+    action: 'AUTH_REFRESH_TOKEN',
+    resource: 'auth',
+    resourceId: rawUserId,
+    status: 'success',
+    ipAddress: clientIp,
+    userAgent,
+  }).catch(() => {})
+
+  const tokens = generateUserTokens(user)
+  return {
+    user: formatUserResponse(user, brokerageName),
+    ...tokens,
+  }
+}
+
 
 

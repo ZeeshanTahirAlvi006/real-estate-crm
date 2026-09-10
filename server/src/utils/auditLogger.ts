@@ -54,6 +54,11 @@ const sanitizeAuditPayload = (obj?: Record<string, any>): Record<string, any> | 
 // Asynchronously record audit log entry without interrupting primary flow
 export const logAuditEvent = async (input: LogAuditInput): Promise<void> => {
   try {
+    // Skip DB write if database is disconnected to prevent buffering delays
+    if (mongoose.connection.readyState !== 1) {
+      return
+    }
+
     const userId = input.userId && mongoose.Types.ObjectId.isValid(input.userId.toString())
       ? new mongoose.Types.ObjectId(input.userId.toString())
       : undefined
@@ -79,6 +84,7 @@ export const logAuditEvent = async (input: LogAuditInput): Promise<void> => {
       failureReason: input.failureReason,
     })
   } catch (error) {
-    logger.error(`Failed to record audit log for action: ${input.action}`, error)
+    logger.warn(`Failed to record audit log for action: ${input.action}`, error)
   }
 }
+

@@ -7,6 +7,7 @@ import {
   forgotPassword,
   resetPassword,
   changePassword,
+  refreshToken,
 } from './auth.controller.js'
 import { validate } from '../../middleware/validate.js'
 import {
@@ -23,6 +24,7 @@ const router = Router()
 // Public Authentication Routes
 router.post('/register', validate(registerSchema), register)
 router.post('/login', validate(loginSchema), login)
+router.post('/refresh-token', refreshToken)
 router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword)
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword)
 

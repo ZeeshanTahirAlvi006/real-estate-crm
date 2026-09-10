@@ -10,19 +10,21 @@ interface ApiResponse<T> {
 // Auth API — endpoints connected to real backend
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    login: builder.mutation<{ user: User; token?: string }, { email: string; password: string }>({
+    login: builder.mutation<{ user: User; token?: string; refreshToken?: string }, { email: string; password: string }>({
       query: (credentials) => ({
         url: '/auth/login',
         method: 'POST',
         body: credentials,
       }),
-      transformResponse: (response: ApiResponse<User>) => ({
-        user: response.data,
+      transformResponse: (response: ApiResponse<any>) => ({
+        user: response.data?.user || response.data,
+        token: response.data?.token || response.data?.accessToken,
+        refreshToken: response.data?.refreshToken,
       }),
     }),
 
     signup: builder.mutation<
-      { user: User; token?: string },
+      { user: User; token?: string; refreshToken?: string },
       { firstName: string; lastName: string; email: string; password: string; role?: string; brokerageName?: string }
     >({
       query: (data) => ({
@@ -30,8 +32,26 @@ export const authApi = baseApi.injectEndpoints({
         method: 'POST',
         body: data,
       }),
-      transformResponse: (response: ApiResponse<User>) => ({
-        user: response.data,
+      transformResponse: (response: ApiResponse<any>) => ({
+        user: response.data?.user || response.data,
+        token: response.data?.token || response.data?.accessToken,
+        refreshToken: response.data?.refreshToken,
+      }),
+    }),
+
+    refreshToken: builder.mutation<
+      { user: User; token: string; refreshToken?: string },
+      { refreshToken?: string } | void
+    >({
+      query: (body) => ({
+        url: '/auth/refresh-token',
+        method: 'POST',
+        body: body || {},
+      }),
+      transformResponse: (response: ApiResponse<any>) => ({
+        user: response.data?.user || response.data,
+        token: response.data?.token || response.data?.accessToken,
+        refreshToken: response.data?.refreshToken,
       }),
     }),
 
@@ -92,6 +112,7 @@ export const authApi = baseApi.injectEndpoints({
 export const {
   useLoginMutation,
   useSignupMutation,
+  useRefreshTokenMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useChangePasswordMutation,

@@ -129,6 +129,8 @@ dealSchema.virtual('daysInStage').get(function (this: IDeal) {
 dealSchema.index({ brokerageId: 1, pipelineId: 1, isDeleted: 1 })
 dealSchema.index({ assignedAgentId: 1, isDeleted: 1 })
 dealSchema.index({ brokerageId: 1, isDeleted: 1, createdAt: -1 })
+dealSchema.index({ brokerageId: 1, isDeleted: 1, dealValue: 1 })
+dealSchema.index({ contactId: 1, brokerageId: 1, isDeleted: 1 })
 
 export const Deal: Model<IDeal> =
   mongoose.models.Deal || mongoose.model<IDeal>('Deal', dealSchema)

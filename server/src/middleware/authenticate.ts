@@ -1,9 +1,13 @@
 import { Request, Response, NextFunction } from 'express'
+import mongoose from 'mongoose'
 import { verifyAccessToken, verifyRefreshToken, signAccessToken, TokenPayload } from '../utils/tokenHelper.js'
 import { setAuthCookies } from '../utils/cookieHelper.js'
 import { User, IUser } from '../models/User.js'
 import { COOKIE_NAMES, GENERIC_AUTH_MESSAGES, HTTP_STATUS } from '../utils/constants.js'
 import { sendError } from '../utils/apiResponse.js'
+import { BoundedLruCache } from '../utils/lruCache.js'
+import { cacheGet, cacheSet, cacheDelete } from '../config/redis.js'
+import { recordDbMetric, safeJsonParse } from '../utils/cacheHelper.js'
 
 // Extend Express Request to include authenticated user object
 declare global {
@@ -15,18 +19,35 @@ declare global {
   }
 }
 
-import mongoose from 'mongoose'
-import { BoundedLruCache } from '../utils/lruCache.js'
+// L1 In-memory session LRU cache (TTL: 60s, max 2,000 users) for sub-0.05ms local hits
+export const userAuthCache = new BoundedLruCache<any>(2000, 60)
 
-// Short-lived session LRU cache (10s TTL, max 1,000 users) to avoid repeating User.findById queries
-const userAuthCache = new BoundedLruCache<any>(1000, 10)
-
-// Invalidate user auth cache on logout or credential changes
-export const invalidateUserAuthCache = (userId: string): void => {
+// Invalidate user auth cache across both L1 and L2 layers on logout or credential changes
+export const invalidateUserAuthCache = async (userId: string): Promise<void> => {
+  if (!userId) return
   userAuthCache.delete(userId)
+  try {
+    await cacheDelete(`auth:user:${userId}`)
+  } catch {
+    // Graceful Redis fallback isolation (DI-003)
+  }
 }
 
-// Multi-layer JWT Cookie & Bearer Authentication Middleware
+// Pre-warm both L1 and L2 caches immediately upon login / registration
+export const warmUserAuthCache = async (userId: string, user: any): Promise<void> => {
+  if (!userId || !user) return
+  userAuthCache.set(userId, user, 60)
+  try {
+    await cacheSet(`auth:user:${userId}`, JSON.stringify(user), 300)
+  } catch {
+    // Non-blocking cache isolation (DI-003)
+  }
+}
+
+const AUTH_USER_PROJECTION =
+  '_id email role brokerageId isActive tokenVersion firstName lastName phone avatarUrl timezone mustChangePassword createdAt lastActiveAt brokerageName'
+
+// Multi-layer Two-Tier Hybrid (L1 + L2) JWT Cookie & Bearer Authentication Middleware
 export const authenticate = async (
   req: Request,
   res: Response,
@@ -35,49 +56,71 @@ export const authenticate = async (
   const authHeader = req.headers.authorization
   const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
   const accessToken = req.cookies?.[COOKIE_NAMES.ACCESS_TOKEN] || bearerToken
-  const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH_TOKEN]
+  const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH_TOKEN] || (req.headers['x-refresh-token'] as string)
 
   // Scenario 1: Valid Access Token Present
   if (accessToken) {
     try {
       const decoded = verifyAccessToken(accessToken)
+      const rawUserId = decoded.userId || (decoded as any).id
 
-      // Check short-lived cache first (must match tokenVersion)
-      const cachedUser = userAuthCache.get(decoded.userId)
-      if (
-        cachedUser &&
-        cachedUser.isActive &&
-        cachedUser.tokenVersion === (decoded.tokenVersion || 0)
-      ) {
-        req.user = cachedUser
-        req.tokenPayload = decoded
-        return next()
-      }
+      if (rawUserId) {
+        const expectedVersion = decoded.tokenVersion || 0
 
-      if (mongoose.connection.readyState === 1) {
-        const user = await User.findById(decoded.userId).lean()
-        if (
-          user &&
-          user.isActive &&
-          user.tokenVersion === (decoded.tokenVersion || 0)
-        ) {
-          userAuthCache.set(decoded.userId, user, 10)
-          req.user = user as any
+        // 1. Tier 1: Check L1 In-Memory LRU Cache (< 0.05ms hit)
+        const l1User = userAuthCache.get(rawUserId)
+        if (l1User && l1User.isActive && (l1User.tokenVersion ?? 0) === expectedVersion) {
+          req.user = l1User
           req.tokenPayload = decoded
           return next()
         }
-      } else if (decoded.userId) {
-        // Direct payload mapping for offline/isolated integration tests
-        req.user = {
-          _id: decoded.userId,
-          id: decoded.userId,
-          role: decoded.role,
-          brokerageId: decoded.brokerageId,
-          email: decoded.email,
-          isActive: true,
-        } as any
-        req.tokenPayload = decoded
-        return next()
+
+        // 2. Tier 2: Check L2 Distributed Redis Cache (< 0.3ms hit)
+        try {
+          const l2Raw = await cacheGet(`auth:user:${rawUserId}`)
+          if (l2Raw) {
+            const l2User = safeJsonParse<any>(l2Raw)
+            if (l2User && l2User.isActive && (l2User.tokenVersion ?? 0) === expectedVersion) {
+              userAuthCache.set(rawUserId, l2User, 60)
+              req.user = l2User
+              req.tokenPayload = decoded
+              return next()
+            }
+          }
+        } catch {
+          // Redis read failure isolation (DI-003)
+        }
+
+        // 3. Database Fallback (Uncached Covered Query < 10ms target)
+        if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(rawUserId)) {
+          const startTime = process.hrtime.bigint()
+          const user = await User.findById(new mongoose.Types.ObjectId(rawUserId))
+            .select(AUTH_USER_PROJECTION)
+            .lean()
+
+          recordDbMetric('authenticate:User.findById', startTime, 10)
+
+          if (user && user.isActive && (user.tokenVersion ?? 0) === expectedVersion) {
+            // Backfill L1 and L2 caches asynchronously
+            warmUserAuthCache(rawUserId, user).catch(() => {})
+            req.user = user as any
+            req.tokenPayload = decoded
+            return next()
+          }
+        } else if (rawUserId) {
+          // Direct payload mapping for offline/isolated integration tests
+          req.user = {
+            _id: rawUserId,
+            id: rawUserId,
+            role: decoded.role,
+            brokerageId: decoded.brokerageId,
+            email: decoded.email,
+            isActive: true,
+            tokenVersion: expectedVersion,
+          } as any
+          req.tokenPayload = decoded
+          return next()
+        }
       }
     } catch {
       // Access token invalid or expired, attempt refresh token fallback below
@@ -88,23 +131,34 @@ export const authenticate = async (
   if (refreshToken) {
     try {
       const decoded = verifyRefreshToken(refreshToken)
-      const user = await User.findById(decoded.userId)
+      const rawUserId = decoded.userId || (decoded as any).id
 
-      if (user && user.isActive && user.tokenVersion === (decoded.tokenVersion || 0)) {
-        const newPayload: TokenPayload = {
-          userId: user._id.toString(),
-          email: user.email,
-          role: user.role,
-          brokerageId: user.brokerageId.toString(),
-          tokenVersion: user.tokenVersion,
+      if (rawUserId && mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(rawUserId)) {
+        const startTime = process.hrtime.bigint()
+        const user = await User.findById(new mongoose.Types.ObjectId(rawUserId))
+          .select(AUTH_USER_PROJECTION)
+          .lean()
+
+        recordDbMetric('authenticate:refreshToken:User.findById', startTime, 10)
+
+        if (user && user.isActive && (user.tokenVersion ?? 0) === (decoded.tokenVersion || 0)) {
+          const newPayload: TokenPayload = {
+            userId: user._id.toString(),
+            email: user.email,
+            role: user.role,
+            brokerageId: user.brokerageId.toString(),
+            tokenVersion: user.tokenVersion,
+          }
+
+          const newAccessToken = signAccessToken(newPayload)
+          setAuthCookies(res, newAccessToken, refreshToken)
+          res.setHeader('X-Access-Token', newAccessToken)
+
+          warmUserAuthCache(rawUserId, user).catch(() => {})
+          req.user = user as any
+          req.tokenPayload = newPayload
+          return next()
         }
-
-        const newAccessToken = signAccessToken(newPayload)
-        setAuthCookies(res, newAccessToken, refreshToken)
-
-        req.user = user
-        req.tokenPayload = newPayload
-        return next()
       }
     } catch {
       // Refresh token is also invalid or expired
@@ -114,3 +168,4 @@ export const authenticate = async (
   // Scenario 3: Authentication Failed
   return sendError(res, GENERIC_AUTH_MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED)
 }
+

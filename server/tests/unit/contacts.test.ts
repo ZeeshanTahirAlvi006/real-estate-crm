@@ -46,4 +46,31 @@ describe('Contact Model & TCPA Schema Unit Tests', () => {
     assert.ok(err)
     assert.ok(err.errors.email)
   })
+
+  it('should register compound deduplication and query indexes including firstName and lastName', () => {
+    const indexes = Contact.schema.indexes()
+    const hasNameIndex = indexes.some(
+      ([fields]) =>
+        fields.brokerageId === 1 &&
+        fields.firstName === 1 &&
+        fields.lastName === 1 &&
+        fields.isDeleted === 1
+    )
+    const hasEmailIndex = indexes.some(
+      ([fields]) =>
+        fields.brokerageId === 1 &&
+        fields.email === 1 &&
+        fields.isDeleted === 1
+    )
+    const hasPhoneIndex = indexes.some(
+      ([fields]) =>
+        fields.brokerageId === 1 &&
+        fields.phone === 1 &&
+        fields.isDeleted === 1
+    )
+
+    assert.ok(hasNameIndex, 'Contact schema must have compound index on { brokerageId, firstName, lastName, isDeleted }')
+    assert.ok(hasEmailIndex, 'Contact schema must have compound index on { brokerageId, email, isDeleted }')
+    assert.ok(hasPhoneIndex, 'Contact schema must have compound index on { brokerageId, phone, isDeleted }')
+  })
 })

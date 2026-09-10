@@ -1,10 +1,24 @@
-import { describe, it } from 'node:test'
+import { describe, it, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
+import mongoose from 'mongoose'
 import { env } from '../../src/config/env.js'
+import { registerUser, formatUserResponse } from '../../src/features/auth/auth.service.js'
+import { cacheSet, cacheDelete } from '../../src/config/redis.js'
+import { USER_ROLES } from '../../src/utils/constants.js'
+import { User } from '../../src/models/User.js'
+import { Brokerage } from '../../src/models/Brokerage.js'
 
 describe('Auth Unit Tests', () => {
+  before(async () => {
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(env.MONGODB_URI)
+    } else if (mongoose.connection.readyState === 2) {
+      await new Promise((resolve) => mongoose.connection.once('connected', resolve))
+    }
+  })
+
   it('should securely hash password with bcrypt salt rounds', async () => {
     const raw = 'SuperSecret123!'
     const hash = await bcrypt.hash(raw, 10)
@@ -63,8 +77,6 @@ describe('Auth Unit Tests', () => {
   })
 
   it('should safely format user responses with date objects or strings without crashing', async () => {
-    const { formatUserResponse } = await import('../../src/features/auth/auth.service.js')
-
     // Scenario A: Standard Mongoose Date instances
     const userWithDates = {
       _id: '507f1f77bcf86cd799439011',
@@ -102,24 +114,15 @@ describe('Auth Unit Tests', () => {
   })
 
   it('should reject registration if brokerage name already exists under an active brokerage owner', async () => {
-    const { registerUser } = await import('../../src/features/auth/auth.service.js')
-    const { cacheSet, cacheDelete } = await import('../../src/config/redis.js')
-    const mongoose = (await import('mongoose')).default
-
-    if (mongoose.connection.readyState !== 1) {
-      try {
-        await mongoose.connect(env.MONGODB_URI)
-      } catch {}
-    }
-
     // Scenario A: DB Hit rejection with case-insensitive matching
     if (mongoose.connection.readyState === 1) {
       await assert.rejects(
         async () => {
+          const randomId = Math.floor(10000 + Math.random() * 90000)
           await registerUser({
             firstName: 'Duplicate',
             lastName: 'Tester',
-            email: 'duplicate.brokerage.tester@almirajrealty.pk',
+            email: `duplicate.brokerage.${randomId}@almirajrealty.pk`,
             password: 'Password!123',
             brokerageName: 'al-miraj real estate & builders', // case-insensitive test
           })
@@ -155,6 +158,38 @@ describe('Auth Unit Tests', () => {
       )
     } finally {
       await cacheDelete(testBrokerageKey)
+    }
+  })
+
+  it('should allow multiple agents to register and link to the same existing brokerage', async () => {
+    if (mongoose.connection.readyState === 1) {
+      const existingBrokerage = await Brokerage.findOne({ name: 'Al-Miraj Real Estate & Builders' })
+        .collation({ locale: 'en', strength: 2 })
+        .lean()
+      if (existingBrokerage) {
+        const randomId = Math.floor(10000 + Math.random() * 90000)
+        const agentResult = await registerUser({
+          firstName: 'Agent',
+          lastName: `Test${randomId}`,
+          email: `agent.test.${randomId}@almirajrealty.pk`,
+          password: 'Password!123',
+          role: USER_ROLES.AGENT,
+          brokerageName: 'al-miraj real estate & builders', // case-insensitive join
+        })
+
+        assert.equal(agentResult.user.role, USER_ROLES.AGENT)
+        assert.equal(agentResult.user.brokerageId, existingBrokerage._id.toString())
+        assert.equal(agentResult.user.brokerageName, existingBrokerage.name)
+
+        // Cleanup test user
+        await User.deleteOne({ email: `agent.test.${randomId}@almirajrealty.pk` })
+      }
+    }
+  })
+
+  after(async () => {
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect()
     }
   })
 })

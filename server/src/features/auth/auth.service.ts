@@ -1,4 +1,3 @@
-import mongoose from 'mongoose'
 import { User } from '../../models/User.js'
 import { Brokerage } from '../../models/Brokerage.js'
 import {
@@ -10,6 +9,7 @@ import {
   AuthResultDto,
   UserResponseDto,
 } from './auth.types.js'
+import * as mongoose from 'mongoose'
 import { signAccessToken, signRefreshToken, verifyRefreshToken, TokenPayload } from '../../utils/tokenHelper.js'
 import { AppError } from '../../middleware/errorHandler.js'
 import { GENERIC_AUTH_MESSAGES, HTTP_STATUS, USER_ROLES } from '../../utils/constants.js'
@@ -83,7 +83,7 @@ const recordFailedLogin = async (key: string): Promise<void> => {
   await cacheSet(`login_attempts:${key}`, (attempts + 1).toString(), 900) // 15 mins
 }
 
-// Register new Brokerage and Initial Brokerage Owner (RM-04, RM-09, RM-10)
+// Register new User - Brokerage Owner (creates workspace) or Agent (links to existing brokerage) (RM-04, RM-09, RM-10)
 export const registerUser = async (
   input: RegisterInput,
   clientIp: string = '127.0.0.1',
@@ -91,24 +91,24 @@ export const registerUser = async (
 ): Promise<AuthResultDto> => {
   const normalizedEmail = input.email.toLowerCase().trim()
   const trimmedBrokerageName = input.brokerageName.trim()
-  const isRegisteringAsOwner = !input.role || input.role === USER_ROLES.BROKERAGE_OWNER
-  const brokerageCacheKey = `auth:brokerage:owner:${trimmedBrokerageName.toLowerCase()}`
+  const userRole = input.role || USER_ROLES.BROKERAGE_OWNER
+  const isRegisteringAsOwner = userRole === USER_ROLES.BROKERAGE_OWNER
+  const brokerageOwnerCacheKey = `auth:brokerage:owner:${trimmedBrokerageName.toLowerCase()}`
 
-  // 1. Tier 1: Redis Fast-Path Check (< 0.1ms)
+  // Tier 1: Redis Fast-Path Check for Brokerage Owner Duplicate (< 0.1ms)
   if (isRegisteringAsOwner) {
     try {
-      const cachedOwnerId = await cacheGet(brokerageCacheKey)
+      const cachedOwnerId = await cacheGet(brokerageOwnerCacheKey)
       if (cachedOwnerId) {
-        logger.warn(`Registration attempt for already owned brokerage (cache hit): ${trimmedBrokerageName}`)
         logAuditEvent({
-          userEmail: input.email,
+          userEmail: normalizedEmail,
           action: 'AUTH_REGISTER',
           resource: 'auth',
           status: 'failure',
-          failureReason: 'Brokerage name already registered under an active brokerage owner',
+          failureReason: 'Brokerage name already registered under an active brokerage owner (cache hit)',
           ipAddress: clientIp,
           userAgent,
-        }).catch(() => {})
+        }).catch(() => { })
         throw new AppError(
           'A brokerage with this name already exists under an active brokerage owner.',
           HTTP_STATUS.CONFLICT
@@ -116,124 +116,139 @@ export const registerUser = async (
       }
     } catch (err) {
       if (err instanceof AppError) throw err
-      // Graceful fallback to MongoDB on Redis outage (DI-003)
+      // Graceful fallback to Mongo on Redis issue (DI-003)
     }
   }
 
-  // 2. Tier 2: Parallel Covered DB Preflight Checks in a single roundtrip (< 10ms, PERF-M-001, PERF-M-004)
+  // Tier 2: Parallel Preflight Checks (RM-09, RM-10, PERF-M-001, PERF-M-004)
+  // Single parallel trip to MongoDB rather than sequential blocking roundtrips
   const startTime = process.hrtime.bigint()
 
-  const [existingUser, conflictingBrokerages] =
-    mongoose.connection.readyState === 1
-      ? await Promise.all([
-          // Query 1: Covered index lookup for duplicate email (RM-09)
-          User.findOne({ email: normalizedEmail }).select('_id').lean(),
+  const [existingUser, existingBrokerageOrConflict] = await Promise.all([
+    // Check duplicate email with lean projection
+    User.findOne({ email: normalizedEmail }).select('_id').lean(),
 
-          // Query 2: Covered index aggregation to check if brokerage name already has an active owner
-          isRegisteringAsOwner
-            ? Brokerage.aggregate([
+    // If Owner: check if brokerage name already has an active brokerage owner (covered via idx_brokerage_name_ci)
+    // If Agent: check if brokerage already exists so multiple agents join the same brokerage
+    isRegisteringAsOwner
+      ? Brokerage.aggregate([
+          {
+            $match: {
+              name: trimmedBrokerageName,
+            },
+          },
+          {
+            $lookup: {
+              from: 'users',
+              let: { bId: '$_id' },
+              pipeline: [
                 {
                   $match: {
-                    name: trimmedBrokerageName,
+                    $expr: {
+                      $and: [
+                        { $eq: ['$brokerageId', '$$bId'] },
+                        { $eq: ['$role', USER_ROLES.BROKERAGE_OWNER] },
+                        { $eq: ['$isActive', true] },
+                      ],
+                    },
                   },
                 },
-                {
-                  $lookup: {
-                    from: 'users',
-                    let: { bId: '$_id' },
-                    pipeline: [
-                      {
-                        $match: {
-                          $expr: {
-                            $and: [
-                              { $eq: ['$brokerageId', '$$bId'] },
-                              { $eq: ['$role', USER_ROLES.BROKERAGE_OWNER] },
-                              { $eq: ['$isActive', true] },
-                            ],
-                          },
-                        },
-                      },
-                      { $project: { _id: 1 } },
-                      { $limit: 1 },
-                    ],
-                    as: 'owners',
-                  },
-                },
-                {
-                  $match: {
-                    'owners.0': { $exists: true },
-                  },
-                },
-                {
-                  $project: { _id: 1, name: 1 },
-                },
-                {
-                  $limit: 1,
-                },
-              ]).collation({ locale: 'en', strength: 2 })
-            : Promise.resolve([]),
-        ])
-      : [null, []]
+                { $project: { _id: 1 } },
+                { $limit: 1 },
+              ],
+              as: 'owners',
+            },
+          },
+          {
+            $match: {
+              'owners.0': { $exists: true },
+            },
+          },
+          {
+            $project: { _id: 1, name: 1 },
+          },
+          {
+            $limit: 1,
+          },
+        ]).collation({ locale: 'en', strength: 2 })
+      : Brokerage.findOne({ name: trimmedBrokerageName })
+          .collation({ locale: 'en', strength: 2 })
+          .select('_id name')
+          .lean(),
+  ])
 
   recordDbMetric('registerUser:parallelPreflightChecks', startTime, 10)
 
-  // Validate brokerage owner conflict
-  if (conflictingBrokerages && conflictingBrokerages.length > 0) {
-    const ownerBrokerage = conflictingBrokerages[0]
-    // Backfill Redis cache with 24-hour TTL so subsequent duplicate attempts hit Redis in < 0.1ms
-    cacheSet(brokerageCacheKey, ownerBrokerage._id.toString(), 86400).catch(() => {})
-
-    logger.warn(`Registration attempt for already owned brokerage (db hit): ${trimmedBrokerageName}`)
-    logAuditEvent({
-      userEmail: input.email,
-      action: 'AUTH_REGISTER',
-      resource: 'auth',
-      status: 'failure',
-      failureReason: 'Brokerage name already registered under an active brokerage owner',
-      ipAddress: clientIp,
-      userAgent,
-    }).catch(() => {})
-    throw new AppError(
-      'A brokerage with this name already exists under an active brokerage owner.',
-      HTTP_STATUS.CONFLICT
-    )
-  }
-
   // Validate duplicate email
   if (existingUser) {
-    logger.warn(`Registration attempt with duplicate email: ${input.email}`)
+    logger.warn(`Registration attempt with duplicate email: ${normalizedEmail}`)
     logAuditEvent({
-      userEmail: input.email,
+      userEmail: normalizedEmail,
       action: 'AUTH_REGISTER',
       resource: 'auth',
       status: 'failure',
       failureReason: 'Email already registered',
       ipAddress: clientIp,
       userAgent,
-    }).catch(() => {})
-    // Opaque error to avoid email harvesting
+    }).catch(() => { })
     throw new AppError(GENERIC_AUTH_MESSAGES.UNABLE_TO_REGISTER, HTTP_STATUS.BAD_REQUEST)
   }
 
-  // Pre-allocate userId to consolidate mutations from 3 sequential roundtrips down to 2 (RM-10)
+  // Validate brokerage owner conflict
+  if (isRegisteringAsOwner) {
+    const conflictingBrokerages = existingBrokerageOrConflict as any[]
+    if (conflictingBrokerages && conflictingBrokerages.length > 0) {
+      const ownerBrokerage = conflictingBrokerages[0]
+      // Backfill Redis cache with 24-hour TTL for < 0.1ms fast reject on next attempts
+      cacheSet(brokerageOwnerCacheKey, ownerBrokerage._id.toString(), 86400).catch(() => { })
+
+      logger.warn(`Registration attempt for already owned brokerage: ${trimmedBrokerageName}`)
+      logAuditEvent({
+        userEmail: normalizedEmail,
+        action: 'AUTH_REGISTER',
+        resource: 'auth',
+        status: 'failure',
+        failureReason: 'Brokerage name already registered under an active brokerage owner',
+        ipAddress: clientIp,
+        userAgent,
+      }).catch(() => { })
+      throw new AppError(
+        'A brokerage with this name already exists under an active brokerage owner.',
+        HTTP_STATUS.CONFLICT
+      )
+    }
+  }
+
+  // Resolve Brokerage: Link existing brokerage (for Agent/Lead) or create new (for Owner or when not found)
   const userId = new mongoose.Types.ObjectId()
+  let targetBrokerageId: mongoose.Types.ObjectId
+  let resolvedBrokerageName: string
 
-  // Create new Brokerage tenant with createdBy pre-assigned
-  const brokerage = await Brokerage.create({
-    name: trimmedBrokerageName,
-    plan: 'growth',
-    createdBy: userId,
-  })
+  if (!isRegisteringAsOwner && existingBrokerageOrConflict) {
+    // Multi-agent linking: Join existing brokerage workspace
+    const existingBrokerage = existingBrokerageOrConflict as any
+    targetBrokerageId = new mongoose.Types.ObjectId(existingBrokerage._id)
+    resolvedBrokerageName = existingBrokerage.name
+  } else {
+    // Create new Brokerage tenant with createdBy pre-assigned
+    const newBrokerage = await Brokerage.create({
+      name: trimmedBrokerageName,
+      plan: 'growth',
+      createdBy: userId,
+    })
+    targetBrokerageId = newBrokerage._id
+    resolvedBrokerageName = newBrokerage.name
+  }
 
-  // Create initial user with pre-allocated ID and brokerage link
+  // Create user with pre-allocated ID and brokerage link
   const user = await User.create({
     _id: userId,
     firstName: input.firstName,
     lastName: input.lastName,
     email: normalizedEmail,
     password: input.password,
-    role: input.role || USER_ROLES.BROKERAGE_OWNER,
-    brokerageId: brokerage._id,
+    role: userRole,
+    brokerageId: targetBrokerageId,
     phone: input.phone,
   })
 
@@ -242,30 +257,30 @@ export const registerUser = async (
     userId: user._id,
     userEmail: user.email,
     userRole: user.role,
-    brokerageId: brokerage._id,
+    brokerageId: targetBrokerageId,
     action: 'AUTH_REGISTER',
     resource: 'auth',
     resourceId: user._id.toString(),
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  }).catch(() => {})
+  }).catch(() => { })
 
-  // Cache newly registered brokerage in Redis (24-hour TTL)
+  // Non-blocking Redis caching (24-hour TTL)
   if (isRegisteringAsOwner) {
-    cacheSet(brokerageCacheKey, user._id.toString(), 86400).catch(() => {})
-    cacheSet(`auth:brokerage:${brokerage._id.toString()}`, brokerage.name, 86400).catch(() => {})
+    cacheSet(brokerageOwnerCacheKey, user._id.toString(), 86400).catch(() => { })
   }
+  cacheSet(`auth:brokerage:${targetBrokerageId.toString()}`, resolvedBrokerageName, 86400).catch(() => { })
 
-  // Pre-warm L1 and L2 caches immediately
+  // Pre-warm L1 and L2 caches immediately in background
   warmUserAuthCache(user._id.toString(), {
     ...user.toObject(),
-    brokerageName: brokerage.name,
-  }).catch(() => {})
+    brokerageName: resolvedBrokerageName,
+  }).catch(() => { })
 
   const tokens = generateUserTokens(user)
   return {
-    user: formatUserResponse(user, brokerage.name),
+    user: formatUserResponse(user, resolvedBrokerageName),
     ...tokens,
   }
 }
@@ -299,21 +314,21 @@ export const loginUser = async (
       failureReason: !user ? 'User not found' : !isMatch ? 'Invalid password' : 'User deactivated',
       ipAddress: clientIp,
       userAgent,
-    }).catch(() => {})
+    }).catch(() => { })
     // Small artificial delay to mitigate timing analysis
     await new Promise((resolve) => setTimeout(resolve, 100))
     throw new AppError(GENERIC_AUTH_MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.UNAUTHORIZED)
   }
 
   // Clear failed attempt counter on success asynchronously
-  cacheDelete(`login_attempts:${attemptKey}`).catch(() => {})
+  cacheDelete(`login_attempts:${attemptKey}`).catch(() => { })
 
   // Non-blocking targeted atomic update for lastActiveAt (DI-002, RM-08)
-  if (mongoose.connection.readyState === 1) {
+  if (mongoose?.connection?.readyState === 1) {
     void User.updateOne(
       { _id: new mongoose.Types.ObjectId(user._id) },
       { $set: { lastActiveAt: new Date() } }
-    ).catch(() => {})
+    ).catch(() => { })
   }
 
   // Non-blocking audit logging (RM-04)
@@ -328,7 +343,7 @@ export const loginUser = async (
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  }).catch(() => {})
+  }).catch(() => { })
 
   // Parallel / cached brokerage lookup (RM-01)
   let brokerageName: string | undefined = undefined
@@ -343,7 +358,7 @@ export const loginUser = async (
         .lean()
       if (brokerage?.name) {
         brokerageName = brokerage.name
-        cacheSet(brokerageKey, brokerage.name, 3600).catch(() => {})
+        cacheSet(brokerageKey, brokerage.name, 3600).catch(() => { })
       }
     }
   } catch {
@@ -354,7 +369,7 @@ export const loginUser = async (
   warmUserAuthCache(user._id.toString(), {
     ...user.toObject(),
     brokerageName,
-  }).catch(() => {})
+  }).catch(() => { })
 
   const tokens = generateUserTokens(user)
 
@@ -373,7 +388,7 @@ export const logoutUser = async (
   const rawUserId = user._id ? user._id.toString() : (user.id ? String(user.id) : '')
   if (rawUserId) {
     // Guard database write: only execute if connected to avoid the 10,000ms Mongoose buffering delay (RM-05)
-    if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(rawUserId)) {
+    if (mongoose?.connection?.readyState === 1 && mongoose.Types.ObjectId.isValid(rawUserId)) {
       try {
         await User.updateOne(
           { _id: new mongoose.Types.ObjectId(rawUserId) },
@@ -400,7 +415,7 @@ export const logoutUser = async (
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  }).catch(() => {})
+  }).catch(() => { })
 }
 
 // Request password reset token (RM-04)
@@ -425,7 +440,7 @@ export const requestPasswordReset = async (
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  }).catch(() => {})
+  }).catch(() => { })
 
   // Return generic message regardless of user existence
   return GENERIC_AUTH_MESSAGES.FORGOT_PASSWORD_SENT
@@ -451,7 +466,7 @@ export const resetUserPassword = async (
       failureReason: 'Invalid or expired reset token',
       ipAddress: clientIp,
       userAgent,
-    }).catch(() => {})
+    }).catch(() => { })
     throw new AppError(GENERIC_AUTH_MESSAGES.RESET_PASSWORD_FAILED, HTTP_STATUS.BAD_REQUEST)
   }
 
@@ -466,7 +481,7 @@ export const resetUserPassword = async (
       failureReason: 'Current password mismatch during reset',
       ipAddress: clientIp,
       userAgent,
-    }).catch(() => {})
+    }).catch(() => { })
     throw new AppError(GENERIC_AUTH_MESSAGES.RESET_PASSWORD_FAILED, HTTP_STATUS.BAD_REQUEST)
   }
 
@@ -490,7 +505,7 @@ export const resetUserPassword = async (
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  }).catch(() => {})
+  }).catch(() => { })
 }
 
 // Change password for authenticated session (DI-001, RM-04, RM-07)
@@ -525,7 +540,7 @@ export const changeUserPassword = async (
       failureReason: 'Current password incorrect',
       ipAddress: clientIp,
       userAgent,
-    }).catch(() => {})
+    }).catch(() => { })
     throw new AppError(GENERIC_AUTH_MESSAGES.INVALID_CREDENTIALS, HTTP_STATUS.BAD_REQUEST)
   }
 
@@ -548,7 +563,7 @@ export const changeUserPassword = async (
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  }).catch(() => {})
+  }).catch(() => { })
 }
 
 // Refresh access token via valid refresh token (Dual Token Support for Render + Vercel)
@@ -583,7 +598,7 @@ export const refreshUserTokens = async (
   }
 
   // Pre-warm user session cache
-  warmUserAuthCache(rawUserId, { ...user, brokerageName }).catch(() => {})
+  warmUserAuthCache(rawUserId, { ...user, brokerageName }).catch(() => { })
 
   logAuditEvent({
     userId: user._id,
@@ -596,7 +611,7 @@ export const refreshUserTokens = async (
     status: 'success',
     ipAddress: clientIp,
     userAgent,
-  }).catch(() => {})
+  }).catch(() => { })
 
   const tokens = generateUserTokens(user)
   return {

@@ -63,6 +63,21 @@ export function SignupPage() {
     setAgreed(true)
   }
 
+  const handleQuickFillAgent = () => {
+    const randomId = Math.floor(1000 + Math.random() * 9000)
+    setForm({
+      firstName: 'Hamza',
+      lastName: 'Farooq',
+      email: `hamza.agent.${randomId}@almirajrealty.pk`,
+      phone: '+92 301 6723901',
+      password: 'Password!123',
+      confirmPassword: 'Password!123',
+      role: UserRole.AGENT,
+      brokerageName: 'Al-Miraj Real Estate & Builders',
+    })
+    setAgreed(true)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -168,14 +183,21 @@ export function SignupPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="brokerage">Brokerage Name *</Label>
+              <Label htmlFor="brokerage">
+                {form.role === UserRole.AGENT ? 'Brokerage Name *' : 'Brokerage / Company *'}
+              </Label>
               <Input
                 id="brokerage"
                 value={form.brokerageName}
                 onChange={(e) => update('brokerageName', e.target.value)}
-                placeholder="e.g. Al-Miraj Builders"
+                placeholder={form.role === UserRole.AGENT ? 'e.g. Al-Miraj Real Estate & Builders' : 'e.g. Al-Miraj Builders'}
                 required
               />
+              {form.role === UserRole.AGENT && (
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  Multiple agents can join the same brokerage.
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="role">Initial Role</Label>
@@ -239,18 +261,35 @@ export function SignupPage() {
           </div>
 
           <Button type="submit" className="w-full mt-2" disabled={isLoading}>
-            {isLoading ? 'Creating Brokerage Account...' : 'Create Account & Workspace'}
+            {isLoading
+              ? form.role === UserRole.AGENT
+                ? 'Joining Brokerage Team...'
+                : 'Creating Brokerage Account...'
+              : form.role === UserRole.AGENT
+                ? 'Join Brokerage as Agent'
+                : 'Create Account & Workspace'}
           </Button>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full text-xs text-muted-foreground"
-            onClick={handleQuickFill}
-          >
-            ⚡ Auto-Fill Demo Registration
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full text-xs text-muted-foreground"
+              onClick={handleQuickFill}
+            >
+              ⚡ Fill Owner Demo
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full text-xs text-muted-foreground"
+              onClick={handleQuickFillAgent}
+            >
+              ⚡ Fill Agent Demo
+            </Button>
+          </div>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">

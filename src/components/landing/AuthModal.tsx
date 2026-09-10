@@ -35,7 +35,16 @@ export function AuthModal({
   const [loginApi, { isLoading: isLoggingIn }] = useLoginMutation()
 
   // Signup form state
-  const [signupForm, setSignupForm] = useState({
+  const [signupForm, setSignupForm] = useState<{
+    firstName: string
+    lastName: string
+    email: string
+    phone: string
+    brokerageName: string
+    password: string
+    confirmPassword: string
+    role: UserRole
+  }>({
     firstName: '',
     lastName: '',
     email: '',
@@ -62,7 +71,7 @@ export function AuthModal({
     setLoginPassword('Password!123')
   }
 
-  const handleQuickFillSignup = () => {
+  const handleQuickFillOwnerSignup = () => {
     const randomId = Math.floor(1000 + Math.random() * 9000)
     setSignupForm({
       firstName: 'Shahzaib',
@@ -73,6 +82,21 @@ export function AuthModal({
       password: 'Password!123',
       confirmPassword: 'Password!123',
       role: UserRole.BROKERAGE_OWNER,
+    })
+    setAgreed(true)
+  }
+
+  const handleQuickFillAgentSignup = () => {
+    const randomId = Math.floor(1000 + Math.random() * 9000)
+    setSignupForm({
+      firstName: 'Hamza',
+      lastName: 'Farooq',
+      email: `hamza.agent.${randomId}@almirajrealty.pk`,
+      phone: '+1 (555) 782-9012',
+      brokerageName: 'Al-Miraj Real Estate & Builders',
+      password: 'Password!123',
+      confirmPassword: 'Password!123',
+      role: UserRole.AGENT,
     })
     setAgreed(true)
   }
@@ -195,22 +219,20 @@ export function AuthModal({
           <button
             type="button"
             onClick={() => setTab('login')}
-            className={`flex-1 py-2 text-xs rounded-lg transition-all cursor-pointer ${
-              tab === 'login'
+            className={`flex-1 py-2 text-xs rounded-lg transition-all cursor-pointer ${tab === 'login'
                 ? 'bg-white dark:bg-[#2C3D43] text-slate-900 dark:text-white font-black shadow-sm border border-slate-200/80 dark:border-[#4B636C]'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold'
-            }`}
+              }`}
           >
             Sign In
           </button>
           <button
             type="button"
             onClick={() => setTab('signup')}
-            className={`flex-1 py-2 text-xs rounded-lg transition-all cursor-pointer ${
-              tab === 'signup'
+            className={`flex-1 py-2 text-xs rounded-lg transition-all cursor-pointer ${tab === 'signup'
                 ? 'bg-white dark:bg-[#2C3D43] text-slate-900 dark:text-white font-black shadow-sm border border-slate-200/80 dark:border-[#4B636C]'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold'
-            }`}
+              }`}
           >
             Sign Up
           </button>
@@ -346,6 +368,52 @@ export function AuthModal({
         ) : (
           /* Tab 2: SIGN UP / 14-DAY TRIAL */
           <form onSubmit={handleSignupSubmit} className="space-y-3.5">
+            {/* Account Type Selector (Broker Owner vs Real Estate Agent) */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                Registering As *
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSignupForm({ ...signupForm, role: UserRole.BROKERAGE_OWNER })}
+                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${signupForm.role === UserRole.BROKERAGE_OWNER
+                      ? 'bg-[#EDF2EB] dark:bg-[#202E29] border-[#618764] dark:border-[#9CB080] shadow-sm ring-1 ring-[#9CB080]'
+                      : 'bg-slate-50 dark:bg-[#141C1F] border-[#D8E2D6] dark:border-[#384C53] opacity-75 hover:opacity-100'
+                    }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <MaterialIcon
+                      name="domain"
+                      size={18}
+                      className={signupForm.role === UserRole.BROKERAGE_OWNER ? 'text-[#2B5748] dark:text-[#9CB080]' : 'text-slate-400'}
+                    />
+                    <span className="font-bold text-xs text-slate-900 dark:text-white">Brokerage Owner</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Start new brokerage workspace</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSignupForm({ ...signupForm, role: UserRole.AGENT })}
+                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${signupForm.role === UserRole.AGENT
+                      ? 'bg-[#EDF2EB] dark:bg-[#202E29] border-[#618764] dark:border-[#9CB080] shadow-sm ring-1 ring-[#9CB080]'
+                      : 'bg-slate-50 dark:bg-[#141C1F] border-[#D8E2D6] dark:border-[#384C53] opacity-75 hover:opacity-100'
+                    }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <MaterialIcon
+                      name="badge"
+                      size={18}
+                      className={signupForm.role === UserRole.AGENT ? 'text-[#2B5748] dark:text-[#9CB080]' : 'text-slate-400'}
+                    />
+                    <span className="font-bold text-xs text-slate-900 dark:text-white">Real Estate Agent</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Join existing brokerage team</span>
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1 uppercase tracking-wider">
@@ -404,16 +472,21 @@ export function AuthModal({
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1 uppercase tracking-wider">
-                  Brokerage / Team *
+                  {signupForm.role === UserRole.AGENT ? 'Brokerage Name *' : 'Brokerage / Company *'}
                 </label>
                 <input
                   type="text"
                   value={signupForm.brokerageName}
                   onChange={(e) => setSignupForm({ ...signupForm, brokerageName: e.target.value })}
-                  placeholder="Premier Realty"
+                  placeholder={signupForm.role === UserRole.AGENT ? 'e.g. Al-Miraj Real Estate & Builders' : 'Premier Realty'}
                   required
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#141C1F] border border-[#D8E2D6] dark:border-[#384C53] text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-xs focus:outline-none focus:border-[#9CB080] transition-all"
                 />
+                {signupForm.role === UserRole.AGENT && (
+                  <p className="text-[10px] text-[#2B5748] dark:text-[#9CB080] font-medium mt-1">
+                    One brokerage can have multiple agents.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -473,7 +546,7 @@ export function AuthModal({
                 className="rounded border-slate-300 dark:border-[#4B636C] bg-white dark:bg-[#141C1F] text-[#9CB080] focus:ring-0 cursor-pointer"
               />
               <label htmlFor="modal-terms" className="text-slate-600 dark:text-slate-300 cursor-pointer">
-                I agree to the Terms of Service & 14-day trial agreement
+                I agree to the Terms of Service & {signupForm.role === UserRole.AGENT ? 'agent onboarding agreement' : '14-day trial agreement'}
               </label>
             </div>
 
@@ -483,19 +556,44 @@ export function AuthModal({
               disabled={isSigningUp}
               className="w-full py-3.5 rounded-xl bg-[#9CB080] hover:bg-[#8CA070] text-[#141C1F] font-black text-sm shadow-md active:scale-98 disabled:opacity-50 transition-all cursor-pointer"
             >
-              {isSigningUp ? 'Setting up Workspace...' : 'Start My 14-Day Free Trial'}
+              {isSigningUp
+                ? signupForm.role === UserRole.AGENT
+                  ? 'Joining Brokerage Team...'
+                  : 'Setting up Workspace...'
+                : signupForm.role === UserRole.AGENT
+                  ? 'Join Brokerage as Agent'
+                  : 'Start My 14-Day Free Trial'}
             </button>
 
-            {/* Quick Fill Button */}
-            <div className="text-center pt-1">
-              <button
-                type="button"
-                onClick={handleQuickFillSignup}
-                className="text-xs text-[#2B5748] dark:text-[#9CB080] hover:underline font-bold cursor-pointer inline-flex items-center space-x-1"
-              >
-                <MaterialIcon name="bolt" size={16} className="mr-1" />
-                <span>Quick-Fill Sample Registration Data</span>
-              </button>
+            {/* Quick Fill Buttons for Both Roles */}
+            <div className="pt-2 border-t border-[#D8E2D6] dark:border-[#2C3C42]">
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center mb-2">
+                Quick Fill Registration Demos
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleQuickFillOwnerSignup}
+                  className="p-2 rounded-xl bg-slate-50 dark:bg-[#232F34] hover:bg-[#EDF2EB] dark:hover:bg-[#2C3C42] border border-[#D8E2D6] dark:border-[#384C53] hover:border-[#618764] dark:hover:border-[#618764] text-left transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <div className="flex items-center space-x-1.5 min-w-0">
+                    <MaterialIcon name="domain" size={15} className="text-[#618764] dark:text-[#9CB080] shrink-0 group-hover:scale-110 transition-transform" />
+                    <span className="font-bold text-slate-800 dark:text-slate-100 text-[11px] truncate">Owner Demo</span>
+                  </div>
+                  <MaterialIcon name="bolt" size={13} className="text-[#2B5748] dark:text-[#9CB080] shrink-0" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleQuickFillAgentSignup}
+                  className="p-2 rounded-xl bg-slate-50 dark:bg-[#232F34] hover:bg-[#EDF2EB] dark:hover:bg-[#2C3C42] border border-[#D8E2D6] dark:border-[#384C53] hover:border-[#618764] dark:hover:border-[#618764] text-left transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <div className="flex items-center space-x-1.5 min-w-0">
+                    <MaterialIcon name="badge" size={15} className="text-[#618764] dark:text-[#9CB080] shrink-0 group-hover:scale-110 transition-transform" />
+                    <span className="font-bold text-slate-800 dark:text-slate-100 text-[11px] truncate">Agent Demo</span>
+                  </div>
+                  <MaterialIcon name="bolt" size={13} className="text-[#2B5748] dark:text-[#9CB080] shrink-0" />
+                </button>
+              </div>
             </div>
           </form>
         )}

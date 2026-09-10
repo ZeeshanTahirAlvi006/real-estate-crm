@@ -16,6 +16,7 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string(),
   JWT_REFRESH_EXPIRES_IN: z.string(),
   COOKIE_SECRET: z.string().min(16, 'COOKIE_SECRET must be at least 16 characters'),
+  COOKIE_DOMAIN: z.string().optional(),
   COOKIE_SECURE: z.preprocess((val) => {
     if (typeof val === 'string') {
       const trimmed = val.trim().toLowerCase()
@@ -24,6 +25,7 @@ const envSchema = z.object({
     }
     return Boolean(val)
   }, z.boolean()),
+  ENCRYPTION_MASTER_KEY: z.string().length(64, 'ENCRYPTION_MASTER_KEY must be a 64-character hex string (32 bytes)'),
   OPENROUTER_API_KEY: z.string().optional(),
   MISTRAL_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),

@@ -55,13 +55,17 @@ export const authenticate = async (
 ): Promise<void | Response> => {
   const authHeader = req.headers.authorization
   const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
-  const accessToken = req.cookies?.[COOKIE_NAMES.ACCESS_TOKEN] || bearerToken
-  const refreshToken = req.cookies?.[COOKIE_NAMES.REFRESH_TOKEN] || (req.headers['x-refresh-token'] as string)
+  const cookieAccessToken = req.cookies?.[COOKIE_NAMES.ACCESS_TOKEN]
 
-  // Scenario 1: Valid Access Token Present
-  if (accessToken) {
+  const headerRefreshToken = (req.headers['x-refresh-token'] as string) || req.body?.refreshToken
+  const cookieRefreshToken = req.cookies?.[COOKIE_NAMES.REFRESH_TOKEN]
+
+  // Scenario 1: Candidate Access Tokens (Bearer token first as explicit SPA intent, then cookie)
+  const candidateAccessTokens = [bearerToken, cookieAccessToken].filter(Boolean) as string[]
+
+  for (const token of candidateAccessTokens) {
     try {
-      const decoded = verifyAccessToken(accessToken)
+      const decoded = verifyAccessToken(token)
       const rawUserId = decoded.userId || (decoded as any).id
 
       if (rawUserId) {
@@ -123,14 +127,16 @@ export const authenticate = async (
         }
       }
     } catch {
-      // Access token invalid or expired, attempt refresh token fallback below
+      // Access token candidate invalid or expired, try next candidate
     }
   }
 
-  // Scenario 2: Access Token Expired/Missing, Refresh Token Fallback
-  if (refreshToken) {
+  // Scenario 2: Access Tokens Expired/Missing, Refresh Token Fallback
+  const candidateRefreshTokens = [headerRefreshToken, cookieRefreshToken].filter(Boolean) as string[]
+
+  for (const rToken of candidateRefreshTokens) {
     try {
-      const decoded = verifyRefreshToken(refreshToken)
+      const decoded = verifyRefreshToken(rToken)
       const rawUserId = decoded.userId || (decoded as any).id
 
       if (rawUserId && mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(rawUserId)) {
@@ -151,7 +157,7 @@ export const authenticate = async (
           }
 
           const newAccessToken = signAccessToken(newPayload)
-          setAuthCookies(res, newAccessToken, refreshToken)
+          setAuthCookies(res, newAccessToken, rToken)
           res.setHeader('X-Access-Token', newAccessToken)
 
           warmUserAuthCache(rawUserId, user).catch(() => {})
@@ -161,7 +167,7 @@ export const authenticate = async (
         }
       }
     } catch {
-      // Refresh token is also invalid or expired
+      // Refresh token candidate is also invalid or expired, try next
     }
   }
 

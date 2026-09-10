@@ -48,6 +48,68 @@ const rawBaseQuery = fetchBaseQuery({
   },
 })
 
+// Shared refresh promise to deduplicate concurrent 401 refresh requests
+let refreshPromise: Promise<boolean> | null = null
+
+async function executeRefresh(api: any, extraOptions: any): Promise<boolean> {
+  if (refreshPromise) {
+    return refreshPromise
+  }
+
+  refreshPromise = (async () => {
+    try {
+      let refreshToken: string | null = null
+      if (typeof window !== 'undefined') {
+        try {
+          refreshToken = localStorage.getItem(STORAGE_KEY_REFRESH)
+        } catch {}
+      }
+
+      // Attempt silent token refresh
+      const refreshResult = await rawBaseQuery(
+        {
+          url: '/auth/refresh-token',
+          method: 'POST',
+          body: { refreshToken: refreshToken || undefined },
+        },
+        api,
+        extraOptions
+      )
+
+      if (refreshResult.data) {
+        const resData = (refreshResult.data as any).data || refreshResult.data
+        const newAccessToken = resData.token || resData.accessToken
+        const newRefreshToken = resData.refreshToken
+        const user = resData.user || resData
+
+        if (newAccessToken && user) {
+          api.dispatch(
+            setCredentials({
+              user,
+              token: newAccessToken,
+              refreshToken: newRefreshToken,
+            })
+          )
+          return true
+        }
+      }
+
+      // Refresh failed or unauthorized
+      api.dispatch(logout())
+      api.dispatch(setInitialized())
+      return false
+    } catch {
+      api.dispatch(logout())
+      api.dispatch(setInitialized())
+      return false
+    } finally {
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
+}
+
 // Wrapper that intercepts 401 & network error responses globally and updates auth state
 const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
   args,
@@ -63,47 +125,11 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
       const isAuthPath = urlStr?.includes('/auth/login') || urlStr?.includes('/auth/refresh-token')
 
       if (!isAuthPath) {
-        let refreshToken: string | null = null
-        if (typeof window !== 'undefined') {
-          try {
-            refreshToken = localStorage.getItem(STORAGE_KEY_REFRESH)
-          } catch {}
-        }
-
-        // Attempt silent token refresh
-        const refreshResult = await rawBaseQuery(
-          {
-            url: '/auth/refresh-token',
-            method: 'POST',
-            body: { refreshToken: refreshToken || undefined },
-          },
-          api,
-          extraOptions
-        )
-
-        if (refreshResult.data) {
-          const resData = (refreshResult.data as any).data || refreshResult.data
-          const newAccessToken = resData.token || resData.accessToken
-          const newRefreshToken = resData.refreshToken
-          const user = resData.user || resData
-
-          if (newAccessToken && user) {
-            api.dispatch(
-              setCredentials({
-                user,
-                token: newAccessToken,
-                refreshToken: newRefreshToken,
-              })
-            )
-            // Retry the original query with the refreshed token
-            result = await rawBaseQuery(args, api, extraOptions)
-          } else {
-            api.dispatch(logout())
-            api.dispatch(setInitialized())
-          }
-        } else {
-          api.dispatch(logout())
-          api.dispatch(setInitialized())
+        // Await shared mutex refresh execution
+        const refreshed = await executeRefresh(api, extraOptions)
+        if (refreshed) {
+          // Retry the original query with the refreshed credentials
+          result = await rawBaseQuery(args, api, extraOptions)
         }
       } else {
         api.dispatch(logout())

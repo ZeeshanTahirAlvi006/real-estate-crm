@@ -72,28 +72,33 @@ export const initSocketServer = (httpServer: HttpServer): SocketIOServer => {
       const parsedCookies = parseCookies(socket.handshake.headers.cookie)
       const cookieAccessToken = parsedCookies[COOKIE_NAMES.ACCESS_TOKEN]
       const cookieRefreshToken = parsedCookies[COOKIE_NAMES.REFRESH_TOKEN]
+      const authObjRefreshToken = (socket.handshake.auth as any)?.refreshToken
 
-      const accessToken = authObjToken || bearerToken || cookieAccessToken
-      const refreshToken = (socket.handshake.auth as any)?.refreshToken || cookieRefreshToken
+      const candidateAccessTokens = [authObjToken, bearerToken, cookieAccessToken].filter(Boolean) as string[]
+      const candidateRefreshTokens = [authObjRefreshToken, cookieRefreshToken].filter(Boolean) as string[]
 
       let userId: string | null = null
       let payload: TokenPayload | null = null
 
-      if (accessToken) {
+      for (const token of candidateAccessTokens) {
         try {
-          payload = verifyAccessToken(accessToken)
+          payload = verifyAccessToken(token)
           userId = payload.userId || (payload as any).id
+          if (userId) break
         } catch {
-          // Token expired, attempt refresh fallback below
+          // Token candidate expired or invalid, try next
         }
       }
 
-      if (!userId && refreshToken) {
-        try {
-          payload = verifyRefreshToken(refreshToken)
-          userId = payload.userId || (payload as any).id
-        } catch {
-          // Refresh token also invalid
+      if (!userId) {
+        for (const rToken of candidateRefreshTokens) {
+          try {
+            payload = verifyRefreshToken(rToken)
+            userId = payload.userId || (payload as any).id
+            if (userId) break
+          } catch {
+            // Refresh token candidate also invalid
+          }
         }
       }
 

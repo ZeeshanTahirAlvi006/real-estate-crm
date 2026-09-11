@@ -209,7 +209,7 @@ export const webhookIngestHandler = async (req: Request, res: Response, next: Ne
       apiKey = req.query.apiKey as string
     }
 
-    const rawBody = JSON.stringify(req.body)
+    const rawBody = (req as any).rawBody || JSON.stringify(req.body)
     const clientIp = req.ip || req.socket.remoteAddress || '127.0.0.1'
 
     const result = await ingestWebhookLead(req.body, rawBody, signature, sourceId, clientIp, apiKey)

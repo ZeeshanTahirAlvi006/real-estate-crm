@@ -91,8 +91,15 @@ export const createApp = (): Express => {
   // 3. Static Uploads Folder (Local storage)
   app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')))
 
-  // 4. Body Parsers with limits
-  app.use(express.json({ limit: '5mb' }))
+  // 4. Body Parsers with limits and rawBody capture for webhook HMAC verification
+  app.use(
+    express.json({
+      limit: '5mb',
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf.toString('utf8')
+      },
+    })
+  )
   app.use(express.urlencoded({ extended: true, limit: '5mb' }))
 
   // 5. Cookie Parser with Signing Secret

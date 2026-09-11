@@ -122,7 +122,7 @@ async function runZillowDiagnostic() {
 
   // Common realistic Zillow Premier Agent payload
   const testEmail = `zillow.lead.${Date.now()}@gmail.com`
-  const testPhone = '+1 (555) 749-3021'
+  const testPhone = `+1555${Math.floor(1000000 + Math.random() * 9000000)}`
   const zillowPayload = {
     source: 'Zillow',
     firstName: 'Alexander',
@@ -135,6 +135,9 @@ async function runZillowDiagnostic() {
     message: 'We are a pre-approved cash buyer looking to schedule a private walkthrough this Saturday ASAP.',
   }
   const rawBody = JSON.stringify(zillowPayload)
+
+  // Ensure no existing contact matches this test email or phone
+  await Contact.deleteMany({ brokerageId, $or: [{ email: testEmail }, { phone: testPhone }] })
 
   // Detect whether HTTP server is running on port 5000
   const serverPort = process.env.PORT || '5000'

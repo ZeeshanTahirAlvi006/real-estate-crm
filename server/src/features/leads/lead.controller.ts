@@ -189,17 +189,30 @@ export const updateScoringConfigHandler = async (req: Request, res: Response, ne
 
 export const webhookIngestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const sourceId = req.query.sourceId as string || req.headers['x-source-id'] as string
+    const sourceId = (req.query.sourceId as string) || (req.headers['x-source-id'] as string)
     if (!sourceId) {
-      sendSuccess(res, null, 'Lead source ID is required (query param sourceId or header X-Source-Id)', HTTP_STATUS.BAD_REQUEST)
+      sendError(res, 'Lead source ID is required (query param sourceId or header X-Source-Id)', HTTP_STATUS.BAD_REQUEST)
       return
     }
 
     const signature = req.headers['x-webhook-signature'] as string | undefined
+
+    // Extract API key from x-api-key, Authorization: Bearer, or query param
+    let apiKey = req.headers['x-api-key'] as string | undefined
+    if (!apiKey) {
+      const authHeader = req.headers['authorization']
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        apiKey = authHeader.slice(7).trim()
+      }
+    }
+    if (!apiKey && req.query.apiKey) {
+      apiKey = req.query.apiKey as string
+    }
+
     const rawBody = JSON.stringify(req.body)
     const clientIp = req.ip || req.socket.remoteAddress || '127.0.0.1'
 
-    const result = await ingestWebhookLead(req.body, rawBody, signature, sourceId, clientIp)
+    const result = await ingestWebhookLead(req.body, rawBody, signature, sourceId, clientIp, apiKey)
     sendSuccess(
       res,
       { contactId: result.contact.id, isNew: result.isNew, routed: result.routingResult.matched },

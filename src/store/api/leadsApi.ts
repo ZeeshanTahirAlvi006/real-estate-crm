@@ -24,6 +24,7 @@ export interface IngestWebhookParams {
   sourceId: string
   payload: IngestLeadPayload
   signature?: string
+  apiKey?: string
 }
 
 export const leadsApi = baseApi.injectEndpoints({
@@ -220,9 +221,10 @@ export const leadsApi = baseApi.injectEndpoints({
       { contactId: string; isNew: boolean; routed: boolean },
       IngestWebhookParams
     >({
-      query: ({ sourceId, payload, signature }) => {
+      query: ({ sourceId, payload, signature, apiKey }) => {
         const headers: Record<string, string> = {}
         if (signature) headers['X-Webhook-Signature'] = signature
+        if (apiKey) headers['X-Api-Key'] = apiKey
         headers['X-Source-Id'] = sourceId
 
         return {

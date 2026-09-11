@@ -9,7 +9,7 @@ import {
   AuthResultDto,
   UserResponseDto,
 } from './auth.types.js'
-import * as mongoose from 'mongoose'
+import mongoose from 'mongoose'
 import { signAccessToken, signRefreshToken, verifyRefreshToken, TokenPayload } from '../../utils/tokenHelper.js'
 import { AppError } from '../../middleware/errorHandler.js'
 import { GENERIC_AUTH_MESSAGES, HTTP_STATUS, USER_ROLES } from '../../utils/constants.js'
@@ -124,58 +124,61 @@ export const registerUser = async (
   // Single parallel trip to MongoDB rather than sequential blocking roundtrips
   const startTime = process.hrtime.bigint()
 
-  const [existingUser, existingBrokerageOrConflict] = await Promise.all([
-    // Check duplicate email with lean projection
-    User.findOne({ email: normalizedEmail }).select('_id').lean(),
+  const [existingUser, existingBrokerageOrConflict] =
+    mongoose?.connection?.readyState === 1
+      ? await Promise.all([
+          // Check duplicate email with lean projection
+          User.findOne({ email: normalizedEmail }).select('_id').lean(),
 
-    // If Owner: check if brokerage name already has an active brokerage owner (covered via idx_brokerage_name_ci)
-    // If Agent: check if brokerage already exists so multiple agents join the same brokerage
-    isRegisteringAsOwner
-      ? Brokerage.aggregate([
-          {
-            $match: {
-              name: trimmedBrokerageName,
-            },
-          },
-          {
-            $lookup: {
-              from: 'users',
-              let: { bId: '$_id' },
-              pipeline: [
+          // If Owner: check if brokerage name already has an active brokerage owner (covered via idx_brokerage_name_ci)
+          // If Agent: check if brokerage already exists so multiple agents join the same brokerage
+          isRegisteringAsOwner
+            ? Brokerage.aggregate([
                 {
                   $match: {
-                    $expr: {
-                      $and: [
-                        { $eq: ['$brokerageId', '$$bId'] },
-                        { $eq: ['$role', USER_ROLES.BROKERAGE_OWNER] },
-                        { $eq: ['$isActive', true] },
-                      ],
-                    },
+                    name: trimmedBrokerageName,
                   },
                 },
-                { $project: { _id: 1 } },
-                { $limit: 1 },
-              ],
-              as: 'owners',
-            },
-          },
-          {
-            $match: {
-              'owners.0': { $exists: true },
-            },
-          },
-          {
-            $project: { _id: 1, name: 1 },
-          },
-          {
-            $limit: 1,
-          },
-        ]).collation({ locale: 'en', strength: 2 })
-      : Brokerage.findOne({ name: trimmedBrokerageName })
-          .collation({ locale: 'en', strength: 2 })
-          .select('_id name')
-          .lean(),
-  ])
+                {
+                  $lookup: {
+                    from: 'users',
+                    let: { bId: '$_id' },
+                    pipeline: [
+                      {
+                        $match: {
+                          $expr: {
+                            $and: [
+                              { $eq: ['$brokerageId', '$$bId'] },
+                              { $eq: ['$role', USER_ROLES.BROKERAGE_OWNER] },
+                              { $eq: ['$isActive', true] },
+                            ],
+                          },
+                        },
+                      },
+                      { $project: { _id: 1 } },
+                      { $limit: 1 },
+                    ],
+                    as: 'owners',
+                  },
+                },
+                {
+                  $match: {
+                    'owners.0': { $exists: true },
+                  },
+                },
+                {
+                  $project: { _id: 1, name: 1 },
+                },
+                {
+                  $limit: 1,
+                },
+              ]).collation({ locale: 'en', strength: 2 })
+            : Brokerage.findOne({ name: trimmedBrokerageName })
+                .collation({ locale: 'en', strength: 2 })
+                .select('_id name')
+                .lean(),
+        ])
+      : [null, null]
 
   recordDbMetric('registerUser:parallelPreflightChecks', startTime, 10)
 

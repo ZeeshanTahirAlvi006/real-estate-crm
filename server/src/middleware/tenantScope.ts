@@ -39,7 +39,7 @@ export const tenantScope = (req: Request, res: Response, next: NextFunction): vo
   req.tenantFilter = {
     brokerageId: req.user.brokerageId,
   }
-  req.effectiveBrokerageId = req.user.brokerageId.toString()
+  req.effectiveBrokerageId = req.user.brokerageId ? req.user.brokerageId.toString() : undefined
 
   next()
 }
@@ -48,6 +48,9 @@ export const tenantScope = (req: Request, res: Response, next: NextFunction): vo
 export const verifyBrokerageAccess = (user: IUser, resourceBrokerageId: mongoose.Types.ObjectId | string): boolean => {
   if (user.role === USER_ROLES.SUPER_ADMIN) {
     return true
+  }
+  if (!user?.brokerageId || !resourceBrokerageId) {
+    return false
   }
   return user.brokerageId.toString() === resourceBrokerageId.toString()
 }

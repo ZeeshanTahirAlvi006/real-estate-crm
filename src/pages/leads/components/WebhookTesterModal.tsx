@@ -15,6 +15,7 @@ import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
   ShieldCheckIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline'
 import {
   useGetLeadSourcesQuery,
@@ -24,9 +25,13 @@ import {
 } from '@/store/api/leadsApi'
 import { toast } from 'sonner'
 
+export type PresetType = 'zillow' | 'realtor' | 'meta' | 'website'
+
 interface WebhookTesterModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  initialSourceId?: string
+  initialPreset?: PresetType
 }
 
 const PRESET_PAYLOADS: Record<string, any> = {
@@ -95,16 +100,18 @@ async function computeHmacSha256(secret: string, message: string): Promise<strin
 export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
   open,
   onOpenChange,
+  initialSourceId,
+  initialPreset,
 }) => {
   const { data: sourcesData } = useGetLeadSourcesQuery()
   const sources = sourcesData?.leadSources || []
 
   const [selectedSourceId, setSelectedSourceId] = useState<string>('')
-  const [activePreset, setActivePreset] = useState<'zillow' | 'realtor' | 'meta' | 'website'>('zillow')
+  const [activePreset, setActivePreset] = useState<PresetType>('zillow')
   const [payloadText, setPayloadText] = useState(JSON.stringify(PRESET_PAYLOADS.zillow, null, 2))
-  const [useHmacAuth, setUseHmacAuth] = useState(true)
+  const [authMethod, setAuthMethod] = useState<'apikey' | 'hmac'>('apikey')
 
-  // Fetch decrypted secret for HMAC test calculation
+  // Fetch decrypted secret for API Key or HMAC test calculation
   const { data: selectedSourceWithSecret } = useGetLeadSourceByIdQuery(
     { id: selectedSourceId, includeSecret: true },
     { skip: !selectedSourceId }
@@ -123,12 +130,21 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
   } | null>(null)
 
   useEffect(() => {
-    if (sources.length > 0 && !selectedSourceId) {
-      setSelectedSourceId(sources[0].id)
-    }
-  }, [sources, selectedSourceId])
+    if (open) {
+      if (initialSourceId) {
+        setSelectedSourceId(initialSourceId)
+      } else if (sources.length > 0 && !selectedSourceId) {
+        setSelectedSourceId(sources[0].id)
+      }
 
-  const handleSelectPreset = (preset: 'zillow' | 'realtor' | 'meta' | 'website') => {
+      const preset = initialPreset || 'zillow'
+      setActivePreset(preset)
+      setPayloadText(JSON.stringify(PRESET_PAYLOADS[preset] || PRESET_PAYLOADS.zillow, null, 2))
+      setResult(null)
+    }
+  }, [open, initialSourceId, initialPreset, sources])
+
+  const handleSelectPreset = (preset: PresetType) => {
     setActivePreset(preset)
     setPayloadText(JSON.stringify(PRESET_PAYLOADS[preset], null, 2))
     setResult(null)
@@ -182,15 +198,24 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
         toast.error(err?.data?.message || 'Capture ingestion failed')
       }
     } else {
-      // Test universal webhook endpoint with HMAC
+      // Test universal webhook endpoint with API Key or HMAC
       if (!selectedSourceId) {
         toast.error('Please select a lead source')
         return
       }
 
       let signature: string | undefined
-      if (useHmacAuth) {
-        const secret = selectedSourceWithSecret?.webhookSecret
+      let apiKey: string | undefined
+      const secret = selectedSourceWithSecret?.webhookSecret
+
+      if (authMethod === 'apikey') {
+        if (secret && secret !== '[decryption_failed]') {
+          apiKey = secret
+        } else {
+          apiKey = 'test_api_key'
+        }
+      } else {
+        // HMAC SHA-256
         if (secret && secret !== '[decryption_failed]') {
           signature = await computeHmacSha256(secret, payloadText)
         } else {
@@ -204,6 +229,7 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
           sourceId: selectedSourceId,
           payload: parsedPayload,
           signature,
+          apiKey,
         }).unwrap()
 
         setResult({
@@ -229,32 +255,32 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]">
         <DialogHeader>
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-primary/10 text-primary">
+            <div className="p-2 rounded-xl bg-[#EDF2EB] dark:bg-[#1A2E26] text-[#2B5748] dark:text-[#9CB080] border border-[#D8E2D6] dark:border-[#618764]/50">
               <CommandLineIcon className="w-5 h-5" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">
+              <DialogTitle className="text-base font-bold text-[#273338] dark:text-white">
                 Live Webhook & Ingestion Simulator
               </DialogTitle>
-              <p className="text-xs text-muted-foreground">
-                Dispatch actual test payloads with HMAC SHA-256 signatures to verify parsing, deduplication, scoring, and routing engine execution.
+              <p className="text-xs text-[#75887E] dark:text-[#A0B2A6]">
+                Dispatch actual test payloads with API Key or HMAC SHA-256 signatures to verify parsing, deduplication, scoring, and routing engine execution.
               </p>
             </div>
           </div>
         </DialogHeader>
 
         <div className="space-y-4 pt-2 text-xs">
-          {/* Target Lead Source Selector */}
+          {/* Target Lead Source Selector & Auth Mode */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs font-semibold">Target Lead Source</Label>
+              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Target Lead Source</Label>
               <select
                 value={selectedSourceId}
                 onChange={(e) => setSelectedSourceId(e.target.value)}
-                className="w-full h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-8 px-2.5 rounded-lg border border-[#D8E2D6] dark:border-[#618764]/60 bg-white dark:bg-[#1A2E26] text-xs font-medium text-[#273338] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#9CB080]"
               >
                 {sources.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -264,21 +290,35 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
               </select>
             </div>
 
-            <div className="space-y-1 flex flex-col justify-end">
-              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/60">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <ShieldCheckIcon className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span className="text-[11px] text-muted-foreground truncate">
-                    HMAC SHA-256 Signature
-                  </span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={useHmacAuth}
-                  onChange={(e) => setUseHmacAuth(e.target.checked)}
-                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-                  title="Toggle HMAC Signature"
-                />
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Auth Method</Label>
+              <div className="flex items-center gap-1.5 p-1 rounded-lg bg-[#EDF2EB]/60 dark:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/50">
+                <button
+                  type="button"
+                  onClick={() => setAuthMethod('apikey')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                    authMethod === 'apikey'
+                      ? 'bg-white dark:bg-[#202B2F] text-[#273338] dark:text-white shadow-xs'
+                      : 'text-[#75887E] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white'
+                  }`}
+                  title="Direct API Key (x-api-key / Bearer token) — recommended for Zapier & Make"
+                >
+                  <KeyIcon className="w-3.5 h-3.5 text-[#2B5748] dark:text-[#9CB080]" />
+                  <span>API Key (Zapier)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthMethod('hmac')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                    authMethod === 'hmac'
+                      ? 'bg-white dark:bg-[#202B2F] text-[#273338] dark:text-white shadow-xs'
+                      : 'text-[#75887E] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white'
+                  }`}
+                  title="HMAC SHA-256 Signature (x-webhook-signature)"
+                >
+                  <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>HMAC SHA-256</span>
+                </button>
               </div>
             </div>
           </div>
@@ -434,3 +474,5 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
     </Dialog>
   )
 }
+
+export default WebhookTesterModal

@@ -13,6 +13,7 @@ import { validate } from '../../middleware/validate.js'
 import {
   createBrokerageSchema,
   updateBrokerageSchema,
+  listBrokeragesQuerySchema,
 } from './brokerage.validators.js'
 import { USER_ROLES } from '../../utils/constants.js'
 
@@ -21,8 +22,13 @@ const router = Router()
 // All brokerage routes require authentication
 router.use(authenticate)
 
-// List all brokerages (Super Admin only)
-router.get('/', authorize(USER_ROLES.SUPER_ADMIN), list)
+// List all brokerages (Super Admin only, with bounded pagination validation)
+router.get(
+  '/',
+  authorize(USER_ROLES.SUPER_ADMIN),
+  validate({ query: listBrokeragesQuerySchema }),
+  list
+)
 
 // Create new brokerage (Super Admin only)
 router.post(

@@ -38,6 +38,7 @@ const brokerageSchema = new Schema<IBrokerage>(
       type: String,
       trim: true,
       lowercase: true,
+      unique: true,
       sparse: true,
       index: true,
     },
@@ -100,6 +101,10 @@ brokerageSchema.index(
   { name: 1 },
   { collation: { locale: 'en', strength: 2 }, name: 'idx_brokerage_name_ci' }
 )
+
+// Compound & single-field indexes for high-throughput listing, pagination and sorting (PERF-M-001)
+brokerageSchema.index({ createdAt: -1 })
+brokerageSchema.index({ isActive: 1, createdAt: -1 })
 
 export const Brokerage: Model<IBrokerage> =
   mongoose.models.Brokerage || mongoose.model<IBrokerage>('Brokerage', brokerageSchema)

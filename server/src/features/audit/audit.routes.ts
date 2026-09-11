@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getAuditLogs } from './audit.controller.js'
+import { getAuditLogs, getAuditLogById } from './audit.controller.js'
 import { authenticate } from '../../middleware/authenticate.js'
 import { authorize } from '../../middleware/authorize.js'
 import { tenantScope } from '../../middleware/tenantScope.js'
@@ -17,6 +17,15 @@ router.get(
   authorize(USER_ROLES.SUPER_ADMIN, USER_ROLES.BROKERAGE_OWNER),
   validate({ query: listAuditLogsQuerySchema }),
   getAuditLogs
+)
+
+// Single audit log record inspection (full state snapshots)
+router.get(
+  '/:id',
+  authenticate,
+  tenantScope,
+  authorize(USER_ROLES.SUPER_ADMIN, USER_ROLES.BROKERAGE_OWNER),
+  getAuditLogById
 )
 
 export const auditRoutes = router

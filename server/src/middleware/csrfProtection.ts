@@ -13,6 +13,8 @@ const CSRF_EXEMPT_PREFIXES = [
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
   '/api/auth/refresh-token',
+  '/api/leads/ingest',
+  '/api/leads/capture',
   '/api/leads/webhook',
   '/api/communication/webhook',
   '/api/communication/whatsapp/webhook',

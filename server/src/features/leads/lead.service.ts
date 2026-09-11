@@ -985,6 +985,21 @@ export const verifyWebhookSignature = (
   }
 }
 
+/**
+ * Timing-safe API key comparison
+ */
+export const verifyApiKey = (providedKey: string, expectedKey: string): boolean => {
+  if (!providedKey || !expectedKey) return false
+  const providedBuffer = Buffer.from(providedKey)
+  const expectedBuffer = Buffer.from(expectedKey)
+  if (providedBuffer.length !== expectedBuffer.length) return false
+  try {
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+  } catch {
+    return false
+  }
+}
+
 // ═══════════════════════════════════════════
 //  LEAD INGESTION PIPELINE
 // ═══════════════════════════════════════════
@@ -1176,25 +1191,33 @@ export const ingestWebhookLead = async (
   rawBody: string,
   signature: string | undefined,
   leadSourceId: string,
-  clientIp: string = '127.0.0.1'
+  clientIp: string = '127.0.0.1',
+  apiKey?: string
 ): Promise<{ contact: ContactResponseDto; isNew: boolean; routingResult: RoutingResult }> => {
   if (!mongoose.Types.ObjectId.isValid(leadSourceId)) {
     throw new AppError('Invalid lead source', HTTP_STATUS.BAD_REQUEST)
   }
 
-  const source = await LeadSource.findById(leadSourceId).select('+webhookSecret')
+  const source = await LeadSource.findById(new mongoose.Types.ObjectId(leadSourceId)).select('+webhookSecret')
   if (!source || !source.isActive) {
     throw new AppError('Lead source not found or inactive', HTTP_STATUS.NOT_FOUND)
   }
 
-  // Verify HMAC signature
-  if (!signature) {
-    throw new AppError('Missing webhook signature', HTTP_STATUS.UNAUTHORIZED)
+  // Require either API key or webhook signature
+  if (!apiKey && !signature) {
+    throw new AppError('Missing webhook signature or API key', HTTP_STATUS.UNAUTHORIZED)
   }
 
   const decryptedSecret = decrypt(source.webhookSecret)
-  if (!verifyWebhookSignature(rawBody, signature, decryptedSecret)) {
-    throw new AppError('Invalid webhook signature', HTTP_STATUS.UNAUTHORIZED)
+
+  if (apiKey) {
+    if (!verifyApiKey(apiKey, decryptedSecret)) {
+      throw new AppError('Invalid API key', HTTP_STATUS.UNAUTHORIZED)
+    }
+  } else if (signature) {
+    if (!verifyWebhookSignature(rawBody, signature, decryptedSecret)) {
+      throw new AppError('Invalid webhook signature', HTTP_STATUS.UNAUTHORIZED)
+    }
   }
 
   return ingestLead(rawPayload, source.brokerageId, source._id, source.type, clientIp)

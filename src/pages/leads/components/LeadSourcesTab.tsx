@@ -29,6 +29,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { LeadSourceModal } from './LeadSourceModal'
+import { WebhookTesterModal, type PresetType } from './WebhookTesterModal'
 import type { LeadSource, LeadSourceType } from '@/types'
 
 const SOURCE_CONFIG: Record<
@@ -51,6 +52,25 @@ export function LeadSourcesTab() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [viewSecretSourceId, setViewSecretSourceId] = useState<string | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+  // Webhook Simulator state
+  const [isTesterOpen, setIsTesterOpen] = useState(false)
+  const [testerSourceId, setTesterSourceId] = useState<string | undefined>(undefined)
+  const [testerPreset, setTesterPreset] = useState<PresetType | undefined>('zillow')
+
+  const getPresetForSourceType = (type: LeadSourceType): PresetType => {
+    if (type === 'zillow') return 'zillow'
+    if (type === 'realtor') return 'realtor'
+    if (type === 'meta_ads') return 'meta'
+    if (type === 'website') return 'website'
+    return 'zillow'
+  }
+
+  const handleOpenTester = (sourceId?: string, preset?: PresetType) => {
+    setTesterSourceId(sourceId)
+    setTesterPreset(preset || 'zillow')
+    setIsTesterOpen(true)
+  }
 
   const queryParams: { search?: string; type?: string } = {}
   if (searchTerm.trim()) queryParams.search = searchTerm.trim()
@@ -217,6 +237,17 @@ export function LeadSourcesTab() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => handleOpenTester(s.id, getPresetForSourceType(s.type))}
+            className="h-7 text-xs gap-1 px-2 text-[#2B5748] dark:text-[#9CB080] border-[#D8E2D6] dark:border-[#618764]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] font-semibold"
+            title="Test Webhook Ingestion"
+          >
+            <MaterialIcon name="play_arrow" size={13} />
+            <span className="hidden sm:inline">Test</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setViewSecretSourceId(s.id)}
             className="h-7 text-xs gap-1 px-2 text-[#4A5D54] dark:text-[#A0B2A6] border-[#D8E2D6] dark:border-[#618764]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F]"
             title="View Credentials"
@@ -230,6 +261,13 @@ export function LeadSourcesTab() {
               <MaterialIcon name="more_vert" size={16} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]">
+              <DropdownMenuItem
+                onClick={() => handleOpenTester(s.id, getPresetForSourceType(s.type))}
+                className="gap-2 cursor-pointer"
+              >
+                <MaterialIcon name="play_arrow" size={14} />
+                <span>Test Webhook</span>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
                   setEditingSource(s)
@@ -309,6 +347,13 @@ export function LeadSourcesTab() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]">
                   <DropdownMenuItem
+                    onClick={() => handleOpenTester(s.id, getPresetForSourceType(s.type))}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <MaterialIcon name="play_arrow" size={14} />
+                    <span>Test Webhook</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => {
                       setEditingSource(s)
                       setIsModalOpen(true)
@@ -375,6 +420,16 @@ export function LeadSourcesTab() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => handleOpenTester(s.id, getPresetForSourceType(s.type))}
+                className="h-7 text-xs gap-1 px-2.5 text-[#2B5748] dark:text-[#9CB080] border-[#D8E2D6] dark:border-[#618764]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] font-semibold"
+                title="Test Webhook Ingestion"
+              >
+                <MaterialIcon name="play_arrow" size={14} />
+                <span>Simulate</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setViewSecretSourceId(s.id)}
                 className="h-7 text-xs gap-1 px-2.5 text-[#4A5D54] dark:text-[#A0B2A6] border-[#D8E2D6] dark:border-[#618764]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] hover:text-[#273338] dark:hover:text-white"
               >
@@ -425,6 +480,16 @@ export function LeadSourcesTab() {
             onViewChange={handleViewChange}
             storageKey="crm_lead_sources_view"
           />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleOpenTester(undefined, 'zillow')}
+            className="h-9 px-3.5 gap-1.5 rounded-lg border-[#618764]/60 text-[#2B5748] dark:text-[#9CB080] hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] font-bold text-xs shrink-0 cursor-pointer shadow-xs"
+            title="Open Webhook & Ingestion Simulator"
+          >
+            <MaterialIcon name="play_circle" size={16} />
+            <span>Simulate Lead</span>
+          </Button>
           <Button
             onClick={() => {
               setEditingSource(null)
@@ -496,6 +561,38 @@ export function LeadSourcesTab() {
           </DialogHeader>
 
           <div className="space-y-4 pt-2 text-xs">
+            {/* API Key / Bearer Token for Zapier & Make */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-[#273338] dark:text-white">API Key / Bearer Token</Label>
+                <span className="text-[10px] text-[#2B5748] dark:text-[#9CB080] font-bold bg-[#9CB080]/20 px-2 py-0.5 rounded border border-[#9CB080]/30">
+                  Zapier & Make.com (No HMAC Needed)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={secretDetails?.webhookSecret || '••••••••••••••••••••••••••••••••'}
+                  className="h-9 font-mono text-xs bg-[#EDF2EB]/50 dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    secretDetails?.webhookSecret &&
+                    handleCopy(secretDetails.webhookSecret, 'API Key')
+                  }
+                  className="h-9 px-3 gap-1 shrink-0 border-[#D8E2D6] dark:border-[#618764]/60"
+                >
+                  <MaterialIcon name="content_copy" size={14} />
+                  <span>Copy</span>
+                </Button>
+              </div>
+              <p className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+                Pass in <code className="text-[#2B5748] dark:text-[#9CB080] font-mono font-bold">X-Api-Key</code> or <code className="text-[#2B5748] dark:text-[#9CB080] font-mono font-bold">Authorization: Bearer &lt;token&gt;</code> in Zapier or Make Webhook actions.
+              </p>
+            </div>
+
             {/* HMAC Webhook Secret */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -524,7 +621,7 @@ export function LeadSourcesTab() {
                 </Button>
               </div>
               <p className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
-                Signed raw body sent in <code className="text-[#2B5748] dark:text-[#9CB080] font-mono font-bold">X-Webhook-Signature</code>.
+                Signed raw body sent in <code className="text-[#2B5748] dark:text-[#9CB080] font-mono font-bold">X-Webhook-Signature</code> for custom HMAC services.
               </p>
             </div>
 
@@ -581,7 +678,21 @@ export function LeadSourcesTab() {
             </div>
           </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-2 flex items-center justify-between sm:justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const sId = secretDetails?.id
+                const sType = secretDetails?.type || 'zillow'
+                setViewSecretSourceId(null)
+                handleOpenTester(sId, getPresetForSourceType(sType as LeadSourceType))
+              }}
+              className="h-9 px-3 gap-1.5 text-[#2B5748] dark:text-[#9CB080] border-[#618764]/60 font-semibold"
+            >
+              <MaterialIcon name="play_arrow" size={15} />
+              <span>Simulate Lead</span>
+            </Button>
             <Button
               size="sm"
               onClick={() => setViewSecretSourceId(null)}
@@ -598,6 +709,14 @@ export function LeadSourcesTab() {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         leadSource={editingSource}
+      />
+
+      {/* Live Webhook Simulator Modal */}
+      <WebhookTesterModal
+        open={isTesterOpen}
+        onOpenChange={setIsTesterOpen}
+        initialSourceId={testerSourceId}
+        initialPreset={testerPreset}
       />
     </div>
   )

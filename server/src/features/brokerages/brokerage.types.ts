@@ -25,3 +25,18 @@ export interface UpdateBrokerageInput {
   logoUrl?: string
   timezone?: string
 }
+
+export interface ListBrokeragesQueryInput {
+  page?: number
+  limit?: number
+  search?: string
+  isActive?: boolean
+}
+
+export interface PaginatedBrokerageResponseDto {
+  brokerages: BrokerageResponseDto[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}

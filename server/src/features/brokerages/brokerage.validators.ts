@@ -20,3 +20,22 @@ export const updateBrokerageSchema = z
     timezone: z.string().trim().optional(),
   })
   .strict()
+
+// List Brokerages Query Schema with bounded pagination (PERF-M-002)
+export const listBrokeragesQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .default(25)
+    .transform((val) => Math.min(Math.max(1, val), 100)),
+  search: z.string().trim().optional(),
+  isActive: z
+    .enum(['true', 'false', 'all'])
+    .optional()
+    .transform((val) => (val === undefined || val === 'all' ? undefined : val === 'true')),
+})
+
+export type ListBrokeragesQuery = z.infer<typeof listBrokeragesQuerySchema>

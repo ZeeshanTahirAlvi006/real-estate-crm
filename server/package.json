@@ -11,6 +11,7 @@
     "start": "node dist/app.js",
     "typecheck": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit",
     "test": "tsx --test tests/**/*.test.ts",
+    "test:zillow": "tsx src/scripts/testZillowLead.ts",
     "tunnel": ".\\cloudflared.exe tunnel --url http://localhost:5000"
   },
   "dependencies": {

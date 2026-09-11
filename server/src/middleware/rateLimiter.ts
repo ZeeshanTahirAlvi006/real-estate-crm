@@ -114,7 +114,9 @@ export const rateLimiter = async (req: Request, res: Response, next: NextFunctio
     path.startsWith('/audit-logs') ||
     path.includes('/activities') ||
     path.includes('/activity-feed') ||
-    path.includes('/webhook')
+    path.includes('/webhook') ||
+    path.includes('/ingest') ||
+    path.includes('/capture')
   ) {
     return next()
   }

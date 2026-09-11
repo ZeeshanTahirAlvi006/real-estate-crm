@@ -47,6 +47,12 @@ export const corsOptions: cors.CorsOptions = {
     'x-csrf-token',
     'X-Refresh-Token',
     'x-refresh-token',
+    'X-Source-Id',
+    'x-source-id',
+    'X-Api-Key',
+    'x-api-key',
+    'X-Webhook-Signature',
+    'x-webhook-signature',
   ],
   exposedHeaders: ['Set-Cookie', 'X-XSRF-Token', 'X-CSRF-Token', 'Authorization', 'X-Refresh-Token'],
   maxAge: 86400, // Cache preflight response for 24 hours

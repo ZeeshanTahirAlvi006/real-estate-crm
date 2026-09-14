@@ -26,6 +26,8 @@ import { sendSuccess, sendPaginated, sendError } from '../../utils/apiResponse.j
 import { HTTP_STATUS, GENERIC_AUTH_MESSAGES } from '../../utils/constants.js'
 import { measureExecutionMs } from '../../utils/cacheHelper.js'
 import { logger } from '../../utils/logger.js'
+import { LeadSource } from '../../models/LeadSource.js'
+import { decrypt } from '../../utils/cryptoHelper.js'
 
 // Helper to extract IP and user-agent
 const getClientMeta = (req: Request) => ({
@@ -415,9 +417,30 @@ export const acknowledgeLeadsHandler = async (req: Request, res: Response, next:
 export const googleAdsWebhookHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const t0 = process.hrtime.bigint()
-    const sourceId = (req.query.sourceId as string) || (req.headers['x-source-id'] as string)
+    let sourceId = (req.query.sourceId as string) || (req.headers['x-source-id'] as string)
+
+    // Auto-resolve sourceId if not provided in query params or headers
+    if (!sourceId && req.body?.google_key) {
+      const candidates = await LeadSource.find({ type: 'google_ads', isActive: true })
+        .select('+webhookSecret')
+        .lean()
+      for (const candidate of candidates) {
+        try {
+          const decrypted = decrypt(candidate.webhookSecret)
+          if (
+            req.body.google_key === decrypted ||
+            req.body.google_key === decrypted.substring(0, 50) ||
+            decrypted.startsWith(req.body.google_key)
+          ) {
+            sourceId = candidate._id.toString()
+            break
+          }
+        } catch {}
+      }
+    }
+
     if (!sourceId) {
-      sendError(res, 'Lead source ID is required (query param sourceId or header X-Source-Id)', HTTP_STATUS.BAD_REQUEST)
+      sendError(res, 'Lead source ID is required (query param sourceId or valid key in body)', HTTP_STATUS.BAD_REQUEST)
       return
     }
 

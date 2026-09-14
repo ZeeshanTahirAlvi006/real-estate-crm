@@ -74,7 +74,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   })
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-[#111b21] border-r border-[#e9edef] dark:border-[#222d34] w-full md:w-[340px] lg:w-[380px] xl:w-[400px] shrink-0 select-none relative">
+    <div className="flex flex-col h-full bg-white dark:bg-[#111b21] border-r border-[#e9edef] dark:border-[#222d34] w-full md:w-85 lg:w-95 xl:w-100 shrink-0 select-none relative">
       {/* ═══════ WhatsApp App Bar / Top Header ═══════ */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#f0f2f5] dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#222d34] z-10 shrink-0">
         {/* User Profile Avatar */}
@@ -183,11 +183,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           <button
             type="button"
             onClick={() => setActiveFilterTab('all')}
-            className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer ${
-              activeFilterTab === 'all'
-                ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#008069] dark:text-[#00a884] font-semibold'
-                : 'bg-[#f0f2f5] dark:bg-[#202c33] text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#222d34]'
-            }`}
+            className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer ${activeFilterTab === 'all'
+              ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#008069] dark:text-[#00a884] font-semibold'
+              : 'bg-[#f0f2f5] dark:bg-[#202c33] text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#222d34]'
+              }`}
           >
             All
           </button>
@@ -195,11 +194,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           <button
             type="button"
             onClick={() => setActiveFilterTab('unread')}
-            className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer ${
-              activeFilterTab === 'unread'
-                ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#008069] dark:text-[#00a884] font-semibold'
-                : 'bg-[#f0f2f5] dark:bg-[#202c33] text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#222d34]'
-            }`}
+            className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer ${activeFilterTab === 'unread'
+              ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#008069] dark:text-[#00a884] font-semibold'
+              : 'bg-[#f0f2f5] dark:bg-[#202c33] text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#222d34]'
+              }`}
           >
             Unread
           </button>
@@ -207,11 +205,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           <button
             type="button"
             onClick={() => setActiveFilterTab('favorites')}
-            className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer ${
-              activeFilterTab === 'favorites'
-                ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#008069] dark:text-[#00a884] font-semibold'
-                : 'bg-[#f0f2f5] dark:bg-[#202c33] text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#222d34]'
-            }`}
+            className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer ${activeFilterTab === 'favorites'
+              ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#008069] dark:text-[#00a884] font-semibold'
+              : 'bg-[#f0f2f5] dark:bg-[#202c33] text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#222d34]'
+              }`}
           >
             Favorites
           </button>
@@ -219,11 +216,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           <button
             type="button"
             onClick={() => setActiveFilterTab('groups')}
-            className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer ${
-              activeFilterTab === 'groups'
-                ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#008069] dark:text-[#00a884] font-semibold'
-                : 'bg-[#f0f2f5] dark:bg-[#202c33] text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#222d34]'
-            }`}
+            className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer ${activeFilterTab === 'groups'
+              ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#008069] dark:text-[#00a884] font-semibold'
+              : 'bg-[#f0f2f5] dark:bg-[#202c33] text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#222d34]'
+              }`}
           >
             Groups
           </button>
@@ -255,9 +251,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 (thread as any).lastMessageAt ||
                 (thread as any).updatedAt ||
                 new Date().toISOString(),
-              senderType: 'agent' as const,
-              channel: thread.lastChannel || 'whatsapp',
-              direction: 'outbound' as const,
+              senderType: 'agent',
+              direction: 'outbound',
             }
 
             const isOutbound =
@@ -279,11 +274,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               <div
                 key={thread.id}
                 onClick={() => onSelectConversation(thread.id)}
-                className={`flex items-center gap-3 px-3 py-3 cursor-pointer transition-colors ${
-                  isSelected
-                    ? 'bg-[#f0f2f5] dark:bg-[#2a3942]'
-                    : 'hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]'
-                }`}
+                className={`flex items-center gap-3 px-3 py-3 cursor-pointer transition-colors ${isSelected
+                  ? 'bg-[#f0f2f5] dark:bg-[#2a3942]'
+                  : 'hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]'
+                  }`}
               >
                 {/* Contact Avatar with Online Indicator */}
                 <div className="relative shrink-0">
@@ -306,11 +300,10 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                       {thread.contactName || thread.contactPhone || 'WhatsApp Lead'}
                     </span>
                     <span
-                      className={`text-[11px] shrink-0 font-mono ${
-                        hasUnread
-                          ? 'text-[#00a884] font-bold'
-                          : 'text-[#667781] dark:text-[#8696a0]'
-                      }`}
+                      className={`text-[11px] shrink-0 font-mono ${hasUnread
+                        ? 'text-[#00a884] font-bold'
+                        : 'text-[#667781] dark:text-[#8696a0]'
+                        }`}
                     >
                       {formatTimestamp(
                         lastMsg.createdAt || (thread as any).updatedAt || new Date().toISOString()

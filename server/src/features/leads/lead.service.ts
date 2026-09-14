@@ -2154,11 +2154,11 @@ export const verifyMetaWebhookChallenge = (
   challenge: string | undefined,
   expectedToken?: string
 ): string => {
-  const verifyToken = expectedToken || process.env.META_WEBHOOK_VERIFY_TOKEN || 'secure_crm_token_pk_2026'
+  const verifyToken = expectedToken || process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.META_VERIFY_TOKEN || 'secure_crm_token_pk_2026'
   if (mode === 'subscribe' && token === verifyToken && challenge) {
     return challenge
   }
-  throw new AppError('Invalid verification token', HTTP_STATUS.FORBIDDEN)
+  throw new AppError(`Invalid verification token. Make sure it exactly matches your Render environment variable.`, HTTP_STATUS.FORBIDDEN)
 }
 
 export const ingestMetaAdsLead = async (

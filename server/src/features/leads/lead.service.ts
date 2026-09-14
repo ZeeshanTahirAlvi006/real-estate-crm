@@ -2245,9 +2245,13 @@ export const ingestMetaAdsLead = async (
   // Is this a test lead? 
   // Meta Lead testing tool often returns is_organic = false or leadgen_id contains "test" (though typically it's just a numeric ID).
   // If we really need to skip it, we can, but let's ingest it normally.
-
-  const result = await ingestLead(normalizedPayload, sourceObjectId, clientIp)
-  
+  const result = await ingestLead(
+    normalizedPayload,
+    source.brokerageId as mongoose.Types.ObjectId,
+    sourceObjectId,
+    'meta_ads',
+    clientIp
+  )
   const elapsed = measureExecutionMs(t0)
   logger.info(`[MetaAdsService] Ingestion took ${elapsed.toFixed(3)}ms for leadgen_id ${leadgenId}`)
 

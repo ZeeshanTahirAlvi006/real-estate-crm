@@ -22,7 +22,6 @@ import {
   ingestMetaAdsLead,
   ingestEmailParserLead,
 } from './lead.service.js'
-import { LeadIngestPayload } from './lead.types.js'
 import { sendSuccess, sendPaginated, sendError } from '../../utils/apiResponse.js'
 import { HTTP_STATUS, GENERIC_AUTH_MESSAGES } from '../../utils/constants.js'
 import { measureExecutionMs } from '../../utils/cacheHelper.js'
@@ -485,7 +484,7 @@ export const metaWebhookVerifyHandler = (req: Request, res: Response): void => {
   }
 }
 
-export const metaWebhookEventHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const metaWebhookEventHandler = async (req: Request, res: Response): Promise<void> => {
   try {
     // Immediate 200 response to satisfy Meta webhook delivery SLAs
     res.status(HTTP_STATUS.OK).send('EVENT_RECEIVED')

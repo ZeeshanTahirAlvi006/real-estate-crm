@@ -268,7 +268,7 @@ export const listLeadSources = async (
 
   // Populate L1 & L2
   leadSourcesL1Cache.set(cacheKey, result)
-  cacheSet(cacheKey, JSON.stringify(result), 60).catch(() => {})
+  cacheSet(cacheKey, JSON.stringify(result), 60).catch(() => { })
 
   const elapsed = measureExecutionMs(t0)
   console.log(`[LEADS-PERF][service:listLeadSources] ${elapsed.toFixed(3)}ms (source: DB)`)
@@ -323,7 +323,7 @@ export const getLeadSourceById = async (
 
   const dto = formatLeadSourceDto(source, includeSecret)
   leadSourceDetailL1Cache.set(cacheKey, dto)
-  cacheSet(cacheKey, JSON.stringify(dto), 60).catch(() => {})
+  cacheSet(cacheKey, JSON.stringify(dto), 60).catch(() => { })
 
   const elapsed = measureExecutionMs(t0)
   console.log(`[LEADS-PERF][service:getLeadSourceById] ${elapsed.toFixed(3)}ms (source: DB)`)
@@ -666,7 +666,7 @@ export const listRoutingRules = async (
 
   // Populate L1 & L2
   routingRulesL1Cache.set(cacheKey, result)
-  cacheSet(cacheKey, JSON.stringify(result), 60).catch(() => {})
+  cacheSet(cacheKey, JSON.stringify(result), 60).catch(() => { })
 
   const elapsed = measureExecutionMs(t0)
   console.log(`[LEADS-PERF][service:listRoutingRules] ${elapsed.toFixed(3)}ms (source: DB)`)
@@ -719,7 +719,7 @@ export const getRoutingRuleById = async (
 
   const dto = formatRoutingRuleDto(rule)
   routingRuleDetailL1Cache.set(cacheKey, dto)
-  cacheSet(cacheKey, JSON.stringify(dto), 60).catch(() => {})
+  cacheSet(cacheKey, JSON.stringify(dto), 60).catch(() => { })
 
   const elapsed = measureExecutionMs(t0)
   console.log(`[LEADS-PERF][service:getRoutingRuleById] ${elapsed.toFixed(3)}ms (source: DB)`)
@@ -920,7 +920,7 @@ export const getOrCreateScoringConfig = async (
 
   const dto = formatScoringConfigDto(doc)
   scoringConfigL1Cache.set(cacheKey, dto)
-  cacheSet(cacheKey, JSON.stringify(dto), 3600).catch(() => {})
+  cacheSet(cacheKey, JSON.stringify(dto), 3600).catch(() => { })
 
   const elapsed = measureExecutionMs(t0)
   console.log(`[LEADS-PERF][service:getOrCreateScoringConfig] ${elapsed.toFixed(3)}ms (source: DB)`)
@@ -1475,7 +1475,7 @@ export const executeRoutingEngine = async (
 
     source = 'db'
     activeRoutingRulesL1Cache.set(cacheKey, rules)
-    cacheSet(cacheKey, JSON.stringify(rules), 300).catch(() => {})
+    cacheSet(cacheKey, JSON.stringify(rules), 300).catch(() => { })
   }
 
   for (const rule of rules) {
@@ -1564,7 +1564,7 @@ const startEscalationTimer = (
             ['ruleName', result.ruleName || ''],
             ['timeoutSeconds', timeoutSeconds.toString()],
           ]),
-        }).catch(() => {})
+        }).catch(() => { })
       }
     } catch (error) {
       logger.error(`Escalation timer error for contact ${contactId}:`, error)
@@ -1747,7 +1747,7 @@ export const ingestLead = async (
     }).catch((err) => logger.warn('[Activity] New lead log failed:', err))
 
     provisionLeadPortalUser(contact, { firstName: 'PropPulse', lastName: 'System', brokerageId } as any)
-      .catch(() => {})
+      .catch(() => { })
   }
 
   // Decoupled routing activity & escalation timer
@@ -1773,7 +1773,7 @@ export const ingestLead = async (
           const timeout = rule?.escalationTimeoutSeconds || DEFAULT_ESCALATION_TIMEOUT
           startEscalationTimer(contact._id.toString(), brokerageId, routingResult.agentId!, timeout)
         })
-        .catch(() => {})
+        .catch(() => { })
     }
   }
 
@@ -2051,12 +2051,15 @@ export const ingestGoogleAdsLead = async (
   }
 
   // Body-based Google Key verification (ADR-001)
+  if (!payload.google_key) {
+    throw new AppError('Invalid google_key', HTTP_STATUS.UNAUTHORIZED)
+  }
+
   const decryptedSecret = decrypt(source.webhookSecret)
   const isKeyMatch =
-    Boolean(payload.google_key) &&
-    (payload.google_key === decryptedSecret ||
-      payload.google_key === decryptedSecret.substring(0, 50) ||
-      decryptedSecret.startsWith(payload.google_key))
+    payload.google_key === decryptedSecret ||
+    payload.google_key === decryptedSecret.substring(0, 50) ||
+    decryptedSecret.startsWith(payload.google_key)
   if (!isKeyMatch) {
     throw new AppError('Invalid google_key', HTTP_STATUS.UNAUTHORIZED)
   }

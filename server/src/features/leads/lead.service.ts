@@ -2155,6 +2155,7 @@ export const verifyMetaWebhookChallenge = (
   expectedToken?: string
 ): string => {
   const verifyToken = expectedToken || process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.META_VERIFY_TOKEN || 'secure_crm_token_pk_2026'
+  console.log(`[META VERIFY] expected: ${verifyToken}, received: ${token}, mode: ${mode}, challenge: ${challenge}`)
   if (mode === 'subscribe' && token === verifyToken && challenge) {
     return challenge
   }

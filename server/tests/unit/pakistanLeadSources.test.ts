@@ -8,6 +8,7 @@ import {
   parseOlxEmailContent,
   parseUniversalPayload,
   verifyMetaWebhookChallenge,
+  splitFullName,
 } from '../../src/features/leads/lead.service.js'
 import { googleAdsWebhookSchema } from '../../src/features/leads/lead.validators.js'
 import { LEAD_SOURCE_TYPES } from '../../src/utils/constants.js'
@@ -72,6 +73,8 @@ describe('Pakistan Lead Ingestion & Normalization Engine', () => {
 
       const mapped = mapGoogleAdsPayload(payload)
       assert.equal(mapped.name, 'Muhammad Usman')
+      assert.equal(mapped.firstName, 'Muhammad')
+      assert.equal(mapped.lastName, 'Usman')
       assert.equal(mapped.email, 'usman@gmail.com')
       assert.equal(mapped.phone, '+923001234567')
       assert.equal(mapped.propertyAddress, 'Sector Y, Phase 3, DHA, Lahore')
@@ -269,6 +272,41 @@ describe('Pakistan Lead Ingestion & Normalization Engine', () => {
       assert.ok(LEAD_SOURCE_TYPES.includes('whatsapp'))
       assert.ok(LEAD_SOURCE_TYPES.includes('google_ads'))
       assert.ok(LEAD_SOURCE_TYPES.includes('meta_ads'))
+    })
+
+    it('should split names reliably and guarantee non-empty lastName for single words', () => {
+      assert.deepEqual(splitFullName('Zeeshan Alvi'), { firstName: 'Zeeshan', lastName: 'Alvi' })
+      assert.deepEqual(splitFullName('Muhammad Usman Tariq'), { firstName: 'Muhammad', lastName: 'Usman Tariq' })
+      assert.deepEqual(splitFullName('Zeeshan'), { firstName: 'Zeeshan', lastName: 'Lead' })
+      assert.deepEqual(splitFullName(''), { firstName: 'Unknown', lastName: 'Lead' })
+    })
+
+    it('should parse Google Ads simulation payload containing user_column_data', () => {
+      const simPayload = {
+        source: 'Google Ads',
+        lead_id: 'gads-lead-pk-98214',
+        google_key: 'test_secret_key',
+        is_test: false,
+        form_id: '1049281',
+        campaign_id: '7829104',
+        user_column_data: [
+          { column_id: 'FULL_NAME', string_value: 'Zeeshan Alvi' },
+          { column_id: 'EMAIL', string_value: 'zeeshan.alvi@pkproperties.com' },
+          { column_id: 'PHONE_NUMBER', string_value: '0300-8451234' },
+          { column_id: 'CITY', string_value: 'Lahore' },
+          { column_id: 'POSTAL_CODE', string_value: '54000' },
+          { column_id: 'STREET_ADDRESS', string_value: 'Main Boulevard, Gulberg III' },
+        ],
+      }
+
+      const parsed = parseUniversalPayload(simPayload as any)
+      assert.equal(parsed.firstName, 'Zeeshan')
+      assert.equal(parsed.lastName, 'Alvi')
+      assert.equal(parsed.email, 'zeeshan.alvi@pkproperties.com')
+      assert.equal(parsed.phone, '+923008451234')
+      assert.equal(parsed.propertyAddress, 'Main Boulevard, Gulberg III, Lahore')
+      assert.equal(parsed.zipCode, '54000')
+      assert.equal(parsed.sourceType, 'google_ads')
     })
   })
 

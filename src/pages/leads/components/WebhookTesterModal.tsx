@@ -22,6 +22,7 @@ import {
   useGetLeadSourceByIdQuery,
   useIngestWebhookLeadMutation,
   useCaptureWidgetLeadMutation,
+  useIngestGoogleAdsLeadMutation,
 } from '@/store/api/leadsApi'
 import { toast } from 'sonner'
 
@@ -154,6 +155,7 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
 
   const [ingestWebhook, { isLoading: isWebhookIngesting }] = useIngestWebhookLeadMutation()
   const [captureWidget, { isLoading: isCaptureIngesting }] = useCaptureWidgetLeadMutation()
+  const [ingestGoogleAds, { isLoading: isGoogleAdsIngesting }] = useIngestGoogleAdsLeadMutation()
 
   const [result, setResult] = useState<{
     success: boolean
@@ -174,14 +176,35 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
 
       const preset = initialPreset || 'zameen'
       setActivePreset(preset)
-      setPayloadText(JSON.stringify(PRESET_PAYLOADS[preset] || PRESET_PAYLOADS.zameen, null, 2))
+      const basePayload = JSON.parse(JSON.stringify(PRESET_PAYLOADS[preset] || PRESET_PAYLOADS.zameen))
+      if (preset === 'google_ads' && selectedSourceWithSecret?.webhookSecret && selectedSourceWithSecret.webhookSecret !== '[decryption_failed]') {
+        basePayload.google_key = selectedSourceWithSecret.webhookSecret
+      }
+      setPayloadText(JSON.stringify(basePayload, null, 2))
       setResult(null)
     }
   }, [open, initialSourceId, initialPreset, sources])
 
+  // Automatically insert real secret into Google Ads payload when decrypted secret loads
+  useEffect(() => {
+    if (activePreset === 'google_ads' && selectedSourceWithSecret?.webhookSecret && selectedSourceWithSecret.webhookSecret !== '[decryption_failed]') {
+      try {
+        const current = JSON.parse(payloadText)
+        if (!current.google_key || current.google_key === 'YOUR_CONFIGURED_WEBHOOK_SECRET') {
+          current.google_key = selectedSourceWithSecret.webhookSecret
+          setPayloadText(JSON.stringify(current, null, 2))
+        }
+      } catch {}
+    }
+  }, [selectedSourceWithSecret, activePreset])
+
   const handleSelectPreset = (preset: PresetType) => {
     setActivePreset(preset)
-    setPayloadText(JSON.stringify(PRESET_PAYLOADS[preset], null, 2))
+    const basePayload = JSON.parse(JSON.stringify(PRESET_PAYLOADS[preset]))
+    if (preset === 'google_ads' && selectedSourceWithSecret?.webhookSecret && selectedSourceWithSecret.webhookSecret !== '[decryption_failed]') {
+      basePayload.google_key = selectedSourceWithSecret.webhookSecret
+    }
+    setPayloadText(JSON.stringify(basePayload, null, 2))
     setResult(null)
   }
 
@@ -231,6 +254,47 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
           timestamp: new Date().toLocaleTimeString(),
         })
         toast.error(err?.data?.message || 'Capture ingestion failed')
+      }
+    } else if (activePreset === 'google_ads') {
+      if (!selectedSourceId) {
+        toast.error('Please select a lead source')
+        return
+      }
+
+      const secret = selectedSourceWithSecret?.webhookSecret
+      if (
+        (!parsedPayload.google_key || parsedPayload.google_key === 'YOUR_CONFIGURED_WEBHOOK_SECRET') &&
+        secret &&
+        secret !== '[decryption_failed]'
+      ) {
+        parsedPayload.google_key = secret
+      }
+
+      try {
+        const res = await ingestGoogleAds({
+          sourceId: selectedSourceId,
+          payload: parsedPayload,
+        }).unwrap()
+
+        setResult({
+          success: true,
+          contactId: res.contactId,
+          isNew: res.isNew,
+          routed: true,
+          timestamp: new Date().toLocaleTimeString(),
+        })
+        if (res.isTest) {
+          toast.success('Test lead handshake received successfully (HTTP 200 OK)!')
+        } else {
+          toast.success(res.isNew ? 'Google Ads lead ingested & routed successfully!' : 'Reinquiry touchpoint logged!')
+        }
+      } catch (err: any) {
+        setResult({
+          success: false,
+          error: err?.data?.message || err?.message || 'Google Ads webhook rejected by server',
+          timestamp: new Date().toLocaleTimeString(),
+        })
+        toast.error(err?.data?.message || err?.message || 'Google Ads webhook execution failed')
       }
     } else {
       // Test universal webhook endpoint with API Key or HMAC
@@ -286,7 +350,7 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
     }
   }
 
-  const isProcessing = isWebhookIngesting || isCaptureIngesting
+  const isProcessing = isWebhookIngesting || isCaptureIngesting || isGoogleAdsIngesting
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

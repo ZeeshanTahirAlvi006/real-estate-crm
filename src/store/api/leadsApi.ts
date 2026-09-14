@@ -261,6 +261,20 @@ export const leadsApi = baseApi.injectEndpoints({
       transformResponse: (response: ApiResponse<{ acknowledgedCount: number }>) => response.data,
       invalidatesTags: ['Contacts', 'Leads'],
     }),
+
+    ingestGoogleAdsLead: builder.mutation<
+      { contactId?: string; isNew?: boolean; isTest?: boolean },
+      { sourceId?: string; payload: any }
+    >({
+      query: ({ sourceId, payload }) => ({
+        url: `/leads/google-ads${sourceId ? `?sourceId=${encodeURIComponent(sourceId)}` : ''}`,
+        method: 'POST',
+        body: payload,
+      }),
+      transformResponse: (response: ApiResponse<{ contactId?: string; isNew?: boolean; isTest?: boolean }>) =>
+        response.data,
+      invalidatesTags: ['Contacts', 'Leads', 'LeadSources'],
+    }),
   }),
 })
 
@@ -282,4 +296,5 @@ export const {
   useIngestWebhookLeadMutation,
   useCaptureWidgetLeadMutation,
   useAcknowledgeLeadsMutation,
+  useIngestGoogleAdsLeadMutation,
 } = leadsApi

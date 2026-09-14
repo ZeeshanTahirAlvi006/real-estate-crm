@@ -1014,6 +1014,13 @@ export const normalizePakistaniPhone = (rawPhone: string): string => {
   return trimmed
 }
 
+export const splitFullName = (fullName: string): { firstName: string; lastName: string } => {
+  const parts = fullName.trim().split(/\s+/)
+  if (parts.length === 0 || !parts[0]) return { firstName: 'Unknown', lastName: 'Lead' }
+  if (parts.length === 1) return { firstName: parts[0], lastName: 'Lead' }
+  return { firstName: parts[0], lastName: parts.slice(1).join(' ') }
+}
+
 export const mapGoogleAdsPayload = (body: GoogleAdsWebhookPayload): LeadIngestPayload => {
   const fields: Record<string, string> = {}
   if (Array.isArray(body.user_column_data)) {
@@ -1025,8 +1032,8 @@ export const mapGoogleAdsPayload = (body: GoogleAdsWebhookPayload): LeadIngestPa
   }
 
   const fullName = fields['FULL_NAME'] || ''
-  const firstName = fields['FIRST_NAME'] || ''
-  const lastName = fields['LAST_NAME'] || ''
+  let firstName = fields['FIRST_NAME'] || ''
+  let lastName = fields['LAST_NAME'] || ''
   const email = fields['EMAIL'] || fields['USER_EMAIL'] || ''
   const rawPhone = fields['PHONE_NUMBER'] || fields['USER_PHONE'] || ''
   const phone = normalizePakistaniPhone(rawPhone)
@@ -1035,15 +1042,21 @@ export const mapGoogleAdsPayload = (body: GoogleAdsWebhookPayload): LeadIngestPa
   const streetAddress = fields['STREET_ADDRESS'] || ''
   const propertyAddress = [streetAddress, city].filter(Boolean).join(', ')
 
-  let nameFallback = fullName
-  if (!nameFallback && (firstName || lastName)) {
-    nameFallback = [firstName, lastName].filter(Boolean).join(' ')
+  if ((!firstName || !lastName) && fullName) {
+    const split = splitFullName(fullName)
+    if (!firstName) firstName = split.firstName
+    if (!lastName) lastName = split.lastName
   }
 
+  if (!firstName) firstName = 'Google'
+  if (!lastName) lastName = 'Lead'
+
+  const nameFallback = fullName || `${firstName} ${lastName}`.trim() || 'Google Ads Lead'
+
   return {
-    firstName: firstName || undefined,
-    lastName: lastName || undefined,
-    name: nameFallback || 'Google Ads Lead',
+    firstName,
+    lastName,
+    name: nameFallback,
     email,
     phone,
     propertyAddress,
@@ -1192,15 +1205,51 @@ export const parseOlxEmailContent = (content: {
 //  UNIVERSAL LEAD PARSER
 // ═══════════════════════════════════════════
 
-const splitFullName = (fullName: string): { firstName: string; lastName: string } => {
-  const parts = fullName.trim().split(/\s+/)
-  if (parts.length === 1) return { firstName: parts[0], lastName: '' }
-  return { firstName: parts[0], lastName: parts.slice(1).join(' ') }
-}
-
 export const parseUniversalPayload = (raw: LeadIngestPayload): ParsedLead => {
   let firstName = (raw.firstName || '').trim()
   let lastName = (raw.lastName || '').trim()
+
+  // Support Google Ads user_column_data array format if raw payload arrives from webhook simulator or direct POST
+  if (Array.isArray((raw as any).user_column_data)) {
+    const colFields: Record<string, string> = {}
+    for (const col of (raw as any).user_column_data) {
+      if (col?.column_id && col?.string_value) {
+        colFields[col.column_id.toUpperCase()] = col.string_value.trim()
+      }
+    }
+    const fullName = colFields['FULL_NAME'] || ''
+    const colFirst = colFields['FIRST_NAME'] || ''
+    const colLast = colFields['LAST_NAME'] || ''
+
+    if (colFirst) firstName = colFirst
+    if (colLast) lastName = colLast
+
+    if ((!firstName || !lastName) && fullName) {
+      const split = splitFullName(fullName)
+      if (!firstName) firstName = split.firstName
+      if (!lastName) lastName = split.lastName
+    }
+
+    if (!raw.name && fullName) {
+      raw.name = fullName
+    }
+
+    if (!raw.email && (colFields['EMAIL'] || colFields['USER_EMAIL'])) {
+      (raw as any).email = colFields['EMAIL'] || colFields['USER_EMAIL']
+    }
+    if (!raw.phone && (colFields['PHONE_NUMBER'] || colFields['USER_PHONE'])) {
+      (raw as any).phone = colFields['PHONE_NUMBER'] || colFields['USER_PHONE']
+    }
+    if (!raw.propertyAddress && (colFields['STREET_ADDRESS'] || colFields['CITY'])) {
+      (raw as any).propertyAddress = [colFields['STREET_ADDRESS'], colFields['CITY']].filter(Boolean).join(', ')
+    }
+    if (!raw.zipCode && (colFields['POSTAL_CODE'] || colFields['ZIP_CODE'])) {
+      (raw as any).zipCode = colFields['POSTAL_CODE'] || colFields['ZIP_CODE']
+    }
+    if (!raw.source) {
+      (raw as any).source = 'google_ads'
+    }
+  }
 
   if (!firstName && !lastName && raw.name) {
     const split = splitFullName(raw.name)
@@ -1212,8 +1261,10 @@ export const parseUniversalPayload = (raw: LeadIngestPayload): ParsedLead => {
     firstName = ((raw as any).first_name || (raw as any).fname || (raw as any).given_name || 'Unknown').toString().trim()
   }
   if (!lastName) {
-    lastName = ((raw as any).last_name || (raw as any).lname || (raw as any).family_name || '').toString().trim()
+    lastName = ((raw as any).last_name || (raw as any).lname || (raw as any).family_name || 'Lead').toString().trim()
   }
+  if (!firstName) firstName = 'Unknown'
+  if (!lastName) lastName = 'Lead'
 
   const email = (
     raw.email ||
@@ -1263,13 +1314,21 @@ export const parseUniversalPayload = (raw: LeadIngestPayload): ParsedLead => {
     ''
   ).toString().trim()
 
-  const sourceType = (
+  const rawSource = (
     raw.source ||
     (raw as any).lead_source ||
     (raw as any).leadSource ||
     (raw as any).utm_source ||
     'webhook'
   ).toString().trim().toLowerCase()
+
+  let sourceType = rawSource
+  if (rawSource.includes('google')) sourceType = 'google_ads'
+  else if (rawSource.includes('meta') || rawSource.includes('facebook') || rawSource.includes('instagram')) sourceType = 'meta_ads'
+  else if (rawSource.includes('zameen')) sourceType = 'zameen'
+  else if (rawSource.includes('graana')) sourceType = 'graana'
+  else if (rawSource.includes('olx')) sourceType = 'olx'
+  else if (rawSource.includes('whatsapp')) sourceType = 'whatsapp'
 
   return { firstName, lastName, email, phone, message, propertyAddress, propertyPrice, zipCode, sourceType }
 }
@@ -1713,7 +1772,7 @@ export const ingestLead = async (
     contact = (
       await Contact.create({
         firstName: parsed.firstName || 'Unknown',
-        lastName: parsed.lastName || '',
+        lastName: parsed.lastName || 'Lead',
         email: parsed.email || '',
         phone: parsed.phone || '',
         address: parsed.propertyAddress || '',

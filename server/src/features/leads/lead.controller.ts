@@ -473,9 +473,10 @@ export const googleAdsWebhookHandler = async (req: Request, res: Response, next:
 
 export const metaWebhookVerifyHandler = (req: Request, res: Response): void => {
   try {
-    const mode = req.query['hub.mode'] as string | undefined
-    const token = req.query['hub.verify_token'] as string | undefined
-    const challenge = req.query['hub.challenge'] as string | undefined
+    // MongoSanitize strips '.' from keys and replaces them with '_', so we check both
+    const mode = (req.query['hub.mode'] || req.query['hub_mode']) as string | undefined
+    const token = (req.query['hub.verify_token'] || req.query['hub_verify_token']) as string | undefined
+    const challenge = (req.query['hub.challenge'] || req.query['hub_challenge']) as string | undefined
 
     const result = verifyMetaWebhookChallenge(mode, token, challenge)
     res.status(HTTP_STATUS.OK).send(result)

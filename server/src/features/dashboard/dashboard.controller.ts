@@ -6,7 +6,8 @@ import { IUser } from '../../models/User.js'
 export const getKpis = async (req: Request, res: Response) => {
   try {
     const tenantFilter = req.tenantFilter || {}
-    const data = await dashboardService.getKpis(tenantFilter)
+    const user = req.user as IUser
+    const data = await dashboardService.getKpis(tenantFilter, user)
     sendSuccess(res, data)
   } catch (error: any) {
     sendError(res, error.message)
@@ -16,7 +17,8 @@ export const getKpis = async (req: Request, res: Response) => {
 export const getLeadSources = async (req: Request, res: Response) => {
   try {
     const tenantFilter = req.tenantFilter || {}
-    const data = await dashboardService.getLeadSources(tenantFilter)
+    const user = req.user as IUser
+    const data = await dashboardService.getLeadSources(tenantFilter, user)
     sendSuccess(res, data)
   } catch (error: any) {
     sendError(res, error.message)
@@ -26,7 +28,8 @@ export const getLeadSources = async (req: Request, res: Response) => {
 export const getLeadsOverTime = async (req: Request, res: Response) => {
   try {
     const tenantFilter = req.tenantFilter || {}
-    const data = await dashboardService.getLeadsOverTime(tenantFilter)
+    const user = req.user as IUser
+    const data = await dashboardService.getLeadsOverTime(tenantFilter, user)
     sendSuccess(res, data)
   } catch (error: any) {
     sendError(res, error.message)
@@ -36,7 +39,8 @@ export const getLeadsOverTime = async (req: Request, res: Response) => {
 export const getPipelineSummary = async (req: Request, res: Response) => {
   try {
     const tenantFilter = req.tenantFilter || {}
-    const data = await dashboardService.getPipelineSummary(tenantFilter)
+    const user = req.user as IUser
+    const data = await dashboardService.getPipelineSummary(tenantFilter, user)
     sendSuccess(res, data)
   } catch (error: any) {
     sendError(res, error.message)
@@ -46,7 +50,8 @@ export const getPipelineSummary = async (req: Request, res: Response) => {
 export const getActivityFeed = async (req: Request, res: Response) => {
   try {
     const tenantFilter = req.tenantFilter || {}
-    const data = await dashboardService.getActivityFeed(tenantFilter)
+    const user = req.user as IUser
+    const data = await dashboardService.getActivityFeed(tenantFilter, user)
     sendSuccess(res, data)
   } catch (error: any) {
     sendError(res, error.message)

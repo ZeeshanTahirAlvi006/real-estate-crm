@@ -41,11 +41,11 @@ const INITIAL_PRESETS: SavedSmartList[] = [
   },
   {
     id: 'preset-2',
-    name: 'Zillow Inbound',
+    name: 'Zameen Inbound',
     contactCount: 0,
     updatedAt: '2026-08-28',
     filters: [
-      { id: 'f-2a', field: 'leadSource', operator: 'equals', value: 'Zillow' },
+      { id: 'f-2a', field: 'leadSource', operator: 'equals', value: 'Zameen.com' },
       { id: 'f-2b', field: 'status', operator: 'equals', value: 'active' },
     ],
   },

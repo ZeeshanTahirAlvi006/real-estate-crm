@@ -2,6 +2,7 @@ import { env } from '../../config/env.js'
 import { logger } from '../../utils/logger.js'
 import { IComparableComp } from '../../models/CmaReport.js'
 import { IPropertyAddress } from '../../models/Property.js'
+import { BoundedLruCache } from '../../utils/lruCache.js'
 
 export interface AttomEquityAnalysis {
   estimatedValue: number
@@ -14,6 +15,9 @@ export interface AttomEquityAnalysis {
   comps: IComparableComp[]
   dataSource: 'attom_live' | 'attom_mock_fallback'
 }
+
+// Module-level in-memory cache for deterministic property valuations (300s TTL)
+export const valuationL1Cache = new BoundedLruCache<AttomEquityAnalysis>(500, 300)
 
 /**
  * ATTOM API Provider
@@ -33,11 +37,28 @@ class AttomProvider {
     beds: number = 3,
     baths: number = 2
   ): Promise<AttomEquityAnalysis> {
+    const t0 = process.hrtime.bigint()
+
+    // 1. Check in-memory valuation cache
+    const cacheKey = `${address.formattedAddress || address.street}:${purchasePrice || 0}:${purchaseDate ? new Date(purchaseDate).toISOString().slice(0, 10) : ''}:${currentRate}:${squareFeet}:${beds}:${baths}`
+    const cached = valuationL1Cache.get(cacheKey)
+    if (cached) {
+      const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+      console.log(`[TIMER] AttomProvider.analyzePropertyEquity (cached) took ${deltaMs.toFixed(3)}ms`)
+      return cached
+    }
+
+    let result: AttomEquityAnalysis
+
     if (env.ATTOM_API_KEY) {
       try {
         const liveData = await this.fetchLiveAttomData(address, squareFeet, beds, baths)
         if (liveData) {
-          return liveData
+          result = liveData
+          valuationL1Cache.set(cacheKey, result, 300)
+          const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+          console.log(`[TIMER] AttomProvider.analyzePropertyEquity (live) took ${deltaMs.toFixed(3)}ms`)
+          return result
         }
       } catch (err: any) {
         // Safe logging without leaking key or full URL with query params
@@ -45,7 +66,7 @@ class AttomProvider {
       }
     }
 
-    return this.generateDeterministicAnalysis(
+    result = this.generateDeterministicAnalysis(
       address,
       purchasePrice,
       purchaseDate,
@@ -54,6 +75,11 @@ class AttomProvider {
       beds,
       baths
     )
+    valuationL1Cache.set(cacheKey, result, 300)
+
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] AttomProvider.analyzePropertyEquity took ${deltaMs.toFixed(3)}ms`)
+    return result
   }
 
   /**
@@ -65,6 +91,7 @@ class AttomProvider {
     beds: number = 3,
     baths: number = 2
   ): Promise<AttomEquityAnalysis | null> {
+    const t0 = process.hrtime.bigint()
     const queryParams = new URLSearchParams()
     if (address.street) queryParams.set('address1', address.street)
     if (address.city && address.state) {
@@ -86,12 +113,18 @@ class AttomProvider {
     )
 
     if (!response.ok) {
+      const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+      console.log(`[TIMER] AttomProvider.fetchLiveAttomData (failed HTTP ${response.status}) took ${deltaMs.toFixed(3)}ms`)
       throw new Error(`HTTP status ${response.status}`)
     }
 
     const data = (await response.json()) as any
     const prop = data?.property?.[0]
-    if (!prop) return null
+    if (!prop) {
+      const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+      console.log(`[TIMER] AttomProvider.fetchLiveAttomData (empty response) took ${deltaMs.toFixed(3)}ms`)
+      return null
+    }
 
     const avm = prop.avm?.amount?.value || 0
     const avmHigh = prop.avm?.amount?.high || Math.round(avm * 1.05)
@@ -99,6 +132,11 @@ class AttomProvider {
     const mortgageBalance = prop.mortgage?.firstConcurrent?.amount || 0
     const equity = Math.max(0, avm - mortgageBalance)
     const equityPercent = avm > 0 ? Math.min(100, Math.round((equity / avm) * 100)) : 0
+
+    const comps = this.generateNearbyComps(address, avm, squareFeet, beds, baths)
+
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] AttomProvider.fetchLiveAttomData took ${deltaMs.toFixed(3)}ms`)
 
     return {
       estimatedValue: avm,
@@ -108,7 +146,7 @@ class AttomProvider {
       estimatedMortgageBalance: mortgageBalance,
       equity,
       equityPercent,
-      comps: this.generateNearbyComps(address, avm, squareFeet, beds, baths),
+      comps,
       dataSource: 'attom_live',
     }
   }
@@ -126,6 +164,8 @@ class AttomProvider {
     beds: number = 3,
     baths: number = 2
   ): AttomEquityAnalysis {
+    const t0 = process.hrtime.bigint()
+
     // Determine purchase date and years owned
     const effectivePurchaseDate = purchaseDate || new Date(Date.now() - 7 * 365.25 * 24 * 60 * 60 * 1000)
     const yearsOwned = Math.max(0.5, (Date.now() - effectivePurchaseDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
@@ -133,7 +173,7 @@ class AttomProvider {
     // Derive deterministic baseline purchase price from address string if not provided
     let basePurchase = purchasePrice
     if (!basePurchase || basePurchase <= 0) {
-      const hash = this.stringToDeterministicHash(address.formattedAddress)
+      const hash = this.stringToDeterministicHash(address.formattedAddress || address.street || 'Default Address')
       basePurchase = 380000 + (hash % 400000) // 380k - 780k
     }
 
@@ -169,6 +209,9 @@ class AttomProvider {
 
     const comps = this.generateNearbyComps(address, estimatedValue, squareFeet, beds, baths)
 
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] AttomProvider.generateDeterministicAnalysis took ${deltaMs.toFixed(3)}ms`)
+
     return {
       estimatedValue,
       valuationLow: lowRange,
@@ -192,6 +235,7 @@ class AttomProvider {
     beds: number,
     baths: number
   ): IComparableComp[] {
+    const t0 = process.hrtime.bigint()
     const streetNames = [
       'Pine Crest Dr',
       'Oak Ridge Trail',
@@ -210,9 +254,9 @@ class AttomProvider {
       { priceMult: 1.04, sqftMult: 1.06, dom: 8, dist: 1.1, daysAgo: 50, bedDelta: 1, bathDelta: 0.5 },
     ]
 
-    return compModifiers.map((mod, i) => {
+    const comps = compModifiers.map((mod, i) => {
       const compSqft = Math.round(sqft * mod.sqftMult)
-      const soldPrice = Math.round(targetValue * mod.priceMult / 1000) * 1000
+      const soldPrice = Math.round((targetValue * mod.priceMult) / 1000) * 1000
       const compStreetNum = streetNumberBase + (i + 1) * 18 - 9
       const compAddress = `${compStreetNum} ${streetNames[i % streetNames.length]}, ${cityState}`
 
@@ -228,6 +272,11 @@ class AttomProvider {
         daysOnMarket: mod.dom,
       }
     })
+
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] AttomProvider.generateNearbyComps took ${deltaMs.toFixed(3)}ms`)
+
+    return comps
   }
 
   private stringToDeterministicHash(str: string): number {

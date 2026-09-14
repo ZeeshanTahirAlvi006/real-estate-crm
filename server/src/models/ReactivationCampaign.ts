@@ -30,7 +30,6 @@ const reactivationCampaignSchema = new Schema<IReactivationCampaign>(
       type: Schema.Types.ObjectId,
       ref: 'Brokerage',
       required: [true, 'Brokerage ID is required'],
-      index: true,
     },
     name: {
       type: String,
@@ -41,7 +40,6 @@ const reactivationCampaignSchema = new Schema<IReactivationCampaign>(
       type: String,
       enum: ['active', 'paused', 'draft', 'completed'],
       default: 'active',
-      index: true,
     },
     targetSegment: {
       type: String,
@@ -103,6 +101,7 @@ const reactivationCampaignSchema = new Schema<IReactivationCampaign>(
   }
 )
 
+reactivationCampaignSchema.index({ brokerageId: 1, createdAt: -1 })
 reactivationCampaignSchema.index({ brokerageId: 1, status: 1, lastRunAt: 1 })
 
 export const ReactivationCampaign: Model<IReactivationCampaign> =

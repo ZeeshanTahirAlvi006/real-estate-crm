@@ -443,9 +443,14 @@ export function PipelinePage() {
   const handleDealSubmit = async (formData: any) => {
     try {
       if (editingDeal) {
+        const isPipelineChanged = formData.pipelineId && formData.pipelineId !== editingDeal.pipelineId
+        const isStageChanged = formData.stageId && formData.stageId !== editingDeal.stageId
+
         const updated = await updateDeal({
           id: editingDeal.id,
           data: {
+            pipelineId: formData.pipelineId,
+            stageId: formData.stageId,
             propertyAddress: formData.propertyAddress,
             dealValue: formData.dealValue,
             assignedAgentId: formData.assignedAgentId,
@@ -454,13 +459,34 @@ export function PipelinePage() {
           },
         }).unwrap()
 
-        setStageDealsMap((prev) => {
-          const stId = editingDeal.stageId
-          const list = (prev[stId] || []).map((d) => (d.id === editingDeal.id ? updated : d))
-          return { ...prev, [stId]: list }
-        })
-
-        toast.success('Deal updated successfully')
+        if (isPipelineChanged && formData.pipelineId !== selectedPipelineId) {
+          // The deal was transferred to another pipeline: remove from current board
+          setStageDealsMap((prev) => {
+            const stId = editingDeal.stageId
+            const list = (prev[stId] || []).filter((d) => d.id !== editingDeal.id)
+            return { ...prev, [stId]: list }
+          })
+          toast.success('Deal transferred to target pipeline successfully')
+        } else if (isStageChanged) {
+          // Moved to different stage within same pipeline
+          setStageDealsMap((prev) => {
+            const oldList = (prev[editingDeal.stageId] || []).filter((d) => d.id !== editingDeal.id)
+            const newList = [updated, ...(prev[formData.stageId] || [])]
+            return {
+              ...prev,
+              [editingDeal.stageId]: oldList,
+              [formData.stageId]: newList,
+            }
+          })
+          toast.success('Deal updated successfully')
+        } else {
+          setStageDealsMap((prev) => {
+            const stId = editingDeal.stageId
+            const list = (prev[stId] || []).map((d) => (d.id === editingDeal.id ? updated : d))
+            return { ...prev, [stId]: list }
+          })
+          toast.success('Deal updated successfully')
+        }
       } else {
         const created = await createDeal(formData).unwrap()
         const stId = created.stageId

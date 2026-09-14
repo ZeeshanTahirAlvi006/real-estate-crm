@@ -1,8 +1,14 @@
 import { z } from 'zod'
 
+const objectIdRegex = /^[0-9a-fA-F]{24}$/
+
 export const mergeCandidateSchema = z.object({
-  primaryContactId: z.string().min(1, 'Primary contact ID is required'),
-  secondaryContactId: z.string().min(1, 'Secondary contact ID is required'),
+  primaryContactId: z
+    .string()
+    .regex(objectIdRegex, 'Invalid primary contact ID format'),
+  secondaryContactId: z
+    .string()
+    .regex(objectIdRegex, 'Invalid secondary contact ID format'),
   fieldOverrides: z
     .object({
       firstName: z.string().trim().min(1).max(50).optional(),
@@ -20,5 +26,17 @@ export const mergeCandidateSchema = z.object({
 })
 
 export const candidateIdParamSchema = z.object({
-  id: z.string().min(1, 'Duplicate candidate ID is required'),
+  id: z.string().regex(objectIdRegex, 'Invalid duplicate candidate ID format'),
+})
+
+export const listIssuesQuerySchema = z.object({
+  type: z.enum(['all', 'email', 'phone']).optional().default('all'),
+  search: z.string().trim().max(100).optional(),
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(50),
+})
+
+export const listDuplicatesQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(50),
 })

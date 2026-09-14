@@ -20,13 +20,11 @@ const notificationSchema = new Schema<INotification>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      index: true,
     },
     brokerageId: {
       type: Schema.Types.ObjectId,
       ref: 'Brokerage',
       required: true,
-      index: true,
     },
     type: {
       type: String,
@@ -46,12 +44,10 @@ const notificationSchema = new Schema<INotification>(
     isRead: {
       type: Boolean,
       default: false,
-      index: true,
     },
     isDeleted: {
       type: Boolean,
       default: false,
-      index: true,
     },
     deletedAt: {
       type: Date,
@@ -69,7 +65,15 @@ const notificationSchema = new Schema<INotification>(
   }
 )
 
+// Covering compound indexes for high-throughput queries (PERF-M-001)
 notificationSchema.index({ userId: 1, isDeleted: 1, isRead: 1, createdAt: -1 })
+notificationSchema.index({ brokerageId: 1, isDeleted: 1, isRead: 1, createdAt: -1 })
+notificationSchema.index({ brokerageId: 1, userId: 1, isDeleted: 1, isRead: 1, createdAt: -1 })
 notificationSchema.index({ brokerageId: 1, isDeleted: 1, createdAt: -1 })
 
 export const Notification = mongoose.model<INotification>('Notification', notificationSchema)
+
+// Automatically sync indexes with MongoDB to clean up obsolete single-field indexes (PERF-M-001)
+if (process.env.NODE_ENV !== 'test') {
+  Notification.syncIndexes().catch(() => {})
+}

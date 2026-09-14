@@ -48,6 +48,8 @@ export interface CreateDealPayload {
 export interface UpdateDealPayload {
   id: string
   data: {
+    pipelineId?: string
+    stageId?: string
     propertyAddress?: string
     dealValue?: number
     assignedAgentId?: string
@@ -59,6 +61,7 @@ export interface UpdateDealPayload {
 export interface MoveDealStagePayload {
   dealId: string
   stageId: string
+  pipelineId?: string
 }
 
 export interface GetKanbanArgs {
@@ -200,10 +203,10 @@ export const pipelineApi = baseApi.injectEndpoints({
     }),
 
     moveDealStage: builder.mutation<Deal, MoveDealStagePayload>({
-      query: ({ dealId, stageId }) => ({
+      query: ({ dealId, stageId, pipelineId }) => ({
         url: `/deals/${dealId}/stage`,
         method: 'PATCH',
-        body: { stageId },
+        body: { stageId, pipelineId },
       }),
       transformResponse: (response: ApiResponse<Deal>) => response.data,
       invalidatesTags: ['Deals', 'Pipeline', 'Contacts', 'ContactDetail'],

@@ -741,7 +741,7 @@ export const seedDatabase = async (): Promise<void> => {
       equity: 990000,
       equityPercent: 68,
       probabilityOfSelling: 89,
-      sellSignals: ['Free & Clear Equity (68%)', 'Upsizing Inquiries on Zillow'],
+      sellSignals: ['Free & Clear Equity (68%)', 'Upsizing Inquiries on Zameen'],
     })
 
     await Property.create({

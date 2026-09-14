@@ -175,7 +175,9 @@ const cmaReportSchema = new Schema<ICmaReport>(
 )
 
 cmaReportSchema.index({ brokerageId: 1, createdAt: -1 })
+cmaReportSchema.index({ brokerageId: 1, status: 1, createdAt: -1 })
 cmaReportSchema.index({ propertyId: 1, createdAt: -1 })
+cmaReportSchema.index({ shareId: 1, status: 1 })
 
 export const CmaReport: Model<ICmaReport> =
   mongoose.models.CmaReport || mongoose.model<ICmaReport>('CmaReport', cmaReportSchema)

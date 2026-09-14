@@ -116,14 +116,15 @@ export function ContactForm({ contact, onSubmit, onCancel }: ContactFormProps) {
           </SelectTrigger>
           <SelectContent className="bg-white dark:bg-[#273338] border-[#D8E2D6] dark:border-[#618764]">
             {[
-              'Zillow',
-              'Realtor.com',
+              'Zameen.com',
+              'Graana.com',
+              'OLX Pakistan',
               'Meta Ads',
               'Google Ads',
+              'WhatsApp',
               'Website',
               'Referral',
-              'Open House',
-              'Direct Mail',
+              'Site Visit / Walk-in',
               'Manual Entry',
             ].map((s) => (
               <SelectItem key={s} value={s}>

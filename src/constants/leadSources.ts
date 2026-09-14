@@ -7,14 +7,14 @@ export interface LeadSourceDef {
 }
 
 export const LEAD_SOURCE_DEFINITIONS: LeadSourceDef[] = [
-  { id: 'zillow', name: 'Zillow', type: 'portal', icon: 'Z', color: '#006aff' },
-  { id: 'realtor', name: 'Realtor.com', type: 'portal', icon: 'R', color: '#d92228' },
-  { id: 'meta_ads', name: 'Meta Ads', type: 'advertising', icon: 'M', color: '#1877f2' },
+  { id: 'zameen', name: 'Zameen.com', type: 'portal', icon: 'ZM', color: '#27ae60' },
+  { id: 'graana', name: 'Graana.com', type: 'portal', icon: 'GR', color: '#e74c3c' },
+  { id: 'olx', name: 'OLX Pakistan', type: 'portal', icon: 'OLX', color: '#002f34' },
   { id: 'google_ads', name: 'Google Ads', type: 'advertising', icon: 'G', color: '#4285f4' },
-  { id: 'homes_com', name: 'Homes.com', type: 'portal', icon: 'H', color: '#00a562' },
+  { id: 'meta_ads', name: 'Meta Ads', type: 'advertising', icon: 'M', color: '#1877f2' },
+  { id: 'whatsapp', name: 'WhatsApp', type: 'messaging', icon: 'WA', color: '#25d366' },
   { id: 'website', name: 'Website', type: 'organic', icon: 'W', color: '#8b5cf6' },
   { id: 'referral', name: 'Referral', type: 'organic', icon: 'Rf', color: '#f59e0b' },
+  { id: 'site_visit', name: 'Site Visit / Walk-in', type: 'event', icon: 'SV', color: '#10b981' },
   { id: 'manual', name: 'Manual Entry', type: 'manual', icon: 'ME', color: '#6b7280' },
-  { id: 'open_house', name: 'Open House', type: 'event', icon: 'OH', color: '#10b981' },
-  { id: 'direct_mail', name: 'Direct Mail', type: 'marketing', icon: 'DM', color: '#ec4899' },
 ]

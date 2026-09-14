@@ -88,7 +88,9 @@ export function SocketProvider({ children }: SocketProviderProps) {
           message.senderType === 'lead' ||
           message.sender === 'ai_isa')
       ) {
+        const msgId = message.id || message._id
         toast.info(`💬 New message from ${message.senderName || 'Lead'}`, {
+          id: msgId ? `msg-${msgId}` : undefined,
           description: (message.body || '').slice(0, 80),
         })
       }
@@ -99,33 +101,42 @@ export function SocketProvider({ children }: SocketProviderProps) {
       dispatch(baseApi.util.invalidateTags(['Conversations', 'Messages']))
     })
 
-    // 3. Real-time Push Notification
+    // 3. Real-time Push Notification (Central Toast Broadcaster with Deduplication)
     socket.on('notification:new', (notification) => {
       if (!notification) return
       dispatch(baseApi.util.invalidateTags(['Notifications']))
+
+      // Suppress toast if this notification was triggered by the current user's own action
+      // (the user already received immediate direct UI feedback / optimistic toast)
+      const actorId =
+        notification.metadata?.actorId ||
+        notification.metadata?.userId ||
+        notification.metadata?.movedByUserId
+      if (actorId && user?.id && String(actorId) === String(user.id)) {
+        return
+      }
+
+      const notifId =
+        notification.id ||
+        notification._id ||
+        `${notification.title}-${notification.createdAt || ''}`
+
       toast(notification.title || 'Notification', {
+        id: notifId ? `notif-${notifId}` : undefined,
         description: notification.message,
       })
     })
 
-    // 4. Real-time Lead Intake Alert
+    // 4. Real-time Lead Intake (Data-sync invalidation only; visual alert handled by notification:new)
     socket.on('lead:new', (payload) => {
       if (!payload?.lead) return
-      const lead = payload.lead
       dispatch(baseApi.util.invalidateTags(['Contacts', 'Leads', 'LeadSources']))
-      toast.success('🔥 New Lead Ingested', {
-        description: `${lead.firstName} ${lead.lastName} (Score: ${lead.leadScore || 50})`,
-      })
     })
 
-    // 5. Real-time Deal Stage Progression
+    // 5. Real-time Deal Stage Progression (Data-sync invalidation only; Kanban updates silently in real time)
     socket.on('deal:stageChanged', (payload) => {
       if (!payload?.deal) return
-      const deal = payload.deal
       dispatch(baseApi.util.invalidateTags(['Deals', 'Pipeline']))
-      toast.info('🚀 Deal Stage Updated', {
-        description: `${deal.propertyAddress || 'Deal'} moved to ${deal.stageName || 'next stage'}`,
-      })
     })
 
     socket.on('disconnect', (reason) => {
@@ -133,6 +144,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     })
 
     return () => {
+      socket.removeAllListeners()
       socket.disconnect()
       socketRef.current = null
     }

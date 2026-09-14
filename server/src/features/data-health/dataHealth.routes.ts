@@ -14,7 +14,11 @@ import { authenticate } from '../../middleware/authenticate.js'
 import { authorize } from '../../middleware/authorize.js'
 import { tenantScope } from '../../middleware/tenantScope.js'
 import { validate } from '../../middleware/validate.js'
-import { mergeCandidateSchema, candidateIdParamSchema } from './dataHealth.validators.js'
+import {
+  mergeCandidateSchema,
+  candidateIdParamSchema,
+  listIssuesQuerySchema,
+} from './dataHealth.validators.js'
 import { USER_ROLES } from '../../utils/constants.js'
 
 const router = Router()
@@ -37,7 +41,7 @@ router.get('/score', getScore)
 router.get('/duplicates', listDuplicates)
 
 // List contacts with data health issues (invalid emails, invalid phones)
-router.get('/issues', listIssues)
+router.get('/issues', validate({ query: listIssuesQuerySchema }), listIssues)
 
 // Trigger on-demand scans
 router.post('/scan/deduplication', triggerDuplicateScan)

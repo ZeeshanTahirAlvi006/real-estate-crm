@@ -100,13 +100,17 @@ const auditLogSchema = new Schema<IAuditLog>(
 )
 
 // Covered compound indexes for sub-1ms multi-dimensional tenant filtering (Rule PERF-M-001)
+auditLogSchema.index({ createdAt: -1 })
 auditLogSchema.index({ brokerageId: 1, createdAt: -1 })
-auditLogSchema.index({ resource: 1, resourceId: 1 })
+auditLogSchema.index({ resource: 1, resourceId: 1, createdAt: -1 })
 auditLogSchema.index({ action: 1, createdAt: -1 })
 auditLogSchema.index({ brokerageId: 1, action: 1, createdAt: -1 })
 auditLogSchema.index({ brokerageId: 1, resource: 1, createdAt: -1 })
+auditLogSchema.index({ brokerageId: 1, resource: 1, resourceId: 1, createdAt: -1 })
 auditLogSchema.index({ brokerageId: 1, status: 1, createdAt: -1 })
 auditLogSchema.index({ brokerageId: 1, userEmail: 1, createdAt: -1 })
+auditLogSchema.index({ brokerageId: 1, userId: 1, createdAt: -1 })
+auditLogSchema.index({ userId: 1, createdAt: -1 })
 
 // Automated 90-day data lifecycle retention TTL index (Rule ARCH-001)
 auditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 })

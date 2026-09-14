@@ -7,12 +7,14 @@ import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { cn } from '@/lib/utils'
 
 const SOURCE_COLORS: Record<string, string> = {
-  Zillow: '#9CB080',
-  'Meta Ads': '#618764',
-  'Google Ads': '#2B5748',
-  'Realtor.com': '#8CA070',
-  Website: '#4A5D54',
-  Referral: '#B2C696',
+  'Zameen.com': '#27AE60',
+  'Graana.com': '#E74C3C',
+  'OLX Pakistan': '#002F34',
+  'Meta Ads': '#1877F2',
+  'Google Ads': '#4285F4',
+  WhatsApp: '#25D366',
+  Website: '#8B5CF6',
+  Referral: '#F59E0B',
   Direct: '#365347',
   Organic: '#A0B2A6',
   Social: '#618764',
@@ -95,11 +97,12 @@ export function LeadSourceChart() {
     rawSources.length > 0
       ? rawSources
       : [
-        { _id: 'Organic Search', count: 420 },
+        { _id: 'Zameen.com', count: 420 },
         { _id: 'Meta Ads', count: 310 },
-        { _id: 'Zillow Ingestion', count: 245 },
-        { _id: 'Referrals', count: 165 },
-        { _id: 'Direct Web', count: 100 },
+        { _id: 'Graana.com', count: 245 },
+        { _id: 'OLX Pakistan', count: 195 },
+        { _id: 'WhatsApp', count: 165 },
+        { _id: 'Google Ads', count: 120 },
       ]
 
   const allChartData = displaySources.map((item, idx) => ({

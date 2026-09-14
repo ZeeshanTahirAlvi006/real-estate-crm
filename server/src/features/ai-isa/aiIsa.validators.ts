@@ -75,3 +75,8 @@ export const updateCampaignSchema = z.object({
   messageTemplate: z.string().trim().min(1).max(2000).optional(),
   dormantDaysThreshold: z.number().int().min(1).max(365).optional(),
 })
+
+export const objectIdParamSchema = z.object({
+  id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid MongoDB ObjectId format'),
+})
+

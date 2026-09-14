@@ -30,16 +30,19 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { LeadSourceModal } from './LeadSourceModal'
 import { WebhookTesterModal, type PresetType } from './WebhookTesterModal'
+import { SingleSourceGuideModal } from '@/components/leads/SingleSourceGuideModal'
 import type { LeadSource, LeadSourceType } from '@/types'
 
 const SOURCE_CONFIG: Record<
   LeadSourceType,
   { label: string; icon: string }
 > = {
-  zillow: { label: 'Zillow', icon: 'home' },
-  realtor: { label: 'Realtor.com', icon: 'apartment' },
+  zameen: { label: 'Zameen.com', icon: 'domain' },
+  graana: { label: 'Graana.com', icon: 'apartment' },
+  olx: { label: 'OLX Pakistan', icon: 'storefront' },
   meta_ads: { label: 'Meta Ads', icon: 'campaign' },
   google_ads: { label: 'Google Ads', icon: 'ads_click' },
+  whatsapp: { label: 'WhatsApp', icon: 'chat' },
   website: { label: 'Website', icon: 'language' },
   webhook: { label: 'Universal Webhook', icon: 'webhook' },
   manual: { label: 'Manual Intake', icon: 'edit_note' },
@@ -52,23 +55,27 @@ export function LeadSourcesTab() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [viewSecretSourceId, setViewSecretSourceId] = useState<string | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [guideSource, setGuideSource] = useState<LeadSource | null>(null)
 
   // Webhook Simulator state
   const [isTesterOpen, setIsTesterOpen] = useState(false)
   const [testerSourceId, setTesterSourceId] = useState<string | undefined>(undefined)
-  const [testerPreset, setTesterPreset] = useState<PresetType | undefined>('zillow')
+  const [testerPreset, setTesterPreset] = useState<PresetType | undefined>('zameen')
 
   const getPresetForSourceType = (type: LeadSourceType): PresetType => {
-    if (type === 'zillow') return 'zillow'
-    if (type === 'realtor') return 'realtor'
+    if (type === 'zameen') return 'zameen'
+    if (type === 'graana') return 'graana'
+    if (type === 'olx') return 'olx'
+    if (type === 'google_ads') return 'google_ads'
     if (type === 'meta_ads') return 'meta'
+    if (type === 'whatsapp') return 'whatsapp'
     if (type === 'website') return 'website'
-    return 'zillow'
+    return 'zameen'
   }
 
   const handleOpenTester = (sourceId?: string, preset?: PresetType) => {
     setTesterSourceId(sourceId)
-    setTesterPreset(preset || 'zillow')
+    setTesterPreset(preset || 'zameen')
     setIsTesterOpen(true)
   }
 
@@ -237,6 +244,17 @@ export function LeadSourcesTab() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setGuideSource(s)}
+            className="h-7 text-xs gap-1 px-2 text-[#2B5748] dark:text-[#9CB080] border-[#9CB080]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] font-semibold"
+            title="View Step-by-Step Setup Guide"
+          >
+            <MaterialIcon name="menu_book" size={13} />
+            <span className="hidden sm:inline">Guide</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => handleOpenTester(s.id, getPresetForSourceType(s.type))}
             className="h-7 text-xs gap-1 px-2 text-[#2B5748] dark:text-[#9CB080] border-[#D8E2D6] dark:border-[#618764]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] font-semibold"
             title="Test Webhook Ingestion"
@@ -261,6 +279,13 @@ export function LeadSourcesTab() {
               <MaterialIcon name="more_vert" size={16} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]">
+              <DropdownMenuItem
+                onClick={() => setGuideSource(s)}
+                className="gap-2 cursor-pointer text-[#2B5748] dark:text-[#9CB080] font-semibold"
+              >
+                <MaterialIcon name="menu_book" size={14} />
+                <span>Setup Guide</span>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => handleOpenTester(s.id, getPresetForSourceType(s.type))}
                 className="gap-2 cursor-pointer"
@@ -347,6 +372,13 @@ export function LeadSourcesTab() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="text-xs bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]">
                   <DropdownMenuItem
+                    onClick={() => setGuideSource(s)}
+                    className="gap-2 cursor-pointer text-[#2B5748] dark:text-[#9CB080] font-semibold"
+                  >
+                    <MaterialIcon name="menu_book" size={14} />
+                    <span>Setup Guide</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => handleOpenTester(s.id, getPresetForSourceType(s.type))}
                     className="gap-2 cursor-pointer"
                   >
@@ -416,12 +448,22 @@ export function LeadSourcesTab() {
               <p className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] uppercase tracking-wider font-semibold">Leads Ingested</p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGuideSource(s)}
+                className="h-7 text-xs gap-1 px-2.5 text-[#2B5748] dark:text-[#9CB080] border-[#9CB080]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] font-semibold cursor-pointer"
+                title="View Step-by-Step Setup Guide"
+              >
+                <MaterialIcon name="menu_book" size={14} />
+                <span>Guide</span>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handleOpenTester(s.id, getPresetForSourceType(s.type))}
-                className="h-7 text-xs gap-1 px-2.5 text-[#2B5748] dark:text-[#9CB080] border-[#D8E2D6] dark:border-[#618764]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] font-semibold"
+                className="h-7 text-xs gap-1 px-2 text-[#2B5748] dark:text-[#9CB080] border-[#D8E2D6] dark:border-[#618764]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] font-semibold cursor-pointer"
                 title="Test Webhook Ingestion"
               >
                 <MaterialIcon name="play_arrow" size={14} />
@@ -431,7 +473,7 @@ export function LeadSourcesTab() {
                 variant="outline"
                 size="sm"
                 onClick={() => setViewSecretSourceId(s.id)}
-                className="h-7 text-xs gap-1 px-2.5 text-[#4A5D54] dark:text-[#A0B2A6] border-[#D8E2D6] dark:border-[#618764]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] hover:text-[#273338] dark:hover:text-white"
+                className="h-7 text-xs gap-1 px-2 text-[#4A5D54] dark:text-[#A0B2A6] border-[#D8E2D6] dark:border-[#618764]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] hover:text-[#273338] dark:hover:text-white cursor-pointer"
               >
                 <MaterialIcon name="key" size={14} />
                 <span>Credentials</span>
@@ -465,12 +507,15 @@ export function LeadSourcesTab() {
             className="h-9 px-3 rounded-lg border border-[#D8E2D6] dark:border-[#618764]/60 bg-white dark:bg-[#202B2F] text-xs font-medium text-[#273338] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#9CB080]"
           >
             <option value="all">All Types</option>
-            <option value="zillow">Zillow</option>
-            <option value="realtor">Realtor.com</option>
+            <option value="zameen">Zameen.com</option>
+            <option value="graana">Graana.com</option>
+            <option value="olx">OLX Pakistan</option>
             <option value="meta_ads">Meta Ads</option>
             <option value="google_ads">Google Ads</option>
+            <option value="whatsapp">WhatsApp</option>
             <option value="website">Website</option>
             <option value="webhook">Universal Webhook</option>
+            <option value="manual">Manual Intake</option>
           </select>
         </div>
 
@@ -483,7 +528,7 @@ export function LeadSourcesTab() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleOpenTester(undefined, 'zillow')}
+            onClick={() => handleOpenTester(undefined, 'zameen')}
             className="h-9 px-3.5 gap-1.5 rounded-lg border-[#618764]/60 text-[#2B5748] dark:text-[#9CB080] hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] font-bold text-xs shrink-0 cursor-pointer shadow-xs"
             title="Open Webhook & Ingestion Simulator"
           >
@@ -684,7 +729,7 @@ export function LeadSourcesTab() {
               size="sm"
               onClick={() => {
                 const sId = secretDetails?.id
-                const sType = secretDetails?.type || 'zillow'
+                const sType = secretDetails?.type || 'zameen'
                 setViewSecretSourceId(null)
                 handleOpenTester(sId, getPresetForSourceType(sType as LeadSourceType))
               }}
@@ -709,6 +754,9 @@ export function LeadSourcesTab() {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         leadSource={editingSource}
+        onCreated={(newSource) => {
+          setGuideSource(newSource)
+        }}
       />
 
       {/* Live Webhook Simulator Modal */}
@@ -717,6 +765,26 @@ export function LeadSourcesTab() {
         onOpenChange={setIsTesterOpen}
         initialSourceId={testerSourceId}
         initialPreset={testerPreset}
+      />
+
+      {/* Dedicated Single Source Step-by-Step Setup Guide Modal */}
+      <SingleSourceGuideModal
+        open={Boolean(guideSource)}
+        onOpenChange={(open) => !open && setGuideSource(null)}
+        source={guideSource}
+        onOpenTester={(preset) => {
+          if (guideSource) {
+            handleOpenTester(
+              guideSource.id,
+              (preset as PresetType) || getPresetForSourceType(guideSource.type)
+            )
+          }
+          setGuideSource(null)
+        }}
+        onViewCredentials={(sourceId) => {
+          setViewSecretSourceId(sourceId)
+          setGuideSource(null)
+        }}
       />
     </div>
   )

@@ -65,8 +65,8 @@ const fallbackSellerRadarLeads: SellerRadarLead[] = [
     equityPercent: 68,
     yearsOwned: 11.4,
     mortgageRate: '2.87%',
-    keySignal: 'Free & Clear Equity (68%) • Upsizing Inquiries on Zillow',
-    allSignals: ['Free & Clear Equity (68%)', 'Upsizing Inquiries on Zillow'],
+    keySignal: 'Free & Clear Equity (68%) • Upsizing Inquiries on Zameen',
+    allSignals: ['Free & Clear Equity (68%)', 'Upsizing Inquiries on Zameen'],
   },
   {
     id: 's-4',

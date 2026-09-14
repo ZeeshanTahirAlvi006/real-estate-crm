@@ -46,8 +46,10 @@ export const GENERIC_AUTH_MESSAGES = {
 
 // Lead Source Types
 export const LEAD_SOURCE_TYPES = [
-  'zillow',
-  'realtor',
+  'zameen',
+  'graana',
+  'olx',
+  'whatsapp',
   'meta_ads',
   'google_ads',
   'website',

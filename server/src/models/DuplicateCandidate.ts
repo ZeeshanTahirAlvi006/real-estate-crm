@@ -68,6 +68,7 @@ duplicateCandidateSchema.index(
   { brokerageId: 1, primaryContactId: 1, secondaryContactId: 1 },
   { unique: true }
 )
+duplicateCandidateSchema.index({ brokerageId: 1, status: 1, matchScore: -1, createdAt: -1 })
 duplicateCandidateSchema.index({ brokerageId: 1, status: 1, createdAt: -1 })
 
 export const DuplicateCandidate: Model<IDuplicateCandidate> =

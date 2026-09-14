@@ -3,10 +3,19 @@ import { objectionService } from './objection.service.js'
 import { sendSuccess, sendError } from '../../../utils/apiResponse.js'
 import { HTTP_STATUS } from '../../../utils/constants.js'
 
+// Helper for timing and header injection
+const recordObjectionTelemetry = (res: Response, startTime: bigint, handlerName: string) => {
+  const deltaMs = Number(process.hrtime.bigint() - startTime) / 1e6
+  res.setHeader('X-Response-Time', `${deltaMs.toFixed(3)}ms`)
+  console.log(`[Objection Controller Timer] ${handlerName} executed in ${deltaMs.toFixed(3)}ms`)
+}
+
 export const classifyHandler = async (req: Request, res: Response): Promise<void> => {
+  const t0 = process.hrtime.bigint()
   try {
     const { text } = req.body
     const result = objectionService.classifyObjection(text)
+    recordObjectionTelemetry(res, t0, 'classifyHandler')
     sendSuccess(res, result, 'Objection classified successfully')
   } catch (error: any) {
     sendError(res, error.message || 'Failed to classify objection', HTTP_STATUS.INTERNAL_SERVER_ERROR)
@@ -14,9 +23,11 @@ export const classifyHandler = async (req: Request, res: Response): Promise<void
 }
 
 export const generateRebuttalHandler = async (req: Request, res: Response): Promise<void> => {
+  const t0 = process.hrtime.bigint()
   try {
     const brokerageId = (req as any).effectiveBrokerageId || (req as any).user?.brokerageId
     const result = await objectionService.generateRebuttals(req.body, brokerageId)
+    recordObjectionTelemetry(res, t0, 'generateRebuttalHandler')
     sendSuccess(res, result, 'Multi-angle rebuttals generated successfully')
   } catch (error: any) {
     sendError(res, error.message || 'Failed to generate rebuttals', HTTP_STATUS.INTERNAL_SERVER_ERROR)
@@ -24,10 +35,12 @@ export const generateRebuttalHandler = async (req: Request, res: Response): Prom
 }
 
 export const getPlaybooksHandler = async (req: Request, res: Response): Promise<void> => {
+  const t0 = process.hrtime.bigint()
   try {
     const brokerageId = (req as any).effectiveBrokerageId || (req as any).user?.brokerageId
     const category = req.query.category as any
     const playbooks = await objectionService.getPlaybooks(brokerageId, category)
+    recordObjectionTelemetry(res, t0, 'getPlaybooksHandler')
     sendSuccess(res, playbooks, 'Objection playbooks retrieved successfully')
   } catch (error: any) {
     sendError(res, error.message || 'Failed to retrieve playbooks', HTTP_STATUS.INTERNAL_SERVER_ERROR)
@@ -35,6 +48,7 @@ export const getPlaybooksHandler = async (req: Request, res: Response): Promise<
 }
 
 export const savePlaybookHandler = async (req: Request, res: Response): Promise<void> => {
+  const t0 = process.hrtime.bigint()
   try {
     const brokerageId = (req as any).effectiveBrokerageId || (req as any).user?.brokerageId
     if (!brokerageId) {
@@ -44,6 +58,7 @@ export const savePlaybookHandler = async (req: Request, res: Response): Promise<
 
     const userId = (req as any).user?.id || (req as any).user?._id
     const saved = await objectionService.savePlaybook(brokerageId, req.body, userId)
+    recordObjectionTelemetry(res, t0, 'savePlaybookHandler')
     sendSuccess(res, saved, 'Objection playbook saved successfully', HTTP_STATUS.CREATED)
   } catch (error: any) {
     sendError(res, error.message || 'Failed to save objection playbook', HTTP_STATUS.INTERNAL_SERVER_ERROR)
@@ -51,6 +66,7 @@ export const savePlaybookHandler = async (req: Request, res: Response): Promise<
 }
 
 export const deletePlaybookHandler = async (req: Request, res: Response): Promise<void> => {
+  const t0 = process.hrtime.bigint()
   try {
     const brokerageId = (req as any).effectiveBrokerageId || (req as any).user?.brokerageId
     if (!brokerageId) {
@@ -65,6 +81,7 @@ export const deletePlaybookHandler = async (req: Request, res: Response): Promis
       return
     }
 
+    recordObjectionTelemetry(res, t0, 'deletePlaybookHandler')
     sendSuccess(res, { deleted: true }, 'Objection playbook deleted successfully')
   } catch (error: any) {
     sendError(res, error.message || 'Failed to delete objection playbook', HTTP_STATUS.INTERNAL_SERVER_ERROR)

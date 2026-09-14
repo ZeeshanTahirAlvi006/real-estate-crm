@@ -78,8 +78,10 @@ export interface LeadSource {
 }
 
 export type LeadSourceType =
-  | 'zillow'
-  | 'realtor'
+  | 'zameen'
+  | 'graana'
+  | 'olx'
+  | 'whatsapp'
   | 'meta_ads'
   | 'google_ads'
   | 'website'

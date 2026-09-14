@@ -98,7 +98,7 @@ export const runDataHealthScanJob = async (): Promise<JobExecutionResult> => {
         ])
 
         // Recalculate and persist DataHealthLog snapshot
-        await getHealthScore(tenantFilter)
+        await getHealthScore(tenantFilter, true)
 
         const brokerageIssues =
           (dupResult.issuesFound || 0) +

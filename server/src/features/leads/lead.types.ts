@@ -123,6 +123,33 @@ export interface LeadIngestPayload {
   [key: string]: unknown // Allow any extra fields from webhooks
 }
 
+export interface GoogleAdsColumnData {
+  column_id?: string
+  string_value?: string
+  column_name?: string
+}
+
+export interface GoogleAdsWebhookPayload {
+  lead_id?: string
+  api_version?: string
+  form_id?: string
+  campaign_id?: string
+  google_key?: string
+  is_test?: boolean
+  gclid?: string
+  user_column_data?: GoogleAdsColumnData[]
+  [key: string]: unknown
+}
+
+export interface EmailParserPayload {
+  sender?: string
+  subject?: string
+  body?: string
+  html?: string
+  headers?: Record<string, string>
+  [key: string]: unknown
+}
+
 export interface LeadCapturePayload {
   captureKey: string
   firstName: string

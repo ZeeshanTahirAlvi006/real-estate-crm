@@ -14,6 +14,8 @@ export interface CreateDealInput {
 }
 
 export interface UpdateDealInput {
+  pipelineId?: string
+  stageId?: string
   propertyAddress?: string
   dealValue?: number
   assignedAgentId?: string
@@ -23,6 +25,7 @@ export interface UpdateDealInput {
 
 export interface MoveDealStageInput {
   newStageId: string
+  pipelineId?: string
 }
 
 export interface ListDealsQuery {

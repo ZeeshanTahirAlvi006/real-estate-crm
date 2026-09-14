@@ -21,6 +21,7 @@ export interface PaginatedNotificationsDto {
   limit: number
   hasMore: boolean
   unreadCount: number
+  source?: 'l1' | 'l2' | 'db'
 }
 
 export interface DeleteNotificationResponseDto {
@@ -29,4 +30,3 @@ export interface DeleteNotificationResponseDto {
   replacementNotification: NotificationDto
   unreadCount: number
 }
-

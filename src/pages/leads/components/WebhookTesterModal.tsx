@@ -25,7 +25,7 @@ import {
 } from '@/store/api/leadsApi'
 import { toast } from 'sonner'
 
-export type PresetType = 'zillow' | 'realtor' | 'meta' | 'website'
+export type PresetType = 'zameen' | 'graana' | 'olx' | 'google_ads' | 'meta' | 'whatsapp' | 'website'
 
 interface WebhookTesterModalProps {
   open: boolean
@@ -35,49 +35,84 @@ interface WebhookTesterModalProps {
 }
 
 const PRESET_PAYLOADS: Record<string, any> = {
-  zillow: {
-    source: 'Zillow',
-    firstName: 'Alexander',
-    lastName: 'Wright',
-    phone: '+1 (555) 749-3021',
-    email: 'alex.wright@gmail.com',
-    propertyAddress: '1420 Highland Ave, Austin TX 78701',
-    propertyPrice: 850000,
-    zipCode: '78701',
-    message: 'We are a pre-approved cash buyer looking to schedule a private walkthrough this Saturday ASAP.',
+  zameen: {
+    source: 'Zameen.com',
+    name: 'Muhammad Usman',
+    phone: '0300-1234567',
+    email: 'usman.dha@gmail.com',
+    propertyAddress: '1 Kanal Luxury Villa, Phase 6, DHA Lahore',
+    propertyPrice: 65000000,
+    zipCode: '54000',
+    message: 'Pre-approved cash buyer interested in immediate inspection. Please call on WhatsApp.',
+    zameenPropertyId: '18492019',
   },
-  realtor: {
-    source: 'Realtor.com',
-    firstName: 'Eleanor',
-    lastName: 'Vance',
-    phone: '+1 (555) 882-9014',
-    email: 'eleanor.vance@outlook.com',
-    propertyAddress: '2405 River Oaks Blvd, Austin TX 78703',
-    propertyPrice: 1250000,
-    zipCode: '78703',
-    message: 'Interested in making an offer. Moving for corporate relocation next month.',
+  graana: {
+    source: 'Graana.com',
+    name: 'Hamza Tariq',
+    phone: '+92 321 9876543',
+    email: 'hamza.tariq@outlook.com',
+    propertyAddress: '10 Marla Designer House, Sector F-7, Islamabad',
+    propertyPrice: 52000000,
+    zipCode: '44000',
+    message: 'Is the price negotiable? Available for site visit this Sunday.',
+    graanaPropertyId: 'GR-94821',
+  },
+  olx: {
+    source: 'OLX Pakistan',
+    name: 'Chaudhry Bilal',
+    phone: '0345-5551234',
+    propertyAddress: '5 Marla Brand New House, Bahria Town, Rawalpindi',
+    propertyPrice: 18500000,
+    zipCode: '46000',
+    message: 'AOA bhai, is this still available? Final demand kya hai? Call/WhatsApp me at 0345-5551234',
+    olxChatUrl: 'https://www.olx.com.pk/myolx/conversations/10928301',
+  },
+  google_ads: {
+    source: 'Google Ads',
+    lead_id: 'gads-lead-pk-98214',
+    google_key: 'YOUR_CONFIGURED_WEBHOOK_SECRET',
+    is_test: false,
+    form_id: '1049281',
+    campaign_id: '7829104',
+    user_column_data: [
+      { column_id: 'FULL_NAME', string_value: 'Zeeshan Alvi' },
+      { column_id: 'EMAIL', string_value: 'zeeshan.alvi@pkproperties.com' },
+      { column_id: 'PHONE_NUMBER', string_value: '0300-8451234' },
+      { column_id: 'CITY', string_value: 'Lahore' },
+      { column_id: 'POSTAL_CODE', string_value: '54000' },
+      { column_id: 'STREET_ADDRESS', string_value: 'Main Boulevard, Gulberg III' },
+    ],
   },
   meta: {
     source: 'Meta Ads',
-    campaign: 'Austin Luxury Condos Q3',
-    firstName: 'Samantha',
-    lastName: 'Hayes',
-    phone: '+1 (555) 632-1190',
-    email: 'samantha.h@cloudtech.io',
-    propertyAddress: '70 Rainey St #1802, Austin TX 78701',
-    propertyPrice: 920000,
-    zipCode: '78701',
-    message: 'Pre-approved jumbo loan buyer. Requesting floor plans and HOA docs.',
+    campaign: 'Lahore Smart City Investment Wave',
+    firstName: 'Ayesha',
+    lastName: 'Khan',
+    phone: '+92 333 4455667',
+    email: 'ayesha.khan@pktech.org',
+    propertyAddress: '7 Marla Commercial Plot, Lahore Smart City',
+    propertyPrice: 22000000,
+    zipCode: '54000',
+    message: 'Overseas Pakistani investor looking for installment plan details.',
+  },
+  whatsapp: {
+    source: 'WhatsApp',
+    name: 'Taimoor Shah',
+    phone: '0302-8877665',
+    propertyAddress: '1 Kanal Plot, Sector C, Bahria Town Lahore',
+    propertyPrice: 38000000,
+    zipCode: '54000',
+    message: 'Salam, I saw your listing for Bahria Town 1 Kanal plot. Is it direct from owner? Please share video and map location.',
   },
   website: {
-    firstName: 'Marcus',
-    lastName: 'Brody',
-    phone: '+1 (555) 441-2900',
-    email: 'marcus.brody@museum.edu',
-    propertyAddress: '310 Colorado St, Austin TX 78701',
-    propertyPrice: 650000,
-    zipCode: '78701',
-    message: 'Looking for a 2-bed downtown condo under $700k with parking.',
+    firstName: 'Farhan',
+    lastName: 'Siddiqui',
+    phone: '0334-1122334',
+    email: 'farhan.siddiqui@gmail.com',
+    propertyAddress: '3-Bed Luxury Apartment, Clifton Block 4, Karachi',
+    propertyPrice: 42000000,
+    zipCode: '75600',
+    message: 'Looking for a 3-bed sea-facing apartment in Clifton with dedicated parking.',
   },
 }
 
@@ -107,8 +142,8 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
   const sources = sourcesData?.leadSources || []
 
   const [selectedSourceId, setSelectedSourceId] = useState<string>('')
-  const [activePreset, setActivePreset] = useState<PresetType>('zillow')
-  const [payloadText, setPayloadText] = useState(JSON.stringify(PRESET_PAYLOADS.zillow, null, 2))
+  const [activePreset, setActivePreset] = useState<PresetType>('zameen')
+  const [payloadText, setPayloadText] = useState(JSON.stringify(PRESET_PAYLOADS.zameen, null, 2))
   const [authMethod, setAuthMethod] = useState<'apikey' | 'hmac'>('apikey')
 
   // Fetch decrypted secret for API Key or HMAC test calculation
@@ -137,9 +172,9 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
         setSelectedSourceId(sources[0].id)
       }
 
-      const preset = initialPreset || 'zillow'
+      const preset = initialPreset || 'zameen'
       setActivePreset(preset)
-      setPayloadText(JSON.stringify(PRESET_PAYLOADS[preset] || PRESET_PAYLOADS.zillow, null, 2))
+      setPayloadText(JSON.stringify(PRESET_PAYLOADS[preset] || PRESET_PAYLOADS.zameen, null, 2))
       setResult(null)
     }
   }, [open, initialSourceId, initialPreset, sources])
@@ -329,25 +364,47 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
             <div className="flex items-center gap-2 bg-muted/30 p-1.5 rounded-xl border border-border/60 flex-wrap">
               <button
                 type="button"
-                onClick={() => handleSelectPreset('zillow')}
+                onClick={() => handleSelectPreset('zameen')}
                 className={`px-3 py-1.5 rounded-lg font-semibold transition-colors text-xs ${
-                  activePreset === 'zillow'
+                  activePreset === 'zameen'
                     ? 'bg-background text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                🔵 Zillow Inbound
+                🟢 Zameen.com
               </button>
               <button
                 type="button"
-                onClick={() => handleSelectPreset('realtor')}
+                onClick={() => handleSelectPreset('graana')}
                 className={`px-3 py-1.5 rounded-lg font-semibold transition-colors text-xs ${
-                  activePreset === 'realtor'
+                  activePreset === 'graana'
                     ? 'bg-background text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                🔴 Realtor.com
+                🔴 Graana.com
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectPreset('olx')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-colors text-xs ${
+                  activePreset === 'olx'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                🏢 OLX Pakistan
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectPreset('google_ads')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-colors text-xs ${
+                  activePreset === 'google_ads'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                🔷 Google Ads Form
               </button>
               <button
                 type="button"
@@ -358,7 +415,18 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                🟣 Meta Lead Form
+                🟣 Meta Ads Form
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectPreset('whatsapp')}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-colors text-xs ${
+                  activePreset === 'whatsapp'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                💬 WhatsApp Lead
               </button>
               <button
                 type="button"
@@ -369,7 +437,7 @@ export const WebhookTesterModal: React.FC<WebhookTesterModalProps> = ({
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                🌐 Public Capture Widget
+                🌐 Capture Widget
               </button>
             </div>
           </div>

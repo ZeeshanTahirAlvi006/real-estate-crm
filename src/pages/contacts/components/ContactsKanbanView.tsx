@@ -234,8 +234,18 @@ export function ContactsKanbanView({
     }
 
     // Default 'source'
-    const sources = ['Zillow', 'Meta Ads', 'Google Ads', 'Realtor.com', 'Website', 'Referral', 'Manual Entry']
-    const colors = ['#3B82F6', '#6366F1', '#10B981', '#F97316', '#8B5CF6', '#EC4899', '#75887E']
+    const sources = [
+      'Zameen.com',
+      'Graana.com',
+      'OLX Pakistan',
+      'Meta Ads',
+      'Google Ads',
+      'WhatsApp',
+      'Website',
+      'Referral',
+      'Manual Entry',
+    ]
+    const colors = ['#27AE60', '#E74C3C', '#002F34', '#1877F2', '#4285F4', '#25D366', '#8B5CF6', '#F59E0B', '#75887E']
 
     const colList: ColumnDef[] = sources.map((src, i) => ({
       id: src,

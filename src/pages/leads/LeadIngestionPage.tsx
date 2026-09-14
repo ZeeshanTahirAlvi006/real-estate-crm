@@ -12,12 +12,14 @@ import { RoutingRulesTab } from './components/RoutingRulesTab'
 import { ScoringConfigTab } from './components/ScoringConfigTab'
 import { LeadCaptureWidgetTab } from './components/LeadCaptureWidgetTab'
 import { ManualLeadModal } from './components/ManualLeadModal'
+import { PakistanLeadGuides } from '@/components/leads/PakistanLeadGuides'
 
 const TABS: NavTabItem[] = [
   { id: 'sources', label: 'Lead Sources', icon: 'hub' },
   { id: 'routing', label: 'Routing Rules', icon: 'alt_route' },
   { id: 'scoring', label: 'Scoring Engine', icon: 'analytics' },
   { id: 'widget', label: 'Capture Widget', icon: 'widgets' },
+  { id: 'guides', label: 'Setup Guides', icon: 'menu_book' },
 ]
 
 export function LeadIngestionPage() {
@@ -104,6 +106,11 @@ export function LeadIngestionPage() {
         {/* Tab 4: Capture Widget */}
         <TabsContent value="widget" className="space-y-4 outline-none focus:outline-none">
           <LeadCaptureWidgetTab />
+        </TabsContent>
+
+        {/* Tab 5: Setup Guides */}
+        <TabsContent value="guides" className="space-y-4 outline-none focus:outline-none">
+          <PakistanLeadGuides />
         </TabsContent>
       </Tabs>
 

@@ -286,3 +286,37 @@ export const updateScoringConfigSchema = z
     baseScore: z.number().int().min(0).max(100).optional(),
   })
   .strict()
+
+// ── Pakistan & Ad Platform Webhook Schemas ──
+
+export const googleAdsWebhookSchema = z
+  .object({
+    lead_id: z.string().trim().optional(),
+    api_version: z.string().trim().optional(),
+    form_id: z.string().trim().optional(),
+    campaign_id: z.string().trim().optional(),
+    google_key: z.string().trim().optional(),
+    is_test: z.boolean().optional(),
+    gclid: z.string().trim().optional(),
+    user_column_data: z
+      .array(
+        z.object({
+          column_id: z.string().trim().optional(),
+          string_value: z.string().trim().optional(),
+          column_name: z.string().trim().optional(),
+        })
+      )
+      .optional(),
+  })
+  .passthrough()
+
+export const emailParserSchema = z
+  .object({
+    sender: z.string().trim().optional(),
+    subject: z.string().trim().optional(),
+    body: z.string().optional(),
+    html: z.string().optional(),
+    headers: z.record(z.string(), z.string()).optional(),
+  })
+  .passthrough()
+

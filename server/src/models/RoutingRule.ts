@@ -203,8 +203,10 @@ const routingRuleSchema = new Schema<IRoutingRule>(
   }
 )
 
-// Compound indexes for priority-based rule evaluation within a brokerage
+// Compound performance indexes (PERF-M-001) for priority-based evaluation and sorting
 routingRuleSchema.index({ brokerageId: 1, isActive: 1, priority: 1 })
+routingRuleSchema.index({ brokerageId: 1, priority: 1 })
+routingRuleSchema.index({ brokerageId: 1, createdAt: -1 })
 routingRuleSchema.index({ brokerageId: 1, name: 1 }, { unique: true })
 
 export const RoutingRule: Model<IRoutingRule> =

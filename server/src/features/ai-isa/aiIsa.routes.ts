@@ -30,6 +30,7 @@ import {
   updateCriteriaSchema,
   createCampaignSchema,
   updateCampaignSchema,
+  objectIdParamSchema,
 } from './aiIsa.validators.js'
 
 const router = Router()
@@ -47,22 +48,22 @@ router.post('/simulate', validate({ body: simulateChatSchema }), simulateChat)
 // ── Qualification Criteria CRUD ─────────────────────────
 router.get('/qualification-criteria', getCriteria)
 router.post('/qualification-criteria', validate({ body: createCriteriaSchema }), createCriteriaHandler)
-router.put('/qualification-criteria/:id', validate({ body: updateCriteriaSchema }), updateCriteria)
-router.delete('/qualification-criteria/:id', deleteCriteriaHandler)
+router.put('/qualification-criteria/:id', validate({ params: objectIdParamSchema, body: updateCriteriaSchema }), updateCriteria)
+router.delete('/qualification-criteria/:id', validate({ params: objectIdParamSchema }), deleteCriteriaHandler)
 
 // ── Reactivation Campaigns ──────────────────────────────
 router.get('/campaigns', getCampaigns)
-router.get('/campaigns/:id', getCampaignByIdHandler)
+router.get('/campaigns/:id', validate({ params: objectIdParamSchema }), getCampaignByIdHandler)
 router.post('/campaigns', validate({ body: createCampaignSchema }), createCampaign)
-router.patch('/campaigns/:id', validate({ body: updateCampaignSchema }), updateCampaignHandler)
-router.delete('/campaigns/:id', deleteCampaignHandler)
+router.patch('/campaigns/:id', validate({ params: objectIdParamSchema, body: updateCampaignSchema }), updateCampaignHandler)
+router.delete('/campaigns/:id', validate({ params: objectIdParamSchema }), deleteCampaignHandler)
 
 // ── Campaign Actions ────────────────────────────────────
-router.post('/campaigns/:id/start', startCampaignHandler)
-router.post('/campaigns/:id/pause', pauseCampaignHandler)
-router.post('/campaigns/:id/execute', executeCampaignHandler)
-router.post('/campaigns/:id/toggle', toggleCampaign)
-router.get('/campaigns/:id/metrics', getCampaignMetricsHandler)
+router.post('/campaigns/:id/start', validate({ params: objectIdParamSchema }), startCampaignHandler)
+router.post('/campaigns/:id/pause', validate({ params: objectIdParamSchema }), pauseCampaignHandler)
+router.post('/campaigns/:id/execute', validate({ params: objectIdParamSchema }), executeCampaignHandler)
+router.post('/campaigns/:id/toggle', validate({ params: objectIdParamSchema }), toggleCampaign)
+router.get('/campaigns/:id/metrics', validate({ params: objectIdParamSchema }), getCampaignMetricsHandler)
 
 // ── Speed-to-Lead KPIs ──────────────────────────────────
 router.get('/speed-to-lead', getSpeedMetrics)

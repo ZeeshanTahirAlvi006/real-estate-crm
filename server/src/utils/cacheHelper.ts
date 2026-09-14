@@ -112,8 +112,24 @@ export const recordDbMetric = (
   return deltaMs
 }
 
-//Standardized cache key generator for dashboard query operations.
-export const getDashboardCacheKey = (prefix: string, tenantFilter: Record<string, any>): string => {
+//Standardized cache key generator for dashboard query operations with role & user isolation.
+export const getDashboardCacheKey = (
+  prefix: string,
+  tenantFilter: Record<string, any>,
+  user?: { _id?: any; id?: string; role?: string } | null
+): string => {
+  const brokerageId = tenantFilter?.brokerageId ? String(tenantFilter.brokerageId) : 'global'
+  if (user && user.role === 'agent' && (user._id || user.id)) {
+    const userId = (user._id || user.id).toString()
+    return `dashboard:${prefix}:${brokerageId}:agent:${userId}`
+  }
+  if (user && user.role === 'team_lead' && (user._id || user.id)) {
+    const userId = (user._id || user.id).toString()
+    return `dashboard:${prefix}:${brokerageId}:team_lead:${userId}`
+  }
+  if (user && user.role) {
+    return `dashboard:${prefix}:${brokerageId}:${user.role}`
+  }
   return `dashboard:${prefix}:${JSON.stringify(sortKeysRecursively(tenantFilter))}`
 }
 

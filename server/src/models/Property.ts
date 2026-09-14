@@ -188,7 +188,13 @@ const propertySchema = new Schema<IProperty>(
 
 // Compound performance indexes for ultra-fast multi-tenant seller radar lookups & rankings
 propertySchema.index({ brokerageId: 1, isDeleted: 1, probabilityOfSelling: -1 })
+propertySchema.index({ brokerageId: 1, isDeleted: 1, probabilityOfSelling: 1 })
 propertySchema.index({ brokerageId: 1, isDeleted: 1, equity: -1 })
+propertySchema.index({ brokerageId: 1, isDeleted: 1, equity: 1 })
+propertySchema.index({ brokerageId: 1, isDeleted: 1, estimatedValue: -1 })
+propertySchema.index({ brokerageId: 1, isDeleted: 1, purchaseDate: -1 })
+propertySchema.index({ brokerageId: 1, isDeleted: 1, purchaseDate: 1 })
+propertySchema.index({ brokerageId: 1, isDeleted: 1, propertyType: 1 })
 propertySchema.index({ brokerageId: 1, isDeleted: 1, ownerContactId: 1 })
 propertySchema.index({ 'address.formattedAddress': 'text' })
 

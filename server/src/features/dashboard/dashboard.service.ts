@@ -42,9 +42,12 @@ const normalizeTenantFilter = (tenantFilter: Record<string, any>): Record<string
   return normalized
 }
 
-export const getKpis = async (tenantFilter: Record<string, any>): Promise<DashboardKpisDto> => {
+export const getKpis = async (
+  tenantFilter: Record<string, any>,
+  user?: IUser
+): Promise<DashboardKpisDto> => {
   const fnStart = process.hrtime.bigint()
-  const cacheKey = getDashboardCacheKey('kpis', tenantFilter)
+  const cacheKey = getDashboardCacheKey('kpis', tenantFilter, user)
 
   const { data, source } = await fetchWithSWR(
     cacheKey,
@@ -54,10 +57,20 @@ export const getKpis = async (tenantFilter: Record<string, any>): Promise<Dashbo
       const weekAgo = new Date()
       weekAgo.setDate(weekAgo.getDate() - 7)
 
+      const isAgent = user?.role === 'agent'
+      const contactFilter: Record<string, any> = { ...filter, isDeleted: false }
+      const dealFilter: Record<string, any> = { ...filter, isDeleted: false }
+
+      if (isAgent && user?._id) {
+        const agentObjectId = new mongoose.Types.ObjectId(user._id)
+        contactFilter.assignedAgentId = agentObjectId
+        dealFilter.assignedAgentId = agentObjectId
+      }
+
       const [contactStats, dealStats, healthLog, activeUsers] = await Promise.all([
         // Single-pass Contact aggregation with compound covering index
         Contact.aggregate([
-          { $match: { ...filter, isDeleted: false } },
+          { $match: contactFilter },
           {
             $group: {
               _id: null,
@@ -74,7 +87,7 @@ export const getKpis = async (tenantFilter: Record<string, any>): Promise<Dashbo
 
         // Single-pass Deal aggregation with compound covering index
         Deal.aggregate([
-          { $match: { ...filter, isDeleted: false } },
+          { $match: dealFilter },
           {
             $group: {
               _id: null,
@@ -84,16 +97,16 @@ export const getKpis = async (tenantFilter: Record<string, any>): Promise<Dashbo
           },
         ]),
 
-        // Covered query on latest data health log
-        filter.brokerageId
+        // Covered query on latest data health log (brokerage owner / admin only)
+        !isAgent && filter.brokerageId
           ? DataHealthLog.findOne({ brokerageId: filter.brokerageId })
               .sort({ scannedAt: -1 })
               .select('score grade')
               .lean()
           : null,
 
-        // Covered query on active users count
-        User.countDocuments({ ...filter, isActive: true }),
+        // Covered query on active users count (1 for agent, countDocuments for brokerage)
+        isAgent ? 1 : User.countDocuments({ ...filter, isActive: true }),
       ])
 
       recordDbMetric('getKpis', dbStart, 10)
@@ -123,17 +136,30 @@ export const getKpis = async (tenantFilter: Record<string, any>): Promise<Dashbo
   return data
 }
 
-export const getLeadSources = async (tenantFilter: Record<string, any>): Promise<LeadSourceStatDto[]> => {
+export const getLeadSources = async (
+  tenantFilter: Record<string, any>,
+  user?: IUser
+): Promise<LeadSourceStatDto[]> => {
   const fnStart = process.hrtime.bigint()
-  const cacheKey = getDashboardCacheKey('leadSources', tenantFilter)
+  const cacheKey = getDashboardCacheKey('leadSources', tenantFilter, user)
 
   const { data, source } = await fetchWithSWR(
     cacheKey,
     async () => {
       const filter = normalizeTenantFilter(tenantFilter)
+      const isAgent = user?.role === 'agent'
+      const matchFilter: Record<string, any> = {
+        ...filter,
+        isDeleted: false,
+        leadSource: { $nin: [null, ''] },
+      }
+      if (isAgent && user?._id) {
+        matchFilter.assignedAgentId = new mongoose.Types.ObjectId(user._id)
+      }
+
       const dbStart = process.hrtime.bigint()
       const result = await Contact.aggregate([
-        { $match: { ...filter, isDeleted: false, leadSource: { $nin: [null, ''] } } },
+        { $match: matchFilter },
         { $group: { _id: '$leadSource', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ])
@@ -149,20 +175,33 @@ export const getLeadSources = async (tenantFilter: Record<string, any>): Promise
   return data
 }
 
-export const getLeadsOverTime = async (tenantFilter: Record<string, any>): Promise<LeadsOverTimeStatDto[]> => {
+export const getLeadsOverTime = async (
+  tenantFilter: Record<string, any>,
+  user?: IUser
+): Promise<LeadsOverTimeStatDto[]> => {
   const fnStart = process.hrtime.bigint()
-  const cacheKey = getDashboardCacheKey('leadsOverTime', tenantFilter)
+  const cacheKey = getDashboardCacheKey('leadsOverTime', tenantFilter, user)
 
   const { data, source } = await fetchWithSWR(
     cacheKey,
     async () => {
       const filter = normalizeTenantFilter(tenantFilter)
-      const dbStart = process.hrtime.bigint()
+      const isAgent = user?.role === 'agent'
       const thirtyDaysAgo = new Date()
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
+      const matchFilter: Record<string, any> = {
+        ...filter,
+        isDeleted: false,
+        createdAt: { $gte: thirtyDaysAgo },
+      }
+      if (isAgent && user?._id) {
+        matchFilter.assignedAgentId = new mongoose.Types.ObjectId(user._id)
+      }
+
+      const dbStart = process.hrtime.bigint()
       const result = await Contact.aggregate([
-        { $match: { ...filter, isDeleted: false, createdAt: { $gte: thirtyDaysAgo } } },
+        { $match: matchFilter },
         {
           $group: {
             _id: {
@@ -189,17 +228,26 @@ export const getLeadsOverTime = async (tenantFilter: Record<string, any>): Promi
   return data
 }
 
-export const getPipelineSummary = async (tenantFilter: Record<string, any>): Promise<PipelineSummaryDto[]> => {
+export const getPipelineSummary = async (
+  tenantFilter: Record<string, any>,
+  user?: IUser
+): Promise<PipelineSummaryDto[]> => {
   const fnStart = process.hrtime.bigint()
-  const cacheKey = getDashboardCacheKey('pipelineSummary', tenantFilter)
+  const cacheKey = getDashboardCacheKey('pipelineSummary', tenantFilter, user)
 
   const { data, source } = await fetchWithSWR(
     cacheKey,
     async () => {
       const filter = normalizeTenantFilter(tenantFilter)
+      const isAgent = user?.role === 'agent'
+      const matchFilter: Record<string, any> = { ...filter, isDeleted: false }
+      if (isAgent && user?._id) {
+        matchFilter.assignedAgentId = new mongoose.Types.ObjectId(user._id)
+      }
+
       const dbStart = process.hrtime.bigint()
       const result = await Deal.aggregate([
-        { $match: { ...filter, isDeleted: false } },
+        { $match: matchFilter },
         {
           $group: {
             _id: '$stageId',
@@ -227,16 +275,29 @@ export const getPipelineSummary = async (tenantFilter: Record<string, any>): Pro
   return data
 }
 
-export const getActivityFeed = async (tenantFilter: Record<string, any>): Promise<ActivityFeedItemDto[]> => {
+export const getActivityFeed = async (
+  tenantFilter: Record<string, any>,
+  user?: IUser
+): Promise<ActivityFeedItemDto[]> => {
   const fnStart = process.hrtime.bigint()
-  const cacheKey = getDashboardCacheKey('activityFeed', tenantFilter)
+  const cacheKey = getDashboardCacheKey('activityFeed', tenantFilter, user)
 
   const { data, source } = await fetchWithSWR(
     cacheKey,
     async () => {
       const filter = normalizeTenantFilter(tenantFilter)
+      const isAgent = user?.role === 'agent'
+      const queryFilter: Record<string, any> = { ...filter }
+      if (isAgent && user?._id) {
+        const agentObjectId = new mongoose.Types.ObjectId(user._id)
+        queryFilter.$or = [
+          { createdBy: agentObjectId },
+          { createdByName: `${user.firstName} ${user.lastName}`.trim() },
+        ]
+      }
+
       const dbStart = process.hrtime.bigint()
-      const activities = await Activity.find({ ...filter })
+      const activities = await Activity.find(queryFilter)
         .select('_id type description createdAt createdByName')
         .sort({ createdAt: -1 })
         .limit(20)

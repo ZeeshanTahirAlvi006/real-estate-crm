@@ -38,10 +38,10 @@ export function ScoringConfigTab() {
   const [newKeywordPoints, setNewKeywordPoints] = useState(10)
 
   // Interactive Live Score Simulator State
-  const [simSource, setSimSource] = useState('zillow')
-  const [simPrice, setSimPrice] = useState(650000)
+  const [simSource, setSimSource] = useState('zameen')
+  const [simPrice, setSimPrice] = useState(65000000)
   const [simMessage, setSimMessage] = useState(
-    'Hi, I am a cash buyer pre-approved for up to $800k looking to buy ASAP near downtown.'
+    'AOA, I am a cash buyer looking to buy a 1 Kanal house in DHA Phase 6 ASAP. Please WhatsApp details.'
   )
 
   useEffect(() => {
@@ -452,10 +452,12 @@ export function ScoringConfigTab() {
                   onChange={(e) => setSimSource(e.target.value)}
                   className="w-full h-8 px-2.5 rounded-lg border border-[#D8E2D6] dark:border-[#618764]/60 bg-white dark:bg-[#202B2F] text-xs font-medium text-[#273338] dark:text-white"
                 >
-                  <option value="zillow">Zillow</option>
-                  <option value="realtor">Realtor.com</option>
+                  <option value="zameen">Zameen.com</option>
+                  <option value="graana">Graana.com</option>
+                  <option value="olx">OLX Pakistan</option>
                   <option value="meta_ads">Meta Ads</option>
                   <option value="google_ads">Google Ads</option>
+                  <option value="whatsapp">WhatsApp</option>
                   <option value="website">Website</option>
                   <option value="webhook">Custom Webhook</option>
                   <option value="manual">Manual Entry</option>

@@ -80,7 +80,10 @@ const leadSourceSchema = new Schema<ILeadSource>(
   }
 )
 
-// Compound indexes for tenant-scoped queries and unique capture key lookup
+// Compound performance indexes (PERF-M-001) for tenant-scoped sorting and filtering
+leadSourceSchema.index({ brokerageId: 1, createdAt: -1 })
+leadSourceSchema.index({ brokerageId: 1, isActive: 1, createdAt: -1 })
+leadSourceSchema.index({ brokerageId: 1, type: 1, createdAt: -1 })
 leadSourceSchema.index({ brokerageId: 1, isActive: 1 })
 leadSourceSchema.index({ captureKey: 1 }, { unique: true, sparse: true })
 leadSourceSchema.index({ brokerageId: 1, name: 1 }, { unique: true })

@@ -19,7 +19,7 @@ describe('CSRF Protection Integration Tests', () => {
     res.json({ message: 'mutated' })
   })
 
-  app.post('/api/leads/webhook/zillow', (_req, res) => {
+  app.post('/api/leads/webhook/zameen', (_req, res) => {
     res.json({ message: 'webhook received' })
   })
 
@@ -70,7 +70,7 @@ describe('CSRF Protection Integration Tests', () => {
 
   it('should bypass CSRF protection for whitelisted webhook routes', async () => {
     const res = await request(app)
-      .post('/api/leads/webhook/zillow')
+      .post('/api/leads/webhook/zameen')
       .send({ lead: 'Jane Doe' })
 
     assert.equal(res.status, 200)

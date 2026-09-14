@@ -236,6 +236,73 @@ export const updateDeal = async (
   if (data.priority !== undefined) deal.priority = data.priority
   if (data.notes !== undefined) deal.notes = data.notes
 
+  let isPipelineChanged = false
+  let oldPipelineName = ''
+  let newPipelineName = ''
+  let targetStageName = ''
+
+  // Cross-pipeline deal movement support
+  if (data.pipelineId && data.pipelineId !== deal.pipelineId.toString()) {
+    const targetPipeline = await Pipeline.findOne({
+      _id: data.pipelineId,
+      brokerageId: deal.brokerageId,
+    })
+    if (!targetPipeline) {
+      throw new AppError('Target pipeline not found or does not belong to your brokerage', HTTP_STATUS.BAD_REQUEST)
+    }
+
+    const currentPipeline = await Pipeline.findById(deal.pipelineId).lean()
+    oldPipelineName = currentPipeline?.name || 'Previous Pipeline'
+    newPipelineName = targetPipeline.name
+
+    let targetStage = data.stageId
+      ? targetPipeline.stages.find((s) => s._id.toString() === data.stageId)
+      : [...targetPipeline.stages].sort((a, b) => a.order - b.order)[0]
+
+    if (!targetStage) {
+      targetStage = targetPipeline.stages[0]
+    }
+    if (!targetStage) {
+      throw new AppError('Target pipeline has no stages defined', HTTP_STATUS.BAD_REQUEST)
+    }
+
+    const currentStageName = currentPipeline?.stages.find((s) => s._id.toString() === deal.stageId.toString())?.name || 'Previous Stage'
+    targetStageName = targetStage.name
+
+    deal.pipelineId = targetPipeline._id
+    deal.stageId = targetStage._id
+    deal.stageEnteredAt = new Date()
+    isPipelineChanged = true
+
+    // Log pipeline_change on contact timeline
+    await Activity.create({
+      contactId: deal.contactId,
+      brokerageId: deal.brokerageId,
+      type: 'pipeline_change',
+      description: `Deal "${deal.propertyAddress}" moved from pipeline "${oldPipelineName}" (${currentStageName}) → "${newPipelineName}" (${targetStageName})`,
+      metadata: {
+        dealId: deal._id.toString(),
+        fromPipelineId: currentPipeline?._id?.toString(),
+        toPipelineId: targetPipeline._id.toString(),
+        fromPipeline: oldPipelineName,
+        toPipeline: newPipelineName,
+        fromStage: currentStageName,
+        toStage: targetStageName,
+      },
+      createdBy: caller._id,
+      createdByName: `${caller.firstName} ${caller.lastName}`,
+    })
+  } else if (data.stageId && data.stageId !== deal.stageId.toString()) {
+    const currentPipeline = await Pipeline.findById(deal.pipelineId)
+    if (!currentPipeline) throw new AppError('Pipeline not found', HTTP_STATUS.NOT_FOUND)
+    const newStage = currentPipeline.stages.find((s) => s._id.toString() === data.stageId)
+    if (!newStage) throw new AppError('Target stage not found in pipeline', HTTP_STATUS.BAD_REQUEST)
+
+    targetStageName = newStage.name
+    deal.stageId = newStage._id
+    deal.stageEnteredAt = new Date()
+  }
+
   if (data.assignedAgentId) {
     const agent = await User.findById(data.assignedAgentId)
     if (!agent || !agent.isActive) {
@@ -256,22 +323,36 @@ export const updateDeal = async (
   await deal.save()
 
   await logAuditEvent({
-    action: 'deal.updated',
+    action: isPipelineChanged ? 'deal.pipeline_changed' : 'deal.updated',
     userId: caller._id.toString(),
     resource: 'Deal',
     resourceId: id,
-    details: data,
+    details: isPipelineChanged
+      ? { ...data, fromPipeline: oldPipelineName, toPipeline: newPipelineName, targetStage: targetStageName }
+      : data,
     ipAddress: clientIp,
     userAgent: userAgent,
   })
 
-  // Invalidate deal cache for this brokerage
+  // Invalidate cache for this brokerage
   await invalidateTenantFeatureCache(deal.brokerageId.toString(), 'deals')
+  if (isPipelineChanged) {
+    await invalidateTenantFeatureCache(deal.brokerageId.toString(), 'pipeline')
+  }
 
   const pipeline = await Pipeline.findById(deal.pipelineId)
-  const stageName = pipeline?.stages.find((s) => s._id.toString() === deal.stageId.toString())?.name
+  const stageName = pipeline?.stages?.find((s: any) => s._id.toString() === deal.stageId.toString())?.name || targetStageName
 
-  return formatDealDto(deal, stageName)
+  const formatted = formatDealDto(deal, stageName)
+  if (isPipelineChanged) {
+    try {
+      emitDealStageChange(formatted, deal.brokerageId.toString())
+    } catch {
+      // non-blocking
+    }
+  }
+
+  return formatted
 }
 
 export const deleteDeal = async (
@@ -318,56 +399,107 @@ export const moveDealStage = async (
     throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
   }
 
-  const pipeline = await Pipeline.findById(deal.pipelineId)
-  if (!pipeline) throw new AppError('Pipeline not found', HTTP_STATUS.NOT_FOUND)
+  const currentPipeline = await Pipeline.findById(deal.pipelineId)
+  if (!currentPipeline) throw new AppError('Pipeline not found', HTTP_STATUS.NOT_FOUND)
 
-  const sortedStages = [...pipeline.stages].sort((a, b) => a.order - b.order)
+  let targetPipeline = currentPipeline
+  let isCrossPipeline = false
 
-  const currentStage = sortedStages.find((s) => s._id.toString() === deal.stageId.toString())
-  const newStage = sortedStages.find((s) => s._id.toString() === data.newStageId)
+  if (data.pipelineId && data.pipelineId !== deal.pipelineId.toString()) {
+    const tp = await Pipeline.findOne({ _id: data.pipelineId, brokerageId: deal.brokerageId })
+    if (!tp) throw new AppError('Target pipeline not found in your brokerage', HTTP_STATUS.BAD_REQUEST)
+    targetPipeline = tp
+    isCrossPipeline = true
+  }
 
+  let newStage = targetPipeline.stages.find((s) => s._id.toString() === data.newStageId)
+
+  // If stage not found in target pipeline and not explicitly given pipelineId, check other pipelines in brokerage
+  if (!newStage && !isCrossPipeline) {
+    const altPipeline = await Pipeline.findOne({
+      brokerageId: deal.brokerageId,
+      'stages._id': data.newStageId,
+    })
+    if (altPipeline) {
+      targetPipeline = altPipeline
+      newStage = altPipeline.stages.find((s) => s._id.toString() === data.newStageId)
+      isCrossPipeline = true
+    }
+  }
+
+  if (!newStage) throw new AppError('Target stage not found', HTTP_STATUS.BAD_REQUEST)
+
+  const currentStagesSorted = [...currentPipeline.stages].sort((a, b) => a.order - b.order)
+  const currentStage = currentStagesSorted.find((s) => s._id.toString() === deal.stageId.toString())
   if (!currentStage) throw new AppError('Current stage not found in pipeline', HTTP_STATUS.BAD_REQUEST)
-  if (!newStage) throw new AppError('Target stage not found in pipeline', HTTP_STATUS.BAD_REQUEST)
 
-  // Sequential validation: can only move ±1 stage at a time
-  const diff = Math.abs(newStage.order - currentStage.order)
-  if (diff !== 1) {
-    throw new AppError(
-      `Sequential stage transition required. Cannot skip from "${currentStage.name}" (order ${currentStage.order}) to "${newStage.name}" (order ${newStage.order}). Move one stage at a time.`,
-      HTTP_STATUS.BAD_REQUEST
-    )
+  // If intra-pipeline move, enforce sequential rule (±1)
+  if (!isCrossPipeline) {
+    const diff = Math.abs(newStage.order - currentStage.order)
+    if (diff !== 1) {
+      throw new AppError(
+        `Sequential stage transition required. Cannot skip from "${currentStage.name}" (order ${currentStage.order}) to "${newStage.name}" (order ${newStage.order}). Move one stage at a time.`,
+        HTTP_STATUS.BAD_REQUEST
+      )
+    }
   }
 
   const oldStageName = currentStage.name
   const newStageName = newStage.name
 
+  deal.pipelineId = targetPipeline._id
   deal.stageId = newStage._id
   deal.stageEnteredAt = new Date()
   await deal.save()
 
-  // Log stage_change activity on contact timeline
-  await Activity.create({
-    contactId: deal.contactId,
-    brokerageId: deal.brokerageId,
-    type: 'stage_change',
-    description: `Deal "${deal.propertyAddress}" moved from "${oldStageName}" → "${newStageName}"`,
-    metadata: {
-      dealId: deal._id.toString(),
-      fromStage: oldStageName,
-      toStage: newStageName,
-      fromStageId: currentStage._id.toString(),
-      toStageId: newStage._id.toString(),
-    },
-    createdBy: caller._id,
-    createdByName: `${caller.firstName} ${caller.lastName}`,
-  })
+  // Log activity on contact timeline
+  if (isCrossPipeline) {
+    await Activity.create({
+      contactId: deal.contactId,
+      brokerageId: deal.brokerageId,
+      type: 'pipeline_change',
+      description: `Deal "${deal.propertyAddress}" moved from "${currentPipeline.name}" (${oldStageName}) → "${targetPipeline.name}" (${newStageName})`,
+      metadata: {
+        dealId: deal._id.toString(),
+        fromPipelineId: currentPipeline._id.toString(),
+        toPipelineId: targetPipeline._id.toString(),
+        fromPipeline: currentPipeline.name,
+        toPipeline: targetPipeline.name,
+        fromStage: oldStageName,
+        toStage: newStageName,
+      },
+      createdBy: caller._id,
+      createdByName: `${caller.firstName} ${caller.lastName}`,
+    })
+  } else {
+    await Activity.create({
+      contactId: deal.contactId,
+      brokerageId: deal.brokerageId,
+      type: 'stage_change',
+      description: `Deal "${deal.propertyAddress}" moved from "${oldStageName}" → "${newStageName}"`,
+      metadata: {
+        dealId: deal._id.toString(),
+        fromStage: oldStageName,
+        toStage: newStageName,
+        fromStageId: currentStage._id.toString(),
+        toStageId: newStage._id.toString(),
+      },
+      createdBy: caller._id,
+      createdByName: `${caller.firstName} ${caller.lastName}`,
+    })
+  }
 
   await logAuditEvent({
-    action: 'deal.stage_changed',
+    action: isCrossPipeline ? 'deal.pipeline_changed' : 'deal.stage_changed',
     userId: caller._id.toString(),
     resource: 'Deal',
     resourceId: dealId,
-    details: { from: oldStageName, to: newStageName, contactName: deal.contactName },
+    details: {
+      from: oldStageName,
+      to: newStageName,
+      contactName: deal.contactName,
+      ...(isCrossPipeline ? { fromPipeline: currentPipeline.name, toPipeline: targetPipeline.name } : {}),
+    },
     ipAddress: clientIp,
     userAgent: userAgent,
   })
@@ -379,17 +511,29 @@ export const moveDealStage = async (
     await pushNotification({
       brokerageId: deal.brokerageId.toString(),
       type: 'stage_change',
-      title: 'Deal Stage Advanced',
-      message: `"${deal.propertyAddress}" progressed from "${oldStageName}" → "${newStageName}"`,
+      title: isCrossPipeline ? 'Deal Pipeline Transferred' : 'Deal Stage Advanced',
+      message: isCrossPipeline
+        ? `"${deal.propertyAddress}" transferred from "${currentPipeline.name}" → "${targetPipeline.name}" (${newStageName})`
+        : `"${deal.propertyAddress}" progressed from "${oldStageName}" → "${newStageName}"`,
       linkTo: '/pipeline',
-      metadata: { dealId: deal._id.toString(), from: oldStageName, to: newStageName },
+      metadata: {
+        dealId: deal._id.toString(),
+        from: oldStageName,
+        to: newStageName,
+        fromPipeline: currentPipeline.name,
+        toPipeline: targetPipeline.name,
+        actorId: caller._id.toString(),
+      },
     })
   } catch (err) {
     // Non-blocking
   }
 
-  // Invalidate deal cache for this brokerage
+  // Invalidate deal cache (and pipeline cache if cross-pipeline)
   await invalidateTenantFeatureCache(deal.brokerageId.toString(), 'deals')
+  if (isCrossPipeline) {
+    await invalidateTenantFeatureCache(deal.brokerageId.toString(), 'pipeline')
+  }
 
   return formatDealDto(deal, newStageName)
 }

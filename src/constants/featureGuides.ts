@@ -83,7 +83,7 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
       },
       {
         title: 'Multi-Channel Inbound Feed',
-        description: 'Streams live events across Zillow, Meta Ads, WhatsApp, SMS, Webhooks, and direct inbound calls.',
+        description: 'Streams live events across Zameen, Meta Ads, WhatsApp, SMS, Webhooks, and direct inbound calls.',
         specMetric: 'Real-time WebSocket stream',
       },
     ],
@@ -106,7 +106,7 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
           {
             stepNumber: 3,
             instruction: 'Analyze the "Lead Sources & Conversion" breakdown chart.',
-            detail: 'Hover over individual bars (Meta Ads, Zillow, Google, WhatsApp) to see cost-per-qualified-lead ratios.',
+            detail: 'Hover over individual bars (Meta Ads, Zameen, Google, WhatsApp) to see cost-per-qualified-lead ratios.',
           },
         ],
         expectedResult: 'You will have a clear diagnostic of which lead generation channels yield the highest ROI and whether response SLAs are being met.',
@@ -994,7 +994,7 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
     category: 'Sales Pipeline',
     routePatterns: ['/smart-lists'],
     overview:
-      'Smart Lists provide dynamic, real-time segmentation of your contact database. Build multi-criteria filter rules (e.g. Lead Score > 75 AND Source = Zillow) and push matches directly into the 3-Line Parallel Dialer in a single click. The predictive Seller Radar flags homeowners with high likelihood of selling in the next 6-12 months based on equity and tenure.',
+      'Smart Lists provide dynamic, real-time segmentation of your contact database. Build multi-criteria filter rules (e.g. Lead Score > 75 AND Source = Zameen.com) and push matches directly into the 3-Line Parallel Dialer in a single click. The predictive Seller Radar flags homeowners with high likelihood of selling in the next 6-12 months based on equity and tenure.',
     capabilities: [
       {
         title: 'Dynamic Multi-Rule Query Engine',
@@ -1033,7 +1033,7 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
           },
           {
             stepNumber: 3,
-            instruction: 'Click "+ Add Rule" to add another condition (e.g. Lead Source equals "Zillow").',
+            instruction: 'Click "+ Add Rule" to add another condition (e.g. Lead Source equals "Zameen.com").',
           },
           {
             stepNumber: 4,
@@ -1099,7 +1099,7 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
       {
         id: 'smart-empty-results',
         issue: 'Smart List shows 0 matched contacts when you know contacts exist',
-        cause: 'Conflicting "AND" filter conditions (e.g. Lead Source = "Zillow" AND Lead Source = "Meta").',
+        cause: 'Conflicting "AND" filter conditions (e.g. Lead Source = "Zameen.com" AND Lead Source = "Meta").',
         symptoms: ['"No contacts match the current filter rules" placeholder is displayed'],
         recommendedWorkaround: {
           title: 'Simplify Filter Conditions',
@@ -1270,7 +1270,7 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
     category: 'Automation',
     routePatterns: ['/lead-ingestion'],
     overview:
-      'The Lead Ingestion Engine captures inbound leads in real time from Zillow, Realtor.com, Meta Ads, Google Ads, Homes.com, and custom webhooks. It applies customizable routing rules (Round-Robin, Weighted Performance, Territory/Zip-Code Locks, and 60-Second Escalation) before activating the AI ISA.',
+      'The Lead Ingestion Engine captures inbound leads in real time from Zameen.com, Graana.com, OLX Pakistan, Meta Ads (Facebook & Instagram), Google Ads, WhatsApp, and custom webhooks. It applies customizable routing rules (Round-Robin, Weighted Performance, Territory/Zip-Code Locks, and 60-Second Escalation) before activating the AI ISA.',
     capabilities: [
       {
         title: 'Universal Webhook & REST API Ingestion',
@@ -1289,27 +1289,27 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
       },
       {
         title: 'Live Interactive Webhook Payload Tester',
-        description: 'Simulate inbound payloads from Zillow, Meta, and Realtor.com to verify field mapping and routing rules in real time.',
+        description: 'Simulate inbound payloads from Zameen.com, Graana.com, OLX, Google Ads, Meta, and WhatsApp to verify field mapping and routing rules in real time.',
         specMetric: '1-click payload tester',
       },
     ],
     stepByStepTasks: [
       {
         id: 'leads-copy-webhook',
-        title: 'How to Connect a Marketing Webhook (Zillow, Meta, Zapier)',
+        title: 'How to Connect a Marketing Webhook (Google Ads, Meta, Portals)',
         description: 'Get your unique webhook URL and connect your ad source.',
         steps: [
           {
             stepNumber: 1,
-            instruction: 'On the Lead Ingestion page, click the "Webhooks" tab.',
+            instruction: 'On the Lead Ingestion page, click the "Lead Sources" tab.',
           },
           {
             stepNumber: 2,
-            instruction: 'Copy your unique Ingestion Endpoint URL (e.g. https://api.proppulse.io/v1/webhooks/inbound/...).',
+            instruction: 'Copy your unique Ingestion Endpoint URL (e.g. /api/leads/google-ads or /api/leads/meta/webhook).',
           },
           {
             stepNumber: 3,
-            instruction: 'Paste this URL into your Meta Lead Ads Webhook settings, Zapier Webhook trigger, or Zillow Tech Connect.',
+            instruction: 'Paste this URL into your Meta Lead Ads Webhook settings, Google Ads Lead Form webhook integration, or email parser forwarder.',
           },
           {
             stepNumber: 4,
@@ -1361,7 +1361,7 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
           },
           {
             stepNumber: 2,
-            instruction: 'Select a sample provider payload (e.g. "Zillow Buyer Lead" or "Meta Ad Listing Inquiry").',
+            instruction: 'Select a sample provider payload (e.g. "Zameen.com Buyer Lead" or "Meta Ad Listing Inquiry").',
           },
           {
             stepNumber: 3,

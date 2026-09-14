@@ -7,6 +7,8 @@ import {
   buildAuditFilter,
   formatAuditLogDto,
   normalizeTenantFilter,
+  auditLogsL1Cache,
+  auditLogDetailL1Cache,
 } from '../../src/features/audit/audit.service.js'
 import {
   getAuditLogs as getAuditLogsController,
@@ -38,6 +40,7 @@ describe('Stage 4: Post-Refactor Quality & Concurrency Validation (aidlc-quality
     const res: any = {
       statusCode: 200,
       body: null,
+      headers: {} as Record<string, string>,
       _listeners: {} as Record<string, Function>,
       status(code: number) {
         this.statusCode = code
@@ -45,6 +48,10 @@ describe('Stage 4: Post-Refactor Quality & Concurrency Validation (aidlc-quality
       },
       json(data: any) {
         this.body = data
+        return this
+      },
+      setHeader(name: string, value: string) {
+        this.headers[name] = value
         return this
       },
       once(event: string, listener: Function) {
@@ -61,6 +68,10 @@ describe('Stage 4: Post-Refactor Quality & Concurrency Validation (aidlc-quality
   }
 
   beforeEach(() => {
+    // Clear L1 memory caches for deterministic test isolation
+    auditLogsL1Cache.clear()
+    auditLogDetailL1Cache.clear()
+
     // Default: Mock warmed database connection pool responses for instant execution (< 0.05ms)
     AuditLog.aggregate = (async () => [
       {

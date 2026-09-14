@@ -164,13 +164,54 @@ describe('Stage 4: Post-Refactor Quality & Concurrency Validation (aidlc-quality
       )
     })
 
+    it('getKpis should isolate agent data by scoping queries to assignedAgentId and using agent cache key', async () => {
+      const agentId = new mongoose.Types.ObjectId()
+      const agentUser = {
+        _id: agentId,
+        role: 'agent',
+        brokerageId: tenantBrokerageId,
+        firstName: 'Zeeshan',
+        lastName: 'Alvi',
+      } as unknown as IUser
+
+      const agentCacheKey = getDashboardCacheKey('kpis', tenantFilter, agentUser)
+      await cacheDelete(agentCacheKey)
+      assert.ok(agentCacheKey.includes(`agent:${agentId.toString()}`))
+
+      let capturedContactFilter: any = null
+      let capturedDealFilter: any = null
+
+      Contact.aggregate = (async (pipeline: any[]) => {
+        capturedContactFilter = pipeline[0].$match
+        return [{ _id: null, totalContacts: 5, newLeadsThisWeek: 2, highPriorityLeads: 1 }]
+      }) as any
+
+      Deal.aggregate = (async (pipeline: any[]) => {
+        capturedDealFilter = pipeline[0].$match
+        return [{ _id: null, activeDeals: 3, pipelineValue: 750000 }]
+      }) as any
+
+      const kpis = await getKpis(tenantFilter, agentUser)
+
+      assert.equal(kpis.totalContacts, 5)
+      assert.equal(kpis.activeDeals, 3)
+      assert.equal(kpis.pipelineValue, 750000)
+      assert.equal(kpis.activeUsers, 1)
+      assert.ok(capturedContactFilter.assignedAgentId.equals(agentId), 'Contact query must filter by assignedAgentId')
+      assert.ok(capturedDealFilter.assignedAgentId.equals(agentId), 'Deal query must filter by assignedAgentId')
+
+      // Ensure cache entry does not collide with brokerage owner cache key
+      const brokerCacheKey = getDashboardCacheKey('kpis', tenantFilter, { role: 'brokerage_owner' } as any)
+      assert.notEqual(agentCacheKey, brokerCacheKey)
+    })
+
     it('getLeadSources should return sorted distribution with non-empty sources', async () => {
       const cacheKey = getDashboardCacheKey('leadSources', tenantFilter)
       await cacheDelete(cacheKey)
 
       Contact.aggregate = (async () => [
         { _id: 'Website Referral', count: 45 },
-        { _id: 'Zillow Premier', count: 32 },
+        { _id: 'Zameen.com', count: 32 },
         { _id: 'Cold Outreach', count: 18 },
       ]) as any
 
@@ -178,7 +219,7 @@ describe('Stage 4: Post-Refactor Quality & Concurrency Validation (aidlc-quality
       assert.equal(sources.length, 3)
       assert.equal(sources[0]._id, 'Website Referral')
       assert.equal(sources[0].count, 45)
-      assert.equal(sources[1]._id, 'Zillow Premier')
+      assert.equal(sources[1]._id, 'Zameen.com')
       assert.equal(sources[2]._id, 'Cold Outreach')
     })
 

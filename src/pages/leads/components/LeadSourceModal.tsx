@@ -29,28 +29,32 @@ interface LeadSourceModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   leadSource?: LeadSource | null
+  onCreated?: (source: LeadSource) => void
 }
 
 const SOURCE_OPTIONS: { type: LeadSourceType; label: string; icon: string; desc: string }[] = [
-  { type: 'zillow', label: 'Zillow', icon: 'home', desc: 'Inbound buyer webhooks' },
-  { type: 'realtor', label: 'Realtor.com', icon: 'apartment', desc: 'Listing inquiry payloads' },
-  { type: 'meta_ads', label: 'Meta Ads', icon: 'campaign', desc: 'Instant form leads' },
-  { type: 'google_ads', label: 'Google Ads', icon: 'ads_click', desc: 'Search ad leads' },
+  { type: 'zameen', label: 'Zameen.com', icon: 'domain', desc: 'Pakistan #1 portal inquiries' },
+  { type: 'graana', label: 'Graana.com', icon: 'apartment', desc: 'Smart real estate portal leads' },
+  { type: 'olx', label: 'OLX Pakistan', icon: 'storefront', desc: 'Classifieds & buyer chat inquiries' },
+  { type: 'meta_ads', label: 'Meta Ads', icon: 'campaign', desc: 'Facebook & Instagram Instant forms' },
+  { type: 'google_ads', label: 'Google Ads', icon: 'ads_click', desc: 'Lead form extensions & Search ads' },
+  { type: 'whatsapp', label: 'WhatsApp', icon: 'chat', desc: 'Click-to-chat & messaging leads' },
   { type: 'website', label: 'Website Widget', icon: 'language', desc: 'Embeddable capture form' },
   { type: 'webhook', label: 'Universal Webhook', icon: 'webhook', desc: 'Generic JSON receiver' },
-  { type: 'manual', label: 'Manual Intake', icon: 'edit_note', desc: 'Direct agent input' },
+  { type: 'manual', label: 'Manual Intake', icon: 'edit_note', desc: 'Direct agent phone or walk-in' },
 ]
 
 export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
   open,
   onOpenChange,
   leadSource,
+  onCreated,
 }) => {
   const [createSource, { isLoading: isCreating }] = useCreateLeadSourceMutation()
   const [updateSource, { isLoading: isUpdating }] = useUpdateLeadSourceMutation()
 
   const [name, setName] = useState('')
-  const [type, setType] = useState<LeadSourceType>('zillow')
+  const [type, setType] = useState<LeadSourceType>('zameen')
   const [isActive, setIsActive] = useState(true)
   const [fieldMappings, setFieldMappings] = useState<{ sourceKey: string; targetKey: string }[]>([])
 
@@ -68,7 +72,7 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
       setFieldMappings(mappingEntries)
     } else {
       setName('')
-      setType('zillow')
+      setType('zameen')
       setIsActive(true)
       setFieldMappings([])
     }
@@ -115,13 +119,18 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
         }).unwrap()
         toast.success(`Source "${name}" updated!`)
       } else {
-        await createSource({
+        const created = await createSource({
           name: name.trim(),
           type,
           isActive,
           config: { fieldMapping: mappingObj },
         }).unwrap()
         toast.success(`Source "${name}" created!`)
+        onOpenChange(false)
+        if (onCreated && created) {
+          onCreated(created)
+        }
+        return
       }
       onOpenChange(false)
     } catch (err: any) {
@@ -180,7 +189,7 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Zillow Premier"
+              placeholder="e.g. Zameen.com DHA Inbound"
               required
               className="h-9 text-xs bg-white dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
             />

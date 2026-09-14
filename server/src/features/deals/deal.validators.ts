@@ -14,6 +14,8 @@ export const createDealSchema = z.object({
 })
 
 export const updateDealSchema = z.object({
+  pipelineId: z.string().optional(),
+  stageId: z.string().optional(),
   propertyAddress: z.string().trim().min(1).max(300).optional(),
   dealValue: z.number().min(0).optional(),
   assignedAgentId: z.string().min(1).optional(),
@@ -23,6 +25,7 @@ export const updateDealSchema = z.object({
 
 export const moveDealStageSchema = z.object({
   stageId: z.string().min(1, 'New stage ID is required'),
+  pipelineId: z.string().optional(),
 })
 
 export const listDealsQuerySchema = z.object({

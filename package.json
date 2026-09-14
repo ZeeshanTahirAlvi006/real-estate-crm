@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:zillow": "npm --prefix server run test:zillow"
+    "test:pakistan-leads": "npm --prefix server run test:pakistan-leads"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^3.0.0",

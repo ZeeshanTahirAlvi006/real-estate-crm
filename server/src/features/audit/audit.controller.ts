@@ -15,14 +15,19 @@ export const getAuditLogs = async (req: Request, res: Response, next: NextFuncti
     }
 
     const tenantFilter = req.tenantFilter || {}
-    const { logs, total } = await listAuditLogs(req.query, tenantFilter)
+    const { logs, total, source } = await listAuditLogs(req.query, tenantFilter)
     const page = Number(req.query.page) || 1
     const limit = Number(req.query.limit) || 25
+
+    const durationMs = measureExecutionMs(startTime)
+    if (typeof res.setHeader === 'function') {
+      res.setHeader('X-Cache', source === 'l1' ? 'L1-HIT' : source === 'l2' ? 'L2-HIT' : 'MISS')
+      res.setHeader('X-Response-Time', `${durationMs.toFixed(3)}ms`)
+    }
+
     sendPaginated(res, logs, total, page, limit, 'Audit logs retrieved successfully')
   } catch (error) {
     next(error)
-  } finally {
-    console.log(`[TIMER] getAuditLogs took ${measureExecutionMs(startTime).toFixed(3)}ms`)
   }
 }
 
@@ -43,10 +48,15 @@ export const getAuditLogById = async (req: Request, res: Response, next: NextFun
       sendError(res, 'Audit log not found', HTTP_STATUS.NOT_FOUND)
       return
     }
+
+    const durationMs = measureExecutionMs(startTime)
+    if (typeof res.setHeader === 'function') {
+      res.setHeader('X-Cache', log.source === 'l1' ? 'L1-HIT' : log.source === 'l2' ? 'L2-HIT' : 'MISS')
+      res.setHeader('X-Response-Time', `${durationMs.toFixed(3)}ms`)
+    }
+
     sendSuccess(res, log, 'Audit log retrieved successfully')
   } catch (error) {
     next(error)
-  } finally {
-    console.log(`[TIMER] getAuditLogById took ${measureExecutionMs(startTime).toFixed(3)}ms`)
   }
 }

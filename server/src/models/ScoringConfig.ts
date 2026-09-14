@@ -79,8 +79,10 @@ const scoringConfigSchema = new Schema<IScoringConfig>(
     sourceWeights: {
       type: [sourceWeightSchema],
       default: [
-        { sourceType: 'zillow', points: 15 },
-        { sourceType: 'realtor', points: 12 },
+        { sourceType: 'zameen', points: 15 },
+        { sourceType: 'graana', points: 12 },
+        { sourceType: 'olx', points: 10 },
+        { sourceType: 'whatsapp', points: 12 },
         { sourceType: 'meta_ads', points: 10 },
         { sourceType: 'google_ads', points: 10 },
         { sourceType: 'website', points: 8 },

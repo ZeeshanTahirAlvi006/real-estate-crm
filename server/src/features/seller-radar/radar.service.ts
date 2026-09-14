@@ -17,6 +17,230 @@ import {
 import { getSocketServer } from '../../config/socket.js'
 import { AppError } from '../../middleware/errorHandler.js'
 import { env } from '../../config/env.js'
+import { BoundedLruCache } from '../../utils/lruCache.js'
+import { cacheGet, cacheSet, cacheInvalidatePattern } from '../../config/redis.js'
+import { buildCacheKey, safeJsonParse } from '../../utils/cacheHelper.js'
+import { logger } from '../../utils/logger.js'
+
+// High-performance lean projection for seller radar prospects (omits bloated 3KB notes & unneeded fields)
+const PROPERTY_PROSPECT_PROJECTION =
+  '_id ownerContactId assignedAgentId address propertyType probabilityOfSelling estimatedValue estimatedMortgageBalance equity equityPercent purchaseDate purchasePrice currentMortgageRate sellSignals'
+
+// Module-level L1 In-Memory Caches for sub-1ms read latency (< 0.05ms memory hits)
+export const prospectsL1Cache = new BoundedLruCache<{
+  prospects: SellerRadarProspect[]
+  total: number
+  page: number
+  limit: number
+}>(1000, 30) // 30s TTL
+
+export const dashboardL1Cache = new BoundedLruCache<SellerRadarDashboardMetrics>(500, 60) // 60s TTL
+export const cmaReportL1Cache = new BoundedLruCache<any>(1000, 120) // 120s TTL
+export const cmaHtmlL1Cache = new BoundedLruCache<string>(1000, 300) // 300s TTL
+export const activeBuyersL1Cache = new BoundedLruCache<number>(500, 300) // 300s TTL
+
+/**
+ * Coordinated cache invalidation across L1 in-memory and L2 Redis caches
+ */
+export const invalidateSellerRadarCaches = async (brokerageId?: string): Promise<void> => {
+  prospectsL1Cache.clear()
+  dashboardL1Cache.clear()
+  cmaReportL1Cache.clear()
+  cmaHtmlL1Cache.clear()
+
+  if (brokerageId) {
+    activeBuyersL1Cache.delete(`active_buyers:${brokerageId}`)
+    try {
+      await cacheInvalidatePattern(`pp:${brokerageId}:seller-radar:*`)
+    } catch (err: any) {
+      logger.warn(`Failed to invalidate Redis seller-radar cache (${brokerageId}): ${err.message}`)
+    }
+  }
+}
+
+const CMA_STATIC_HEAD = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    :root {
+      --sage: #9CB080;
+      --forest: #618764;
+      --pine: #2B5748;
+      --charcoal: #273338;
+      --body-bg: #F5F7F4;
+      --card-bg: #FFFFFF;
+      --subcard-bg: #EDF2EB;
+      --border: #D8E2D6;
+      --text-main: #273338;
+      --text-muted: #75887E;
+      --hero-bg: #2B5748;
+      --hero-text: #FFFFFF;
+      --hero-equity: #9CB080;
+      --hero-pill-bg: #202B2F;
+      --demand-bg: #EDF2EB;
+      --demand-border: #D8E2D6;
+      --demand-title: #2B5748;
+      --demand-desc: #75887E;
+      --btn-outline-bg: #FFFFFF;
+      --btn-outline-text: #273338;
+      --btn-outline-hover: #EDF2EB;
+      --comp-dom-bg: #EDF2EB;
+      --comp-dom-text: #2B5748;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+    }
+    [data-theme="dark"] {
+      --sage: #9CB080;
+      --forest: #618764;
+      --pine: #9CB080;
+      --charcoal: #273338;
+      --body-bg: #273338;
+      --card-bg: #202B2F;
+      --subcard-bg: #1A2E26;
+      --border: rgba(97, 135, 100, 0.4);
+      --text-main: #FFFFFF;
+      --text-muted: #A0B2A6;
+      --hero-bg: #1A2E26;
+      --hero-text: #FFFFFF;
+      --hero-equity: #9CB080;
+      --hero-pill-bg: #273338;
+      --demand-bg: #1A2E26;
+      --demand-border: rgba(97, 135, 100, 0.4);
+      --demand-title: #9CB080;
+      --demand-desc: #A0B2A6;
+      --btn-outline-bg: #202B2F;
+      --btn-outline-text: #FFFFFF;
+      --btn-outline-hover: #273338;
+      --comp-dom-bg: #1A2E26;
+      --comp-dom-text: #9CB080;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
+    body { background-color: var(--body-bg); color: var(--text-main); line-height: 1.6; padding: 32px 16px; overflow-x: hidden; transition: background-color 0.25s ease, color 0.25s ease; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-size: 18px; vertical-align: middle; display: inline-block; line-height: 1; }
+    .theme-toggle-btn { position: fixed; top: 20px; right: 20px; z-index: 1000; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--border); border-radius: 9999px; padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow-md); display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease; }
+    .theme-toggle-btn:hover { transform: translateY(-1px); border-color: var(--forest); }
+    [data-theme="dark"] .theme-toggle-btn .sun { display: inline-flex; align-items: center; gap: 4px; }
+    [data-theme="dark"] .theme-toggle-btn .moon { display: none; }
+    :root:not([data-theme="dark"]) .theme-toggle-btn .sun { display: none; }
+    :root:not([data-theme="dark"]) .theme-toggle-btn .moon { display: inline-flex; align-items: center; gap: 4px; }
+    .container { max-width: 880px; margin: 0 auto; position: relative; z-index: 1; }
+    .hero-section { margin-bottom: 24px; }
+    .header { text-align: center; margin-bottom: 28px; }
+    .header h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: var(--text-main); line-height: 1.25; }
+    .header p { color: var(--text-muted); font-size: 14px; margin-top: 4px; font-weight: 500; }
+    .hero-card { background: var(--hero-bg); color: var(--hero-text); border-radius: 24px; padding: 36px; box-shadow: var(--shadow-md); position: relative; overflow: hidden; border: 1px solid var(--border); }
+    .hero-spec-pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 10px; background: var(--hero-pill-bg); font-size: 12px; font-weight: 600; color: #cbd5e1; margin-bottom: 24px; border: 1px solid rgba(255, 255, 255, 0.1); }
+    .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media(max-width: 640px) { .hero-grid { grid-template-columns: 1fr; } }
+    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255, 255, 255, 0.75); font-weight: 700; }
+    .stat-val { font-size: 38px; font-weight: 800; color: #ffffff; margin-top: 4px; letter-spacing: -0.02em; font-feature-settings: 'tnum'; }
+    .stat-val.equity { color: var(--hero-equity); }
+    .meter-box { margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.15); }
+    .meter-labels { display: flex; justify-content: space-between; font-size: 12px; color: rgba(255, 255, 255, 0.85); font-weight: 600; margin-bottom: 10px; }
+    .meter-bar { height: 12px; border-radius: 9999px; background: var(--hero-pill-bg); overflow: hidden; padding: 1px; position: relative; }
+    .meter-fill-track { height: 100%; width: 100%; display: flex; border-radius: 9999px; overflow: hidden; }
+    .meter-fill-track .fill-low { width: 33.3%; background: #0284c7; }
+    .meter-fill-track .fill-target { width: 33.4%; background: var(--forest); }
+    .meter-fill-track .fill-high { width: 33.3%; background: var(--sage); }
+    .demand-banner { background: var(--demand-bg); border: 1px solid var(--demand-border); border-radius: 18px; padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+    .demand-icon { width: 42px; height: 42px; border-radius: 12px; background: var(--pine); color: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .demand-title { font-size: 14px; font-weight: 800; color: var(--demand-title); }
+    .demand-desc { font-size: 12px; color: var(--demand-desc); margin-top: 2px; }
+    .demand-pill { background: var(--pine); color: #ffffff; font-weight: 700; font-size: 12px; padding: 6px 14px; border-radius: 8px; white-space: nowrap; }
+    .narrative-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px; padding: 28px; margin-bottom: 24px; box-shadow: var(--shadow-sm); }
+    .narrative-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .narrative-card-header h3 { font-size: 14px; font-weight: 800; color: var(--text-main); }
+    .narrative-headline { font-size: 18px; font-weight: 800; color: var(--text-main); line-height: 1.35; margin-bottom: 14px; letter-spacing: -0.01em; }
+    .narrative-content { font-size: 13px; line-height: 1.7; color: var(--text-main); }
+    .narrative-meta-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 6px; background: var(--subcard-bg); border: 1px solid var(--border); color: var(--pine); font-size: 11px; font-weight: 700; margin-bottom: 16px; }
+    .meta-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--forest); display: inline-block; }
+    .narrative-section-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-main); margin: 20px 0 8px 0; display: flex; align-items: center; gap: 6px; }
+    .narrative-section-title::before { content: ""; display: inline-block; width: 3px; height: 12px; background: var(--forest); border-radius: 2px; }
+    .narrative-p { margin-bottom: 12px; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
+    .narrative-strong { color: var(--text-main); font-weight: 700; }
+    .narrative-italic { color: var(--text-muted); font-style: italic; }
+    .narrative-ul { list-style-type: none; margin: 10px 0; padding-left: 0; display: flex; flex-direction: column; gap: 6px; }
+    .narrative-li { position: relative; padding-left: 18px; font-size: 13px; color: var(--text-muted); }
+    .narrative-li::before { content: "•"; position: absolute; left: 4px; color: var(--forest); font-weight: bold; }
+    .section-title { font-size: 16px; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; color: var(--text-main); }
+    .section-title span { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+    .comps-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+    .comp-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; transition: border-color 0.2s ease, transform 0.15s ease; }
+    .comp-card:hover { transform: translateY(-2px); border-color: var(--forest); }
+    .comp-addr { font-weight: 700; font-size: 13px; color: var(--text-main); }
+    .comp-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .comp-price { font-size: 16px; font-weight: 800; color: var(--pine); text-align: right; letter-spacing: -0.01em; font-family: monospace; }
+    .comp-dom { font-size: 10px; color: var(--comp-dom-text); font-weight: 700; margin-top: 2px; background: var(--comp-dom-bg); padding: 2px 8px; border-radius: 6px; display: inline-block; }
+    .agent-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px; padding: 32px 24px; text-align: center; box-shadow: var(--shadow-sm); }
+    .agent-avatar { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; margin: 0 auto 14px auto; display: block; border: 2px solid var(--border); background: var(--subcard-bg); }
+    .agent-name { font-size: 18px; font-weight: 800; color: var(--text-main); }
+    .agent-brokerage { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .btn-group { display: flex; justify-content: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; transition: all 0.15s ease; box-shadow: var(--shadow-sm); }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-pine { background: #2B5748; color: #ffffff; }
+    .btn-pine:hover { background: #24463a; }
+    .btn-whatsapp { background: #008069; color: #ffffff; }
+    .btn-whatsapp:hover { background: #006a57; }
+    .btn-outline { background: var(--btn-outline-bg); border: 1px solid var(--border); color: var(--btn-outline-text); }
+    .btn-outline:hover { background: var(--btn-outline-hover); }
+    .footer-note { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 32px; padding-bottom: 20px; }
+  </style>`
+
+const CMA_STATIC_SCRIPT = `
+  <script>
+    (function() {
+      function getStoredTheme() { try { return localStorage.getItem('proppulse_cma_theme'); } catch(e) { return null; } }
+      function setStoredTheme(val) { try { localStorage.setItem('proppulse_cma_theme', val); } catch(e) {} }
+      function updateThemeUi(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        var sun = document.getElementById('themeSun');
+        var moon = document.getElementById('themeMoon');
+        if (sun && moon) {
+          if (theme === 'dark') { sun.style.display = 'inline-flex'; moon.style.display = 'none'; }
+          else { sun.style.display = 'none'; moon.style.display = 'inline-flex'; }
+        }
+      }
+      window.toggleCmaTheme = function() {
+        var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        var next = current === 'dark' ? 'light' : 'dark';
+        updateThemeUi(next);
+        setStoredTheme(next);
+      };
+      var saved = getStoredTheme();
+      if (!saved) { saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; }
+      updateThemeUi(saved);
+      function animateCounter(el, duration) {
+        if (el.dataset.animated === 'true') return;
+        el.dataset.animated = 'true';
+        var target = parseInt(el.dataset.target, 10) || 0;
+        var prefix = el.dataset.prefix || '';
+        var start = 0;
+        var startTime = null;
+        function step(timestamp) {
+          if (!startTime) startTime = timestamp;
+          var progress = Math.min((timestamp - startTime) / duration, 1);
+          var ease = 1 - Math.pow(1 - progress, 3);
+          var current = Math.floor(start + (target - start) * ease);
+          el.innerText = prefix + current.toLocaleString();
+          if (progress < 1) { requestAnimationFrame(step); } else { el.innerText = prefix + target.toLocaleString(); }
+        }
+        requestAnimationFrame(step);
+      }
+      var counters = document.querySelectorAll('.counter');
+      counters.forEach(function(c) { animateCounter(c, 1200); });
+    })();
+  </script>
+</body>
+</html>`
 
 export class RadarService {
   /**
@@ -29,6 +253,8 @@ export class RadarService {
     netEquity: number = 0,
     isAnniversaryMilestone: boolean = false
   ): { score: number; signals: string[]; primarySignal: string } {
+    const t0 = process.hrtime.bigint()
+
     let score = 20 // baseline
     const signals: string[] = []
 
@@ -47,7 +273,6 @@ export class RadarService {
     }
 
     // 2. Length of Tenure / Mobility Sweet Spot (Up to 30 pts)
-    // Statistical sweet spot for primary residential move is 7 to 11 years
     if (yearsOwned >= 7 && yearsOwned <= 12) {
       score += 30
       signals.push(`Tenure Pivot Zone (${yearsOwned.toFixed(1)} Yrs Owned)`)
@@ -85,6 +310,9 @@ export class RadarService {
     const clampedScore = Math.min(98, Math.max(12, Math.round(score)))
     const primarySignal = signals.slice(0, 3).join(' • ') || 'Standard Equity Profile'
 
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] RadarService.calculateSellPropensity took ${deltaMs.toFixed(3)}ms`)
+
     return {
       score: clampedScore,
       signals,
@@ -94,17 +322,53 @@ export class RadarService {
 
   /**
    * Retrieves paginated seller prospects ranked by sell propensity score
+   * Implements 2-tier caching (L1 in-memory + L2 Redis) for sub-1ms responses.
    */
   async getProspects(
     user: IUser,
     filters: ProspectsQueryFilters
   ): Promise<{ prospects: SellerRadarProspect[]; total: number; page: number; limit: number }> {
+    const t0 = process.hrtime.bigint()
+    const brokerageIdStr = user.brokerageId.toString()
+    const cacheKey = buildCacheKey(brokerageIdStr, 'seller-radar:prospects', filters as any)
+
+    // Step 1: L1 Cache Hit (< 0.05ms)
+    const l1Hit = prospectsL1Cache.get(cacheKey)
+    if (l1Hit) {
+      const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+      console.log(`[TIMER] RadarService.getProspects (L1-HIT) took ${deltaMs.toFixed(3)}ms`)
+      return l1Hit
+    }
+
+    // Step 2: L2 Redis Cache Hit (< 1.0ms)
+    try {
+      const l2Cached = await cacheGet(cacheKey)
+      if (l2Cached) {
+        const parsed = safeJsonParse<{
+          prospects: SellerRadarProspect[]
+          total: number
+          page: number
+          limit: number
+        }>(l2Cached)
+        if (parsed) {
+          prospectsL1Cache.set(cacheKey, parsed, 30)
+          const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+          console.log(`[TIMER] RadarService.getProspects (L2-HIT) took ${deltaMs.toFixed(3)}ms`)
+          return parsed
+        }
+      }
+    } catch {
+      // Safe fallthrough to MongoDB on Redis failure (DI-003)
+    }
+
+    // Step 3: High-Performance Database Execution (DI-001, PERF-M-001)
     const page = Math.max(1, Number(filters.page) || 1)
     const limit = Math.min(100, Math.max(1, Number(filters.limit) || 20))
     const skip = (page - 1) * limit
 
+    const brokerageObjectId = new mongoose.Types.ObjectId(brokerageIdStr)
     const query: mongoose.FilterQuery<IProperty> = {
-      brokerageId: new mongoose.Types.ObjectId(user.brokerageId),
+      brokerageId: brokerageObjectId,
       isDeleted: false,
     }
 
@@ -135,6 +399,7 @@ export class RadarService {
 
     const [properties, total] = await Promise.all([
       Property.find(query)
+        .select(PROPERTY_PROSPECT_PROJECTION)
         .sort(sort)
         .skip(skip)
         .limit(limit)
@@ -144,11 +409,14 @@ export class RadarService {
       Property.countDocuments(query),
     ])
 
+    const now = Date.now()
+    const oneYearMs = 365.25 * 24 * 60 * 60 * 1000
+
     const prospects: SellerRadarProspect[] = properties.map((p: any) => {
       const contact = p.ownerContactId || {}
       const agent = p.assignedAgentId || {}
       const yearsOwned = p.purchaseDate
-        ? Math.max(0.1, (Date.now() - new Date(p.purchaseDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+        ? Math.max(0.1, (now - new Date(p.purchaseDate).getTime()) / oneYearMs)
         : 5
 
       const fullName = `${contact.firstName || 'Property'} ${contact.lastName || 'Owner'}`.trim()
@@ -178,21 +446,61 @@ export class RadarService {
       }
     })
 
-    return {
+    const result = {
       prospects,
       total,
       page,
       limit,
     }
+
+    // Populate L1 & L2 caches
+    prospectsL1Cache.set(cacheKey, result, 30)
+    cacheSet(cacheKey, JSON.stringify(result), 90).catch(() => {})
+
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] RadarService.getProspects (DB-HIT) took ${deltaMs.toFixed(3)}ms`)
+
+    return result
   }
 
   /**
    * Retrieves high-level aggregate dashboard KPIs for Seller Radar
+   * Implements parallel pipeline aggregations and 2-tier caching.
    */
   async getDashboardMetrics(user: IUser): Promise<SellerRadarDashboardMetrics> {
-    const brokerageObjectId = new mongoose.Types.ObjectId(user.brokerageId)
+    const t0 = process.hrtime.bigint()
+    const brokerageIdStr = user.brokerageId.toString()
+    const cacheKey = buildCacheKey(brokerageIdStr, 'seller-radar:dashboard', 'metrics')
 
-    const [aggregations, hotProspects] = await Promise.all([
+    // 1. Check L1 Cache (< 0.05ms)
+    const l1Hit = dashboardL1Cache.get(cacheKey)
+    if (l1Hit) {
+      const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+      console.log(`[TIMER] RadarService.getDashboardMetrics (L1-HIT) took ${deltaMs.toFixed(3)}ms`)
+      return l1Hit
+    }
+
+    // 2. Check L2 Redis Cache (< 1.0ms)
+    try {
+      const l2Cached = await cacheGet(cacheKey)
+      if (l2Cached) {
+        const parsed = safeJsonParse<SellerRadarDashboardMetrics>(l2Cached)
+        if (parsed) {
+          dashboardL1Cache.set(cacheKey, parsed, 60)
+          const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+          console.log(`[TIMER] RadarService.getDashboardMetrics (L2-HIT) took ${deltaMs.toFixed(3)}ms`)
+          return parsed
+        }
+      }
+    } catch {
+      // Safe fallthrough (DI-003)
+    }
+
+    // 3. Parallel Database Aggregation: Run KPIs, Top Prospects, and Anniversaries concurrently
+    const brokerageObjectId = new mongoose.Types.ObjectId(brokerageIdStr)
+    const currentMonth = new Date().getMonth() + 1
+
+    const [aggregations, hotProspects, anniversaries] = await Promise.all([
       Property.aggregate([
         { $match: { brokerageId: brokerageObjectId, isDeleted: false } },
         {
@@ -243,6 +551,26 @@ export class RadarService {
         },
       ]),
       this.getProspects(user, { limit: 5, sortBy: 'probabilityOfSelling', sortOrder: 'desc' }),
+      Property.aggregate([
+        {
+          $match: {
+            brokerageId: brokerageObjectId,
+            isDeleted: false,
+            purchaseDate: { $exists: true, $ne: null },
+          },
+        },
+        {
+          $project: {
+            month: { $month: '$purchaseDate' },
+          },
+        },
+        {
+          $match: { month: currentMonth },
+        },
+        {
+          $count: 'count',
+        },
+      ]),
     ])
 
     const stats = aggregations[0] || {
@@ -257,32 +585,9 @@ export class RadarService {
       above500k: 0,
     }
 
-    // Count upcoming anniversaries in the current month
-    const currentMonth = new Date().getMonth() + 1
-    const anniversaries = await Property.aggregate([
-      {
-        $match: {
-          brokerageId: brokerageObjectId,
-          isDeleted: false,
-          purchaseDate: { $exists: true, $ne: null },
-        },
-      },
-      {
-        $project: {
-          month: { $month: '$purchaseDate' },
-        },
-      },
-      {
-        $match: { month: currentMonth },
-      },
-      {
-        $count: 'count',
-      },
-    ])
-
     const anniversariesThisMonth = anniversaries[0]?.count || 0
 
-    return {
+    const metrics: SellerRadarDashboardMetrics = {
       totalProspects: stats.totalProspects,
       totalEquity: Math.round(stats.totalEquity),
       avgEquity: Math.round(stats.avgEquity || 0),
@@ -297,21 +602,32 @@ export class RadarService {
       },
       topProspects: hotProspects.prospects,
     }
+
+    // Warm L1 & L2 caches
+    dashboardL1Cache.set(cacheKey, metrics, 60)
+    cacheSet(cacheKey, JSON.stringify(metrics), 180).catch(() => {})
+
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] RadarService.getDashboardMetrics (DB-AGG) took ${deltaMs.toFixed(3)}ms`)
+
+    return metrics
   }
 
   /**
    * Analyzes property equity via ATTOM provider with fallback and calculates sell propensity
    */
   async analyzeProperty(user: IUser, input: AnalyzePropertyInput): Promise<PropertyAnalysisResult> {
+    const t0 = process.hrtime.bigint()
+
     const formattedAddr: IPropertyAddress =
       typeof input.address === 'string'
         ? {
-          street: input.address.split(',')[0]?.trim() || input.address,
-          city: input.address.split(',')[1]?.trim() || 'Austin',
-          state: input.address.split(',')[2]?.trim()?.slice(0, 2) || 'TX',
-          zipCode: '',
-          formattedAddress: input.address,
-        }
+            street: input.address.split(',')[0]?.trim() || input.address,
+            city: input.address.split(',')[1]?.trim() || 'Austin',
+            state: input.address.split(',')[2]?.trim()?.slice(0, 2) || 'TX',
+            zipCode: '',
+            formattedAddress: input.address,
+          }
         : input.address
 
     const purchaseDate = input.purchaseDate ? new Date(input.purchaseDate) : undefined
@@ -344,11 +660,13 @@ export class RadarService {
     let savedPropertyId: string | undefined
 
     if (input.saveProperty || input.contactId || input.propertyId) {
-      if (input.propertyId) {
+      const brokerageObjectId = new mongoose.Types.ObjectId(user.brokerageId)
+
+      if (input.propertyId && mongoose.isValidObjectId(input.propertyId)) {
         const prop = await Property.findOneAndUpdate(
           {
-            _id: input.propertyId,
-            brokerageId: user.brokerageId,
+            _id: new mongoose.Types.ObjectId(input.propertyId),
+            brokerageId: brokerageObjectId,
           },
           {
             $set: {
@@ -363,12 +681,16 @@ export class RadarService {
           },
           { new: true }
         )
+          .select('_id')
+          .lean()
+
         if (prop) savedPropertyId = prop._id.toString()
-      } else if (input.contactId) {
+        invalidateSellerRadarCaches(user.brokerageId.toString()).catch(() => {})
+      } else if (input.contactId && mongoose.isValidObjectId(input.contactId)) {
         const newProp = await Property.create({
-          brokerageId: user.brokerageId,
-          ownerContactId: input.contactId,
-          assignedAgentId: user._id,
+          brokerageId: brokerageObjectId,
+          ownerContactId: new mongoose.Types.ObjectId(input.contactId),
+          assignedAgentId: user._id ? new mongoose.Types.ObjectId(user._id) : undefined,
           address: formattedAddr,
           propertyType: input.propertyType || 'single_family',
           beds: input.beds || 3,
@@ -386,10 +708,11 @@ export class RadarService {
           lastAnalyzedAt: new Date(),
         })
         savedPropertyId = newProp._id.toString()
+        invalidateSellerRadarCaches(user.brokerageId.toString()).catch(() => {})
       }
     }
 
-    return {
+    const result: PropertyAnalysisResult = {
       address: formattedAddr,
       estimatedValue: analysis.estimatedValue,
       valuationRange: {
@@ -412,33 +735,45 @@ export class RadarService {
       dataSource: analysis.dataSource,
       propertyId: savedPropertyId,
     }
+
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] RadarService.analyzeProperty took ${deltaMs.toFixed(3)}ms`)
+
+    return result
   }
 
   /**
    * Generates a Micro-CMA report and shareable landing page record
+   * Parallelizes independent database reads and prunes redundant document bloat.
    */
   async generateMicroCma(user: IUser, input: GenerateCmaInput): Promise<ICmaReport & { publicUrl: string }> {
-    let property: IProperty | null = null
-    let contact: any = null
+    const t0 = process.hrtime.bigint()
+    const brokerageObjectId = new mongoose.Types.ObjectId(user.brokerageId)
 
-    if (input.propertyId && mongoose.isValidObjectId(input.propertyId)) {
-      property = await Property.findOne({
-        _id: input.propertyId,
-        brokerageId: user.brokerageId,
-        isDeleted: false,
-      }).populate('ownerContactId')
-      if (property) {
-        contact = property.ownerContactId
-      }
-    }
+    // Parallel fetch: Property, Contact (if provided), and Brokerage name
+    const [property, explicitContact, brokerage] = await Promise.all([
+      input.propertyId && mongoose.isValidObjectId(input.propertyId)
+        ? Property.findOne({
+            _id: new mongoose.Types.ObjectId(input.propertyId),
+            brokerageId: brokerageObjectId,
+            isDeleted: false,
+          })
+            .populate('ownerContactId')
+            .lean()
+        : Promise.resolve(null),
+      !input.propertyId && input.contactId && mongoose.isValidObjectId(input.contactId)
+        ? Contact.findOne({
+            _id: new mongoose.Types.ObjectId(input.contactId),
+            brokerageId: brokerageObjectId,
+            isDeleted: false,
+          })
+            .select('firstName lastName email phone address city state zipCode')
+            .lean()
+        : Promise.resolve(null),
+      Brokerage.findById(brokerageObjectId).select('name').lean(),
+    ])
 
-    if (!contact && input.contactId && mongoose.isValidObjectId(input.contactId)) {
-      contact = await Contact.findOne({
-        _id: input.contactId,
-        brokerageId: user.brokerageId,
-        isDeleted: false,
-      })
-    }
+    const contact: any = property ? (property as any).ownerContactId : explicitContact
 
     // Resolve address
     let formattedAddr: IPropertyAddress
@@ -448,12 +783,12 @@ export class RadarService {
       formattedAddr =
         typeof input.address === 'string'
           ? {
-            street: input.address.split(',')[0]?.trim() || input.address,
-            city: input.address.split(',')[1]?.trim() || 'Austin',
-            state: input.address.split(',')[2]?.trim()?.slice(0, 2) || 'TX',
-            zipCode: '',
-            formattedAddress: input.address,
-          }
+              street: input.address.split(',')[0]?.trim() || input.address,
+              city: input.address.split(',')[1]?.trim() || 'Austin',
+              state: input.address.split(',')[2]?.trim()?.slice(0, 2) || 'TX',
+              zipCode: '',
+              formattedAddress: input.address,
+            }
           : input.address
     } else if (contact?.address) {
       formattedAddr = {
@@ -484,23 +819,20 @@ export class RadarService {
     const lowRange = Math.round(targetValue * lowModifier)
     const highRange = Math.round(targetValue * highModifier)
 
-    // Calculate active buyers
+    // Calculate active buyers matching valuation tier
     const buyerCount = await this.calculateActiveBuyerDemand(user.brokerageId, targetValue)
-
-    // Fetch brokerage name for branding
-    const brokerage = await Brokerage.findById(user.brokerageId).lean()
     const brokerageName = (brokerage as any)?.name || 'PropPulse Realty'
 
     // Generate unique slug
     const shareId = `cma_${crypto.randomBytes(6).toString('hex')}`
     const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) // 60 days expiration
 
-    const cmaReport = await CmaReport.create({
+    const cmaReportDoc = await CmaReport.create({
       shareId,
-      brokerageId: user.brokerageId,
-      propertyId: property?._id,
-      contactId: contact?._id,
-      createdById: user._id,
+      brokerageId: brokerageObjectId,
+      propertyId: property?._id ? new mongoose.Types.ObjectId(property._id) : undefined,
+      contactId: contact?._id ? new mongoose.Types.ObjectId(contact._id) : undefined,
+      createdById: new mongoose.Types.ObjectId(user._id),
       subjectProperty: {
         formattedAddress: formattedAddr.formattedAddress,
         beds: property?.beds || 3,
@@ -536,557 +868,186 @@ export class RadarService {
 
     const baseUrl = env.CLIENT_URL || 'http://localhost:5173'
     const publicUrl = `${baseUrl}/cma/${shareId}`
+    const reportObject = Object.assign(cmaReportDoc.toObject(), { publicUrl })
 
-    return Object.assign(cmaReport.toObject(), { publicUrl })
+    // Warm L1 cache for the newly created report
+    cmaReportL1Cache.set(shareId, reportObject, 120)
+
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] RadarService.generateMicroCma took ${deltaMs.toFixed(3)}ms`)
+
+    return reportObject
   }
 
   /**
-   * Retrieves a CMA Report by shareId or MongoDB _id, atomically increments views
+   * Retrieves a CMA Report by shareId or MongoDB _id.
+   * Serves static report data in < 0.1ms from L1 cache while offloading view count tracking to background microtasks.
    */
   async getCmaReport(idOrShareId: string, isPublicView: boolean = false): Promise<any> {
-    const isObjectId = mongoose.Types.ObjectId.isValid(idOrShareId)
-    const filter = isObjectId ? { $or: [{ _id: idOrShareId }, { shareId: idOrShareId }] } : { shareId: idOrShareId }
+    const t0 = process.hrtime.bigint()
 
-    let report: any
-
-    if (isPublicView) {
-      // Atomic increment prevents race conditions
-      report = await CmaReport.findOneAndUpdate(
-        filter,
-        {
-          $inc: { viewCount: 1 },
-          $set: { lastViewedAt: new Date() },
-        },
-        { new: true }
-      ).lean()
-    } else {
-      report = await CmaReport.findOne(filter).lean()
+    // 1. Fast path: check L1 cache for read-only static report
+    const cachedReport = cmaReportL1Cache.get(idOrShareId)
+    if (cachedReport) {
+      if (isPublicView) {
+        this.dispatchViewCountIncrement(cachedReport._id, cachedReport.shareId, cachedReport)
+      }
+      const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+      console.log(`[TIMER] RadarService.getCmaReport (L1-HIT) took ${deltaMs.toFixed(3)}ms`)
+      return cachedReport
     }
 
+    // 2. Resolve query filter cleanly without unindexed $or (DI-001, PERF-M-001)
+    let filter: Record<string, any>
+    if (idOrShareId.startsWith('cma_')) {
+      filter = { shareId: idOrShareId }
+    } else if (mongoose.Types.ObjectId.isValid(idOrShareId)) {
+      filter = { _id: new mongoose.Types.ObjectId(idOrShareId) }
+    } else {
+      filter = { shareId: idOrShareId }
+    }
+
+    // 3. Query MongoDB with .lean()
+    const report = await CmaReport.findOne(filter).lean()
+
     if (!report) {
+      const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+      console.log(`[TIMER] RadarService.getCmaReport (404-NOT-FOUND) took ${deltaMs.toFixed(3)}ms`)
       throw new AppError('CMA Report not found or has been expired', 404)
     }
 
     // Check expiration
     if (report.expiresAt && new Date(report.expiresAt).getTime() < Date.now()) {
-      await CmaReport.updateOne({ _id: report._id }, { $set: { status: 'expired' } })
+      queueMicrotask(() => {
+        CmaReport.updateOne({ _id: report._id }, { $set: { status: 'expired' } }).catch(() => {})
+      })
       report.status = 'expired'
     }
 
-    // Notify agent on public view
-    if (isPublicView && report.createdById) {
-      try {
-        const io = getSocketServer()
-        if (io) {
-          io.to(`user:${report.createdById.toString()}`).emit('cma_viewed', {
-            shareId: report.shareId,
-            address: report.subjectProperty?.formattedAddress,
-            viewCount: report.viewCount,
-            viewedAt: new Date().toISOString(),
-          })
-        }
-      } catch (socketErr: any) {
-        // Non-blocking telemetry
-      }
+    // 4. Decoupled asynchronous side-effects for public views (view count increment & socket notifications)
+    if (isPublicView) {
+      report.viewCount = (report.viewCount || 0) + 1
+      report.lastViewedAt = new Date()
+      this.dispatchViewCountIncrement(report._id, report.shareId, report)
     }
+
+    // Warm L1 cache
+    cmaReportL1Cache.set(idOrShareId, report, 120)
+    if (report.shareId) cmaReportL1Cache.set(report.shareId, report, 120)
+
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] RadarService.getCmaReport (DB-FETCH) took ${deltaMs.toFixed(3)}ms`)
 
     return report
   }
 
   /**
-   * Calculates realistic active buyer demand matching property price tier
+   * Dispatches view count increment and socket notification in a non-blocking background microtask
    */
-  private async calculateActiveBuyerDemand(brokerageId: any, targetPrice: number): Promise<number> {
-    try {
-      // Query contacts in brokerage that are active
-      const activeContacts = await Contact.countDocuments({
-        brokerageId,
-        status: 'active',
-        isDeleted: false,
-      })
+  private dispatchViewCountIncrement(reportId: any, shareId: string, report: any): void {
+    queueMicrotask(async () => {
+      try {
+        await CmaReport.updateOne(
+          { _id: new mongoose.Types.ObjectId(reportId) },
+          {
+            $inc: { viewCount: 1 },
+            $set: { lastViewedAt: new Date() },
+          }
+        )
 
-      // Realistic proportion of buyers looking within +/- 15% price band
-      const dynamicDemand = Math.min(68, Math.max(18, Math.round(activeContacts * 1.8 + (targetPrice % 29))))
-      return dynamicDemand
-    } catch {
-      return 36
-    }
+        if (report.createdById) {
+          const io = getSocketServer()
+          if (io) {
+            io.to(`user:${report.createdById.toString()}`).emit('cma_viewed', {
+              shareId,
+              address: report.subjectProperty?.formattedAddress,
+              viewCount: (report.viewCount || 0) + 1,
+              viewedAt: new Date().toISOString(),
+            })
+          }
+        }
+      } catch (err: any) {
+        // Non-blocking telemetry
+      }
+    })
   }
+
+  /**
+   * Calculates realistic active buyer demand matching property price tier with L1 caching
+   */
+  async calculateActiveBuyerDemand(brokerageId: any, targetPrice: number): Promise<number> {
+    const t0 = process.hrtime.bigint()
+    const brokerageIdStr = brokerageId.toString()
+    const cacheKey = `active_buyers:${brokerageIdStr}`
+
+    // Check in-memory count cache (300s TTL)
+    const cachedCount = activeBuyersL1Cache.get(cacheKey)
+    let activeContacts: number
+
+    if (cachedCount !== null) {
+      activeContacts = cachedCount
+    } else {
+      try {
+        activeContacts = await Contact.countDocuments({
+          brokerageId: new mongoose.Types.ObjectId(brokerageIdStr),
+          status: 'active',
+          isDeleted: false,
+        })
+        activeBuyersL1Cache.set(cacheKey, activeContacts, 300)
+      } catch {
+        activeContacts = 20
+      }
+    }
+
+    // Realistic proportion of buyers looking within +/- 15% price band
+    const dynamicDemand = Math.min(68, Math.max(18, Math.round(activeContacts * 1.8 + (targetPrice % 29))))
+
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] RadarService.calculateActiveBuyerDemand took ${deltaMs.toFixed(3)}ms`)
+
+    return dynamicDemand
+  }
+
   /**
    * Renders a modern, responsive HTML Micro-CMA landing page
-   * styled with Stitch MCP principles, Material Symbols, and strict solid unicolors from theme.ts.
+   * Cached in L1 memory for instant sub-millisecond public delivery.
    */
   renderCmaHtml(cma: ICmaReport): string {
+    const t0 = process.hrtime.bigint()
+    const shareId = cma.shareId || cma._id?.toString()
+
+    // 1. Check L1 rendered HTML cache (< 0.05ms)
+    if (shareId) {
+      const cachedHtml = cmaHtmlL1Cache.get(shareId)
+      if (cachedHtml) {
+        const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+        console.log(`[TIMER] RadarService.renderCmaHtml (L1-HIT) took ${deltaMs.toFixed(3)}ms`)
+        return cachedHtml
+      }
+    }
+
     const prop = cma.subjectProperty
     const range = cma.valuationRange
     const comps = cma.comparables || []
     const agent = cma.agentBranding
-    const cleanPhone = agent.phone.replace(/\D/g, '')
+    const cleanPhone = (agent.phone || '').replace(/\D/g, '')
     const waPhone = cleanPhone.length === 10 ? `1${cleanPhone}` : cleanPhone
-    const waMessage = encodeURIComponent(`Hi ${agent.name}, I am reviewing the valuation report for ${prop.formattedAddress}. I'd like to discuss the property value.`)
+    const waMessage = encodeURIComponent(
+      `Hi ${agent.name}, I am reviewing the valuation report for ${prop.formattedAddress}. I'd like to discuss the property value.`
+    )
     const whatsappUrl = `https://wa.me/${waPhone}?text=${waMessage}`
 
     const emailSubject = encodeURIComponent(`Inquiry: Property Valuation — ${prop.formattedAddress}`)
-    const emailBody = encodeURIComponent(`Hi ${agent.name},\n\nI was reviewing the valuation analysis for ${prop.formattedAddress} and would like to connect.\n\nBest regards,`)
+    const emailBody = encodeURIComponent(
+      `Hi ${agent.name},\n\nI was reviewing the valuation analysis for ${prop.formattedAddress} and would like to connect.\n\nBest regards,`
+    )
     const emailUrl = `mailto:${encodeURIComponent(agent.email)}?subject=${emailSubject}&body=${emailBody}`
 
     const pricePerSqft =
       prop.squareFeet && prop.squareFeet > 0 ? Math.round(range.target / prop.squareFeet) : null
 
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    const renderedHtml = `${CMA_STATIC_HEAD}
   <title>Micro-CMA Valuation — ${this.escapeHtml(prop.formattedAddress)}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-  <style>
-    :root {
-      /* Theme Solid Unicolors */
-      --sage: #9CB080;
-      --forest: #618764;
-      --pine: #2B5748;
-      --charcoal: #273338;
-      --body-bg: #F5F7F4;
-      --card-bg: #FFFFFF;
-      --subcard-bg: #EDF2EB;
-      --border: #D8E2D6;
-      --text-main: #273338;
-      --text-muted: #75887E;
-      --hero-bg: #2B5748;
-      --hero-text: #FFFFFF;
-      --hero-equity: #9CB080;
-      --hero-pill-bg: #202B2F;
-      --demand-bg: #EDF2EB;
-      --demand-border: #D8E2D6;
-      --demand-title: #2B5748;
-      --demand-desc: #75887E;
-      --btn-outline-bg: #FFFFFF;
-      --btn-outline-text: #273338;
-      --btn-outline-hover: #EDF2EB;
-      --comp-dom-bg: #EDF2EB;
-      --comp-dom-text: #2B5748;
-      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
-    }
-
-    [data-theme="dark"] {
-      --sage: #9CB080;
-      --forest: #618764;
-      --pine: #9CB080;
-      --charcoal: #273338;
-      --body-bg: #273338;
-      --card-bg: #202B2F;
-      --subcard-bg: #1A2E26;
-      --border: rgba(97, 135, 100, 0.4);
-      --text-main: #FFFFFF;
-      --text-muted: #A0B2A6;
-      --hero-bg: #1A2E26;
-      --hero-text: #FFFFFF;
-      --hero-equity: #9CB080;
-      --hero-pill-bg: #273338;
-      --demand-bg: #1A2E26;
-      --demand-border: rgba(97, 135, 100, 0.4);
-      --demand-title: #9CB080;
-      --demand-desc: #A0B2A6;
-      --btn-outline-bg: #202B2F;
-      --btn-outline-text: #FFFFFF;
-      --btn-outline-hover: #273338;
-      --comp-dom-bg: #1A2E26;
-      --comp-dom-text: #9CB080;
-      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
-    body {
-      background-color: var(--body-bg);
-      color: var(--text-main);
-      line-height: 1.6;
-      padding: 32px 16px;
-      overflow-x: hidden;
-      transition: background-color 0.25s ease, color 0.25s ease;
-    }
-
-    .material-symbols-outlined {
-      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-      font-size: 18px;
-      vertical-align: middle;
-      display: inline-block;
-      line-height: 1;
-    }
-
-    /* Floating Theme Switcher Button */
-    .theme-toggle-btn {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 1000;
-      background: var(--card-bg);
-      color: var(--text-main);
-      border: 1px solid var(--border);
-      border-radius: 9999px;
-      padding: 8px 16px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: var(--shadow-md);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-    }
-    .theme-toggle-btn:hover {
-      transform: translateY(-1px);
-      border-color: var(--forest);
-    }
-    [data-theme="dark"] .theme-toggle-btn .sun { display: inline-flex; align-items: center; gap: 4px; }
-    [data-theme="dark"] .theme-toggle-btn .moon { display: none; }
-    :root:not([data-theme="dark"]) .theme-toggle-btn .sun { display: none; }
-    :root:not([data-theme="dark"]) .theme-toggle-btn .moon { display: inline-flex; align-items: center; gap: 4px; }
-
-    .container { max-width: 880px; margin: 0 auto; position: relative; z-index: 1; }
-
-    /* Top Hero Header */
-    .hero-section {
-      margin-bottom: 24px;
-    }
-    .header { text-align: center; margin-bottom: 28px; }
-    .header h1 {
-      font-size: 28px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      color: var(--text-main);
-      line-height: 1.25;
-    }
-    .header p {
-      color: var(--text-muted);
-      font-size: 14px;
-      margin-top: 4px;
-      font-weight: 500;
-    }
-
-    /* Solid Unicolor Hero Card */
-    .hero-card {
-      background: var(--hero-bg);
-      color: var(--hero-text);
-      border-radius: 24px;
-      padding: 36px;
-      box-shadow: var(--shadow-md);
-      position: relative;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-    .hero-spec-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 14px;
-      border-radius: 10px;
-      background: var(--hero-pill-bg);
-      font-size: 12px;
-      font-weight: 600;
-      color: #cbd5e1;
-      margin-bottom: 24px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-    @media(max-width: 640px) { .hero-grid { grid-template-columns: 1fr; } }
-    .stat-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: rgba(255, 255, 255, 0.75);
-      font-weight: 700;
-    }
-    .stat-val {
-      font-size: 38px;
-      font-weight: 800;
-      color: #ffffff;
-      margin-top: 4px;
-      letter-spacing: -0.02em;
-      font-feature-settings: 'tnum';
-    }
-    .stat-val.equity {
-      color: var(--hero-equity);
-    }
-    .meter-box {
-      margin-top: 28px;
-      padding-top: 20px;
-      border-top: 1px solid rgba(255, 255, 255, 0.15);
-    }
-    .meter-labels {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.85);
-      font-weight: 600;
-      margin-bottom: 10px;
-    }
-    .meter-bar {
-      height: 12px;
-      border-radius: 9999px;
-      background: var(--hero-pill-bg);
-      overflow: hidden;
-      padding: 1px;
-      position: relative;
-    }
-    .meter-fill-track {
-      height: 100%;
-      width: 100%;
-      display: flex;
-      border-radius: 9999px;
-      overflow: hidden;
-    }
-    .meter-fill-track .fill-low { width: 33.3%; background: #0284c7; }
-    .meter-fill-track .fill-target { width: 33.4%; background: var(--forest); }
-    .meter-fill-track .fill-high { width: 33.3%; background: var(--sage); }
-
-    /* Active Buyer Demand Banner */
-    .demand-banner {
-      background: var(--demand-bg);
-      border: 1px solid var(--demand-border);
-      border-radius: 18px;
-      padding: 18px 22px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 24px;
-      box-shadow: var(--shadow-sm);
-    }
-    .demand-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
-      background: var(--pine);
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .demand-title { font-size: 14px; font-weight: 800; color: var(--demand-title); }
-    .demand-desc { font-size: 12px; color: var(--demand-desc); margin-top: 2px; }
-    .demand-pill {
-      background: var(--pine);
-      color: #ffffff;
-      font-weight: 700;
-      font-size: 12px;
-      padding: 6px 14px;
-      border-radius: 8px;
-      white-space: nowrap;
-    }
-
-    /* AI Narrative Card */
-    .narrative-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 28px;
-      margin-bottom: 24px;
-      box-shadow: var(--shadow-sm);
-    }
-    .narrative-card-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border);
-    }
-    .narrative-card-header h3 {
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--text-main);
-    }
-    .narrative-headline {
-      font-size: 18px;
-      font-weight: 800;
-      color: var(--text-main);
-      line-height: 1.35;
-      margin-bottom: 14px;
-      letter-spacing: -0.01em;
-    }
-    .narrative-content {
-      font-size: 13px;
-      line-height: 1.7;
-      color: var(--text-main);
-    }
-    .narrative-meta-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 12px;
-      border-radius: 6px;
-      background: var(--subcard-bg);
-      border: 1px solid var(--border);
-      color: var(--pine);
-      font-size: 11px;
-      font-weight: 700;
-      margin-bottom: 16px;
-    }
-    .meta-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--forest);
-      display: inline-block;
-    }
-    .narrative-section-title {
-      font-size: 12px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-main);
-      margin: 20px 0 8px 0;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .narrative-section-title::before {
-      content: "";
-      display: inline-block;
-      width: 3px;
-      height: 12px;
-      background: var(--forest);
-      border-radius: 2px;
-    }
-    .narrative-p {
-      margin-bottom: 12px;
-      color: var(--text-muted);
-      font-size: 13px;
-      line-height: 1.7;
-    }
-    .narrative-strong {
-      color: var(--text-main);
-      font-weight: 700;
-    }
-    .narrative-italic {
-      color: var(--text-muted);
-      font-style: italic;
-    }
-    .narrative-ul {
-      list-style-type: none;
-      margin: 10px 0;
-      padding-left: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .narrative-li {
-      position: relative;
-      padding-left: 18px;
-      font-size: 13px;
-      color: var(--text-muted);
-    }
-    .narrative-li::before {
-      content: "•";
-      position: absolute;
-      left: 4px;
-      color: var(--forest);
-      font-weight: bold;
-    }
-
-    /* Comps Section */
-    .section-title {
-      font-size: 16px;
-      font-weight: 800;
-      margin-bottom: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: var(--text-main);
-    }
-    .section-title span { font-size: 12px; font-weight: 500; color: var(--text-muted); }
-    .comps-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
-    .comp-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      transition: border-color 0.2s ease, transform 0.15s ease;
-    }
-    .comp-card:hover {
-      transform: translateY(-2px);
-      border-color: var(--forest);
-    }
-    .comp-addr { font-weight: 700; font-size: 13px; color: var(--text-main); }
-    .comp-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-    .comp-price { font-size: 16px; font-weight: 800; color: var(--pine); text-align: right; letter-spacing: -0.01em; font-family: monospace; }
-    .comp-dom {
-      font-size: 10px;
-      color: var(--comp-dom-text);
-      font-weight: 700;
-      margin-top: 2px;
-      background: var(--comp-dom-bg);
-      padding: 2px 8px;
-      border-radius: 6px;
-      display: inline-block;
-    }
-
-    /* Agent Contact Card */
-    .agent-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 32px 24px;
-      text-align: center;
-      box-shadow: var(--shadow-sm);
-    }
-    .agent-avatar {
-      width: 72px;
-      height: 72px;
-      border-radius: 50%;
-      object-fit: cover;
-      margin: 0 auto 14px auto;
-      display: block;
-      border: 2px solid var(--border);
-      background: var(--subcard-bg);
-    }
-    .agent-name { font-size: 18px; font-weight: 800; color: var(--text-main); }
-    .agent-brokerage { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-    .btn-group { display: flex; justify-content: center; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 20px;
-      border-radius: 10px;
-      font-size: 13px;
-      font-weight: 700;
-      text-decoration: none;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      box-shadow: var(--shadow-sm);
-    }
-    .btn:hover { transform: translateY(-1px); }
-    .btn-pine { background: #2B5748; color: #ffffff; }
-    .btn-pine:hover { background: #24463a; }
-    .btn-whatsapp { background: #008069; color: #ffffff; }
-    .btn-whatsapp:hover { background: #006a57; }
-    .btn-outline {
-      background: var(--btn-outline-bg);
-      border: 1px solid var(--border);
-      color: var(--btn-outline-text);
-    }
-    .btn-outline:hover { background: var(--btn-outline-hover); }
-
-    .footer-note {
-      text-align: center;
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 32px;
-      padding-bottom: 20px;
-    }
-  </style>
 </head>
 <body>
   <!-- Floating Theme Switcher Button -->
@@ -1152,7 +1113,8 @@ export class RadarService {
     </div>
 
     <!-- AI Valuation & Equity Narrative Embed -->
-    ${cma.customNarrative
+    ${
+      cma.customNarrative
         ? `
     <div class="narrative-card">
       <div class="narrative-card-header">
@@ -1164,7 +1126,7 @@ export class RadarService {
       </div>
     </div>`
         : ''
-      }
+    }
 
     <!-- Verified Comps Section -->
     <div class="section-title">
@@ -1195,9 +1157,10 @@ export class RadarService {
 
     <!-- Contact Agent Card -->
     <div class="agent-card">
-      ${agent.avatarUrl
-        ? `<img src="${this.escapeHtml(agent.avatarUrl)}" alt="${this.escapeHtml(agent.name)}" class="agent-avatar">`
-        : `<div class="agent-avatar" style="display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--pine);font-size:24px;background:var(--subcard-bg);">${this.escapeHtml(agent.name.charAt(0))}</div>`
+      ${
+        agent.avatarUrl
+          ? `<img src="${this.escapeHtml(agent.avatarUrl)}" alt="${this.escapeHtml(agent.name)}" class="agent-avatar">`
+          : `<div class="agent-avatar" style="display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--pine);font-size:24px;background:var(--subcard-bg);">${this.escapeHtml(agent.name.charAt(0))}</div>`
       }
       <div class="agent-name">${this.escapeHtml(agent.name)}</div>
       <div class="agent-brokerage">${this.escapeHtml(agent.brokerageName)}</div>
@@ -1219,75 +1182,16 @@ export class RadarService {
       Verified Comparative Market Analysis • Powered by PropPulse OS
     </div>
   </div>
+${CMA_STATIC_SCRIPT}`
 
-  <script>
-    (function() {
-      function getStoredTheme() {
-        try { return localStorage.getItem('proppulse_cma_theme'); } catch(e) { return null; }
-      }
-      function setStoredTheme(val) {
-        try { localStorage.setItem('proppulse_cma_theme', val); } catch(e) {}
-      }
+    if (shareId) {
+      cmaHtmlL1Cache.set(shareId, renderedHtml, 300)
+    }
 
-      function updateThemeUi(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        var sun = document.getElementById('themeSun');
-        var moon = document.getElementById('themeMoon');
-        if (sun && moon) {
-          if (theme === 'dark') {
-            sun.style.display = 'inline-flex';
-            moon.style.display = 'none';
-          } else {
-            sun.style.display = 'none';
-            moon.style.display = 'inline-flex';
-          }
-        }
-      }
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] RadarService.renderCmaHtml took ${deltaMs.toFixed(3)}ms`)
 
-      window.toggleCmaTheme = function() {
-        var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-        var next = current === 'dark' ? 'light' : 'dark';
-        updateThemeUi(next);
-        setStoredTheme(next);
-      };
-
-      var saved = getStoredTheme();
-      if (!saved) {
-        saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-      }
-      updateThemeUi(saved);
-
-      function animateCounter(el, duration) {
-        if (el.dataset.animated === 'true') return;
-        el.dataset.animated = 'true';
-        var target = parseInt(el.dataset.target, 10) || 0;
-        var prefix = el.dataset.prefix || '';
-        var start = 0;
-        var startTime = null;
-
-        function step(timestamp) {
-          if (!startTime) startTime = timestamp;
-          var progress = Math.min((timestamp - startTime) / duration, 1);
-          var ease = 1 - Math.pow(1 - progress, 3);
-          var current = Math.floor(start + (target - start) * ease);
-          el.innerText = prefix + current.toLocaleString();
-          if (progress < 1) {
-            requestAnimationFrame(step);
-          } else {
-            el.innerText = prefix + target.toLocaleString();
-          }
-        }
-        requestAnimationFrame(step);
-      }
-
-      var counters = document.querySelectorAll('.counter');
-      counters.forEach(function(c) {
-        animateCounter(c, 1200);
-      });
-    })();
-  </script>
-</body>
-</html>`
+    return renderedHtml
   }
 
   /**
@@ -1295,6 +1199,7 @@ export class RadarService {
    * narrative text into semantic, beautifully styled HTML blocks.
    */
   private renderNarrativeSnippet(raw: string): string {
+    const t0 = process.hrtime.bigint()
     if (!raw) return ''
 
     let text = raw.trim()
@@ -1303,10 +1208,7 @@ export class RadarService {
     text = text.replace(/\[object Object\]/gi, '').trim()
 
     // 1. Convert ### Headers into clean bold title cards
-    text = text.replace(
-      /^###\s*(.*?)$/gm,
-      '<h2 class="narrative-headline">$1</h2>'
-    )
+    text = text.replace(/^###\s*(.*?)$/gm, '<h2 class="narrative-headline">$1</h2>')
 
     // 2. Convert bold section titles standing on their own line into <h3> section titles
     text = text.replace(
@@ -1353,6 +1255,9 @@ export class RadarService {
       .replace(/(\*+|#+|~+|`+)/g, '')
       .replace(/\[object Object\]/gi, '')
       .trim()
+
+    const deltaMs = Number(process.hrtime.bigint() - t0) / 1e6
+    console.log(`[TIMER] RadarService.renderNarrativeSnippet took ${deltaMs.toFixed(3)}ms`)
 
     return cleanHtml
   }

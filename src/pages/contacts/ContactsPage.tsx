@@ -192,12 +192,15 @@ export function ContactsPage() {
             </SelectTrigger>
             <SelectContent className="bg-white dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764]">
               <SelectItem value="all">All Sources</SelectItem>
-              <SelectItem value="Zillow">Zillow</SelectItem>
+              <SelectItem value="Zameen.com">Zameen.com</SelectItem>
+              <SelectItem value="Graana.com">Graana.com</SelectItem>
+              <SelectItem value="OLX Pakistan">OLX Pakistan</SelectItem>
               <SelectItem value="Meta Ads">Meta Ads</SelectItem>
               <SelectItem value="Google Ads">Google Ads</SelectItem>
-              <SelectItem value="Realtor.com">Realtor.com</SelectItem>
+              <SelectItem value="WhatsApp">WhatsApp</SelectItem>
               <SelectItem value="Website">Website</SelectItem>
               <SelectItem value="Referral">Referral</SelectItem>
+              <SelectItem value="Site Visit / Walk-in">Site Visit / Walk-in</SelectItem>
             </SelectContent>
           </Select>
 

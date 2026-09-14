@@ -49,14 +49,12 @@ const objectionPlaybookSchema = new Schema<IObjectionPlaybook>(
     brokerageId: {
       type: Schema.Types.ObjectId,
       ref: 'Brokerage',
-      index: true,
       default: null,
     },
     category: {
       type: String,
       enum: ['interest_rates', 'market_crash', 'commission_fees', 'lowball_offers', 'timing_delay', 'other'],
       required: true,
-      index: true,
     },
     title: {
       type: String,
@@ -66,7 +64,6 @@ const objectionPlaybookSchema = new Schema<IObjectionPlaybook>(
     triggerKeywords: {
       type: [String],
       default: [],
-      index: true,
     },
     angles: {
       analytical: { type: objectionAngleSchema, required: true },
@@ -76,12 +73,10 @@ const objectionPlaybookSchema = new Schema<IObjectionPlaybook>(
     isCustom: {
       type: Boolean,
       default: false,
-      index: true,
     },
     isDeleted: {
       type: Boolean,
       default: false,
-      index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,
@@ -95,6 +90,7 @@ const objectionPlaybookSchema = new Schema<IObjectionPlaybook>(
 )
 
 objectionPlaybookSchema.index({ brokerageId: 1, category: 1, isDeleted: 1 })
+objectionPlaybookSchema.index({ brokerageId: 1, isDeleted: 1, createdAt: -1 })
 
 export const ObjectionPlaybook = mongoose.model<IObjectionPlaybook>(
   'ObjectionPlaybook',

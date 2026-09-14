@@ -21,7 +21,6 @@ const qualificationCriteriaSchema = new Schema<IQualificationCriteria>(
       type: Schema.Types.ObjectId,
       ref: 'Brokerage',
       required: [true, 'Brokerage ID is required'],
-      index: true,
     },
     category: {
       type: String,

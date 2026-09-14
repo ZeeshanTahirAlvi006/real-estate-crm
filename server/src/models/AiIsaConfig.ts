@@ -29,7 +29,6 @@ const aiIsaConfigSchema = new Schema<IAiIsaConfig>(
       ref: 'Brokerage',
       required: [true, 'Brokerage ID is required'],
       unique: true,
-      index: true,
     },
     isEnabled: {
       type: Boolean,

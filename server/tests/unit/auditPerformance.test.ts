@@ -29,6 +29,7 @@ describe('Audit Subsystem Performance & Security Audit Tests', () => {
     const res: any = {
       statusCode: 200,
       body: null,
+      headers: {} as Record<string, string>,
       _listeners: {} as Record<string, Function>,
       status(code: number) {
         this.statusCode = code
@@ -36,6 +37,10 @@ describe('Audit Subsystem Performance & Security Audit Tests', () => {
       },
       json(data: any) {
         this.body = data
+        return this
+      },
+      setHeader(name: string, value: string) {
+        this.headers[name] = value
         return this
       },
       once(event: string, listener: Function) {

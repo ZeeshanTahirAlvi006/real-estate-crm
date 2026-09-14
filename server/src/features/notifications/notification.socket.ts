@@ -1,6 +1,6 @@
 import { Server as SocketIOServer } from 'socket.io'
 import type { AuthenticatedSocket } from '../../config/socket.js'
-// import { logger } from '../../utils/logger.js'
+import { logger } from '../../utils/logger.js'
 
 export const registerNotificationSocketHandlers = (
   _io: SocketIOServer,
@@ -9,7 +9,7 @@ export const registerNotificationSocketHandlers = (
   const user = socket.data.user
   if (!user) return
 
-  const userId = user._id.toString()
+  const userId = user._id ? user._id.toString() : ''
   const brokerageId = user.brokerageId?.toString()
 
   // Ensure socket joins user-specific and brokerage notification channels
@@ -38,9 +38,13 @@ export const emitNotificationToRooms = (
 ): void => {
   if (!io) return
 
-  if (userId) {
-    io.to(`user:${userId}`).emit('notification:new', notification)
-  } else if (brokerageId) {
-    io.to(`brokerage:${brokerageId}`).emit('notification:new', notification)
+  try {
+    if (userId) {
+      io.to(`user:${userId}`).emit('notification:new', notification)
+    } else if (brokerageId) {
+      io.to(`brokerage:${brokerageId}`).emit('notification:new', notification)
+    }
+  } catch (err: any) {
+    logger.warn(`[NotificationSocket] Failed to broadcast notification: ${err.message}`)
   }
 }

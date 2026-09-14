@@ -2,6 +2,7 @@ import { AuditLog, AuditLogStatus } from '../models/AuditLog.js'
 import { logger } from './logger.js'
 import { measureExecutionMs } from './cacheHelper.js'
 import mongoose from 'mongoose'
+import { invalidateAuditCaches } from '../features/audit/audit.service.js'
 
 export interface LogAuditInput {
   userId?: mongoose.Types.ObjectId | string
@@ -121,6 +122,7 @@ export const flushAuditQueue = async (): Promise<number> => {
   }
 
   if (batch.length > 0) {
+    invalidateAuditCaches().catch(() => {})
     logger.info(`[AuditLog] Flushed ${batch.length} records in ${measureExecutionMs(startTime).toFixed(3)}ms`)
   }
 

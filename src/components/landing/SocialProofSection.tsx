@@ -6,7 +6,7 @@ import { theme } from '@/theme'
 const testimonials = [
   {
     quote:
-      "PropPulse OS completely revolutionized our speed-to-lead. The AI responder contacts new Zillow and website inquiries within 2 seconds. Our appointment bookings surged by 180% in our first 60 days.",
+      "PropPulse OS completely revolutionized our speed-to-lead. The AI responder contacts new Zameen, Meta, and website inquiries within 2 seconds. Our appointment bookings surged by 180% in our first 60 days.",
     author: 'David Sterling',
     role: 'Managing Broker & Team Lead',
     brokerage: 'Sterling Premier Realty, Austin TX',

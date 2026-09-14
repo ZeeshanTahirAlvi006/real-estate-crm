@@ -86,6 +86,7 @@ const pipelineSchema = new Schema<IPipeline>(
 // Unique pipeline name per brokerage
 pipelineSchema.index({ brokerageId: 1, name: 1 }, { unique: true })
 pipelineSchema.index({ brokerageId: 1, isDefault: 1 })
+pipelineSchema.index({ brokerageId: 1, isDefault: -1, createdAt: 1 })
 
 // Default stage definitions (seeded on pipeline creation) 
 export const DEFAULT_PIPELINE_STAGES: Omit<IPipelineStage, '_id'>[] = [

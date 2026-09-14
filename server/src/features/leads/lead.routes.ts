@@ -17,6 +17,10 @@ import {
   captureWidgetHandler,
   manualLeadEntryHandler,
   acknowledgeLeadsHandler,
+  googleAdsWebhookHandler,
+  metaWebhookVerifyHandler,
+  metaWebhookEventHandler,
+  emailParserWebhookHandler,
 } from './lead.controller.js'
 import { authenticate } from '../../middleware/authenticate.js'
 import { authorize } from '../../middleware/authorize.js'
@@ -35,6 +39,8 @@ import {
   manualLeadEntrySchema,
   leadAcknowledgeSchema,
   updateScoringConfigSchema,
+  googleAdsWebhookSchema,
+  emailParserSchema,
 } from './lead.validators.js'
 import { USER_ROLES } from '../../utils/constants.js'
 
@@ -58,6 +64,34 @@ leadIngestionRoutes.post(
   requireFeature('lead_ingestion'),
   validate(leadIngestSchema),
   webhookIngestHandler
+)
+
+// Google Ads Lead Form Webhook (body-based key auth, feature-gated)
+leadIngestionRoutes.post(
+  '/google-ads',
+  requireFeature('lead_ingestion'),
+  validate(googleAdsWebhookSchema),
+  googleAdsWebhookHandler
+)
+
+// Meta Lead Ads Webhook verification (GET challenge handshake)
+leadIngestionRoutes.get(
+  '/meta/webhook',
+  metaWebhookVerifyHandler
+)
+
+// Meta Lead Ads Webhook event intake (POST real-time event)
+leadIngestionRoutes.post(
+  '/meta/webhook',
+  metaWebhookEventHandler
+)
+
+// Portal Email Parser Webhook (Zameen, Graana, OLX, feature-gated)
+leadIngestionRoutes.post(
+  '/email-parser/:provider',
+  requireFeature('lead_ingestion'),
+  validate(emailParserSchema),
+  emailParserWebhookHandler
 )
 
 // Manual lead entry — authenticated users

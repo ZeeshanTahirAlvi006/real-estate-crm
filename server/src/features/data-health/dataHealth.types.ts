@@ -110,3 +110,16 @@ export interface ContactWithDataIssues {
   issues: ContactDataIssue[]
 }
 
+export interface PaginatedIssuesResponse {
+  issues: ContactWithDataIssues[]
+  total: number
+  page: number
+  limit: number
+}
+
+export interface PaginatedDuplicatesResponse {
+  duplicates: DuplicateCandidateDto[]
+  total: number
+  page: number
+  limit: number
+}

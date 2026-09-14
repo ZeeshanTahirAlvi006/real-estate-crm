@@ -23,7 +23,7 @@ export interface SourceGuideItem {
   authNote: string
   steps: {
     title: string
-    detail: string
+    detail: string | React.ReactNode
     codeSnippet?: string
   }[]
   testPayload?: Record<string, any>
@@ -43,20 +43,37 @@ export const GUIDES: SourceGuideItem[] = [
     authNote: 'Authentication via body.google_key matching your Lead Source Webhook Secret',
     steps: [
       {
-        title: '1. Create or Open Lead Form in Google Ads',
-        detail:
-          'Go to Google Ads Manager -> Campaigns -> Assets -> Lead Form. Create a new lead form or edit an existing one.',
+        title: '1. Create a New Lead Campaign',
+        detail: (
+          <>
+            Navigate to <a href="https://ads.google.com" target="_blank" rel="noreferrer" className="text-[#2B5748] dark:text-[#9CB080] hover:underline font-bold">Google Ads Manager</a> and click the Create (+) button to create a campaign. Select <strong>Leads</strong>. Add goal: <strong>Submit Lead forms</strong>. Select <strong>Performance Max</strong> and set your campaign name.
+          </>
+        ),
       },
       {
-        title: '2. Configure Webhook Integration',
-        detail:
-          'Scroll down to "Lead delivery options" and toggle "Export leads using a webhook". Enter your CRM Webhook URL and Webhook Key.',
+        title: '2. Configure Campaign Settings',
+        detail: (
+          <>
+            Add your URL (e.g., your website or <em>https://proppulseos-crm.vercel.app</em>). Set Bidding to <strong>Maximize conversions</strong>. Set Location to <strong>Pakistan</strong> (or as desired) and choose Languages. For EU political ads, select <strong>No</strong>.
+          </>
+        ),
+      },
+      {
+        title: '3. Setup Lead Form Asset',
+        detail: (
+          <>
+            Under Assets, select <strong>Lead forms</strong> and fill all required fields. Under Questions, strictly select: <strong>Name (First name and Last name)</strong>, <strong>Email</strong>, <strong>Phone</strong>, and <strong>City</strong>.
+          </>
+        ),
+      },
+      {
+        title: '4. Configure Webhook Integration',
+        detail: 'Review the form and save. Scroll down to "Export leads from Google Ads". Enter the Webhook URL and Key shown below. Click apply.',
         codeSnippet: `Webhook URL: https://your-crm-domain.com/api/leads/google-ads\nKey: YOUR_LEAD_SOURCE_WEBHOOK_SECRET`,
       },
       {
-        title: '3. Verify Test Data Ping',
-        detail:
-          'Click "Send test data" in Google Ads. PropPulse CRM automatically accepts test payloads (with is_test: true) and responds with HTTP 200 without creating false contact records.',
+        title: '5. Review and Publish',
+        detail: 'Click Next, choose your budget plan, review the final campaign, and hit Publish. You can click "Send test data" in the webhook settings to verify the connection.',
       },
     ],
     testPayload: {

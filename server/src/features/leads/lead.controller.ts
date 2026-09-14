@@ -19,6 +19,7 @@ import {
   acknowledgeLeads,
   ingestGoogleAdsLead,
   verifyMetaWebhookChallenge,
+  ingestMetaAdsLead,
   ingestEmailParserLead,
 } from './lead.service.js'
 import { LeadIngestPayload } from './lead.types.js'
@@ -489,21 +490,37 @@ export const metaWebhookEventHandler = async (req: Request, res: Response, next:
     // Immediate 200 response to satisfy Meta webhook delivery SLAs
     res.status(HTTP_STATUS.OK).send('EVENT_RECEIVED')
 
-    const sourceId = (req.query.sourceId as string) || (req.headers['x-source-id'] as string)
-    if (sourceId && req.body && req.body.object === 'page') {
-      const clientIp = req.ip || req.socket.remoteAddress || '127.0.0.1'
-      const normalizedPayload: LeadIngestPayload = {
-        name: req.body.leadName || 'Meta Lead',
-        phone: req.body.phone || req.body.phone_number || '',
-        email: req.body.email || '',
-        source: 'meta_ads',
-        metaEvent: req.body,
+    if (req.body && req.body.object === 'page') {
+      let sourceId = (req.query.sourceId as string) || (req.headers['x-source-id'] as string)
+      if (!sourceId) {
+        const candidate = await LeadSource.findOne({ type: 'meta_ads', isActive: true }).select('_id').lean()
+        if (candidate) {
+          sourceId = candidate._id.toString()
+        }
       }
-      ingestWebhookLead(normalizedPayload, JSON.stringify(req.body), undefined, sourceId, clientIp, req.query.apiKey as string)
-        .catch((err) => logger.warn('[MetaWebhook] Async ingestion error:', err))
+
+      if (!sourceId) {
+        logger.warn('[MetaWebhook] No active meta_ads lead source found to route incoming webhook.')
+        return
+      }
+
+      const clientIp = req.ip || req.socket.remoteAddress || '127.0.0.1'
+      const entries = req.body.entry || []
+      
+      for (const entry of entries) {
+        const changes = entry.changes || []
+        for (const change of changes) {
+          if (change.field === 'leadgen' && change.value?.leadgen_id) {
+            const leadgenId = change.value.leadgen_id
+            // Process asynchronously (do not block the 200 OK response loop)
+            ingestMetaAdsLead(leadgenId, sourceId, clientIp, change.value)
+              .catch((err) => logger.warn(`[MetaWebhook] Failed to ingest leadgen_id ${leadgenId}:`, err))
+          }
+        }
+      }
     }
   } catch (error) {
-    next(error)
+    logger.error('[MetaWebhook] Error in event handler', error)
   }
 }
 

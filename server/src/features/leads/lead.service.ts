@@ -2161,6 +2161,103 @@ export const verifyMetaWebhookChallenge = (
   throw new AppError('Invalid verification token', HTTP_STATUS.FORBIDDEN)
 }
 
+export const ingestMetaAdsLead = async (
+  leadgenId: string,
+  leadSourceId: string,
+  clientIp: string = '127.0.0.1',
+  metaEventContext?: any
+): Promise<{ contact?: ContactResponseDto; isNew?: boolean; isTest?: boolean; message: string }> => {
+  const t0 = process.hrtime.bigint()
+  if (!mongoose.Types.ObjectId.isValid(leadSourceId)) {
+    throw new AppError('Invalid lead source', HTTP_STATUS.BAD_REQUEST)
+  }
+
+  const sourceObjectId = new mongoose.Types.ObjectId(leadSourceId)
+  const source = await LeadSource.findById(sourceObjectId).lean()
+  if (!source || !source.isActive) {
+    throw new AppError('Lead source not found or inactive', HTTP_STATUS.NOT_FOUND)
+  }
+
+  // Graph API fetching
+  const accessToken = process.env.META_ACCESS_TOKEN || process.env.META_WHATSAPP_TOKEN
+  if (!accessToken) {
+    // If no token, we can't fetch. Just log a warning and return an unpopulated lead (or throw).
+    // It's better to throw so the controller logs it and we know the config is missing.
+    throw new AppError('Meta Access Token is missing in environment variables (META_ACCESS_TOKEN or META_WHATSAPP_TOKEN).', HTTP_STATUS.INTERNAL_SERVER_ERROR)
+  }
+
+  const url = `https://graph.facebook.com/v20.0/${leadgenId}?access_token=${accessToken}`
+  let data: any
+  try {
+    const response = await fetch(url)
+    data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'Unknown Graph API error')
+    }
+  } catch (err: any) {
+    throw new AppError(`Failed to fetch Meta lead: ${err.message}`, HTTP_STATUS.BAD_REQUEST)
+  }
+
+  let name = 'Meta Lead'
+  let email = ''
+  let phone = ''
+  let city = ''
+  let message = ''
+
+  if (data.field_data && Array.isArray(data.field_data)) {
+    data.field_data.forEach((field: any) => {
+      const val = field.values && field.values[0] ? field.values[0] : ''
+      switch (field.name) {
+        case 'full_name':
+        case 'first_name':
+        case 'last_name':
+          if (field.name === 'full_name' && val) name = val
+          else if (field.name === 'first_name' && val) name = val + ' ' + name.replace('Meta Lead', '').trim()
+          else if (field.name === 'last_name' && val) name = name.replace('Meta Lead', '').trim() + ' ' + val
+          break
+        case 'email':
+          email = val
+          break
+        case 'phone_number':
+        case 'phone':
+          phone = val
+          break
+        case 'city':
+          city = val
+          break
+        default:
+          if (val) message += `${field.name}: ${val}\n`
+          break
+      }
+    })
+  }
+
+  const normalizedPayload: LeadIngestPayload = {
+    name: name.trim() || 'Meta Lead',
+    email,
+    phone,
+    city,
+    message: message.trim(),
+    source: 'meta_ads',
+    metaEvent: { leadgenId, ...metaEventContext, graphData: data },
+  }
+
+  // Is this a test lead? 
+  // Meta Lead testing tool often returns is_organic = false or leadgen_id contains "test" (though typically it's just a numeric ID).
+  // If we really need to skip it, we can, but let's ingest it normally.
+
+  const result = await ingestLead(normalizedPayload, sourceObjectId, clientIp)
+  
+  const elapsed = measureExecutionMs(t0)
+  logger.info(`[MetaAdsService] Ingestion took ${elapsed.toFixed(3)}ms for leadgen_id ${leadgenId}`)
+
+  return {
+    contact: result.contact,
+    isNew: result.isNew,
+    message: result.isNew ? 'Meta Ads lead ingested successfully' : 'Meta Ads lead reinquiry recorded',
+  }
+}
+
 // ═══════════════════════════════════════════
 //  PORTAL EMAIL PARSER INGESTION (Zameen, Graana, OLX)
 // ═══════════════════════════════════════════

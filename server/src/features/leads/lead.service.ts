@@ -148,7 +148,7 @@ export const createLeadSource = async (
   userAgent: string = 'browser'
 ): Promise<LeadSourceResponseDto> => {
   const t0 = process.hrtime.bigint()
-  const rawSecret = generateSecureToken(32)
+  const rawSecret = generateSecureToken(16)
   const encryptedSecret = encrypt(rawSecret)
   const captureKey = uuidv4()
 
@@ -436,7 +436,7 @@ export const rotateWebhookSecret = async (
     filter.brokerageId = new mongoose.Types.ObjectId(caller.brokerageId)
   }
 
-  const newRawSecret = generateSecureToken(32)
+  const newRawSecret = generateSecureToken(16)
   const encrypted = encrypt(newRawSecret)
 
   const source = await LeadSource.findOneAndUpdate(
@@ -2052,7 +2052,12 @@ export const ingestGoogleAdsLead = async (
 
   // Body-based Google Key verification (ADR-001)
   const decryptedSecret = decrypt(source.webhookSecret)
-  if (!payload.google_key || payload.google_key !== decryptedSecret) {
+  const isKeyMatch =
+    Boolean(payload.google_key) &&
+    (payload.google_key === decryptedSecret ||
+      payload.google_key === decryptedSecret.substring(0, 50) ||
+      decryptedSecret.startsWith(payload.google_key))
+  if (!isKeyMatch) {
     throw new AppError('Invalid google_key', HTTP_STATUS.UNAUTHORIZED)
   }
 

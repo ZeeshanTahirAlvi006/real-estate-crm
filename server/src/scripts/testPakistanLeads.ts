@@ -5,7 +5,7 @@ import { Brokerage } from '../models/Brokerage.js'
 import { User } from '../models/User.js'
 import { LeadSource } from '../models/LeadSource.js'
 import { Contact } from '../models/Contact.js'
-import { encrypt } from '../utils/cryptoHelper.js'
+import { encrypt, decrypt } from '../utils/cryptoHelper.js'
 import {
   ingestGoogleAdsLead,
   ingestEmailParserLead,
@@ -145,6 +145,8 @@ async function runPakistanLeadDiagnostics() {
         leadCount: 0,
       })
       rawSecret = gadsSecret
+    } else {
+      rawSecret = decrypt(source.webhookSecret)
     }
 
     googleAdsSource = source

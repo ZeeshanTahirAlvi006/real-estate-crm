@@ -293,11 +293,14 @@ export const googleAdsWebhookSchema = z
   .object({
     lead_id: z.string().trim().optional(),
     api_version: z.string().trim().optional(),
-    form_id: z.string().trim().optional(),
-    campaign_id: z.string().trim().optional(),
+    form_id: z.union([z.string(), z.number()]).transform((v) => String(v)).optional(),
+    campaign_id: z.union([z.string(), z.number()]).transform((v) => String(v)).optional(),
+    adgroup_id: z.union([z.string(), z.number()]).transform((v) => String(v)).optional(),
+    creative_id: z.union([z.string(), z.number()]).transform((v) => String(v)).optional(),
     google_key: z.string().trim().optional(),
     is_test: z.boolean().optional(),
     gclid: z.string().trim().optional(),
+    gcl_id: z.string().trim().optional(),
     user_column_data: z
       .array(
         z.object({

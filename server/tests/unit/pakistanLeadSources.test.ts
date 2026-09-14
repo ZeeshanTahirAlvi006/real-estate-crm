@@ -9,6 +9,7 @@ import {
   parseUniversalPayload,
   verifyMetaWebhookChallenge,
 } from '../../src/features/leads/lead.service.js'
+import { googleAdsWebhookSchema } from '../../src/features/leads/lead.validators.js'
 import { LEAD_SOURCE_TYPES } from '../../src/utils/constants.js'
 
 describe('Pakistan Lead Ingestion & Normalization Engine', () => {
@@ -78,6 +79,43 @@ describe('Pakistan Lead Ingestion & Normalization Engine', () => {
       assert.equal(mapped.source, 'google_ads')
       assert.equal(mapped.googleLeadId, 'gads-1029384')
       assert.equal(mapped.gclid, 'Cj0KCQiA_abc123')
+    })
+
+    it('should validate and map exact Google Ads production test payload with numeric IDs and gcl_id', () => {
+      const googlePayload = {
+        lead_id: 'TeSter-123-ABCDEFGHIJKLMNOPQRSTUVWXYZ-abcdefghijklmnopqrstuvwxyz-0123456789-AaBbCcDdEeFfGgHhIiJjKkLl',
+        user_column_data: [
+          { column_name: 'First Name', string_value: 'FirstName', column_id: 'FIRST_NAME' },
+          { column_name: 'Last Name', string_value: 'LastName', column_id: 'LAST_NAME' },
+          { column_name: 'User Email', string_value: 'test@example.com', column_id: 'EMAIL' },
+          { column_name: 'User Phone', string_value: '+16505550123', column_id: 'PHONE_NUMBER' },
+          { column_name: 'City', string_value: 'Mountain View', column_id: 'CITY' },
+        ],
+        api_version: '1.0',
+        form_id: 40000000000,
+        campaign_id: 10000000000,
+        google_key: '8c088ebe8437458c20795dbe4a07ee73',
+        is_test: true,
+        gcl_id: 'TeSter-123-ABCDEFGHIJKLMNOPQRSTUVWXYZ-abcdefghijklmnopqrstuvwxyz-0123456789-AaBbCcDdEeFfGgHhIiJjKkLl',
+        adgroup_id: 20000000000,
+        creative_id: 30000000000,
+      }
+
+      // 1. Zod Validation Check
+      const parsed = googleAdsWebhookSchema.parse(googlePayload)
+      assert.equal(parsed.form_id, '40000000000')
+      assert.equal(parsed.campaign_id, '10000000000')
+      assert.equal(parsed.is_test, true)
+
+      // 2. Adapter Mapping Check
+      const mapped = mapGoogleAdsPayload(parsed as any)
+      assert.equal(mapped.name, 'FirstName LastName')
+      assert.equal(mapped.firstName, 'FirstName')
+      assert.equal(mapped.lastName, 'LastName')
+      assert.equal(mapped.email, 'test@example.com')
+      assert.equal(mapped.phone, '+16505550123')
+      assert.equal(mapped.propertyAddress, 'Mountain View')
+      assert.equal(mapped.gclid, 'TeSter-123-ABCDEFGHIJKLMNOPQRSTUVWXYZ-abcdefghijklmnopqrstuvwxyz-0123456789-AaBbCcDdEeFfGgHhIiJjKkLl')
     })
   })
 

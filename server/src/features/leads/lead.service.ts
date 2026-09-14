@@ -1051,7 +1051,7 @@ export const mapGoogleAdsPayload = (body: GoogleAdsWebhookPayload): LeadIngestPa
     source: 'google_ads',
     message: `Google Ads Lead Form #${body.form_id || ''} (Campaign #${body.campaign_id || ''})`,
     googleLeadId: body.lead_id,
-    gclid: body.gclid,
+    gclid: body.gclid || body.gcl_id,
   }
 }
 

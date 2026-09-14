@@ -132,11 +132,14 @@ export interface GoogleAdsColumnData {
 export interface GoogleAdsWebhookPayload {
   lead_id?: string
   api_version?: string
-  form_id?: string
-  campaign_id?: string
+  form_id?: string | number
+  campaign_id?: string | number
+  adgroup_id?: string | number
+  creative_id?: string | number
   google_key?: string
   is_test?: boolean
   gclid?: string
+  gcl_id?: string
   user_column_data?: GoogleAdsColumnData[]
   [key: string]: unknown
 }

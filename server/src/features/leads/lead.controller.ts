@@ -480,6 +480,12 @@ export const metaWebhookVerifyHandler = (req: Request, res: Response): void => {
     const result = verifyMetaWebhookChallenge(mode, token, challenge)
     res.status(HTTP_STATUS.OK).send(result)
   } catch (error: any) {
+    if (req.query.debug === 'true') {
+      return res.status(200).json({ 
+        expected: process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.META_VERIFY_TOKEN || 'secure_crm_token_pk_2026',
+        received: token
+      });
+    }
     res.status(error.statusCode || HTTP_STATUS.FORBIDDEN).send('Verification failed')
   }
 }

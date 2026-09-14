@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { toast } from 'sonner'
@@ -372,35 +371,19 @@ export const PakistanLeadGuides: React.FC<PakistanLeadGuidesProps> = ({
   }
 
   return (
-    <Card className="border border-[#D8E2D6] dark:border-[#618764]/50 bg-white/95 dark:bg-[#1A2E26]/90 shadow-sm overflow-hidden">
-      <CardHeader className="pb-3 border-b border-[#EDF2EB] dark:border-[#618764]/30 bg-[#F5F7F4]/70 dark:bg-[#202B2F]/60">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <MaterialIcon name="menu_book" size={20} className="text-[#2B5748] dark:text-[#9CB080]" />
-              <CardTitle className="text-base sm:text-lg font-bold text-[#273338] dark:text-white">
-                Pakistan Lead Ingestion & Webhook Integration Guides
-              </CardTitle>
-            </div>
-            <CardDescription className="text-xs text-[#4A5D54] dark:text-[#A0B2A6] mt-0.5">
-              Step-by-step connection instructions for Pakistan ad platforms & portals — $0 recurring SaaS cost.
-            </CardDescription>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Badge className="bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border-[#9CB080]/40 text-[11px] font-semibold">
-              E.164 +92 Auto-Sanitized
-            </Badge>
-            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[11px] font-semibold">
-              $0 Infrastructure
-            </Badge>
-          </div>
-        </div>
+    <Card className="border border-[#D8E2D6] dark:border-[#618764] bg-white dark:bg-[#273338] shadow-sm w-full">
+      <CardHeader className="pb-4 border-b border-[#D8E2D6] dark:border-[#618764]">
+        <CardTitle className="text-lg font-semibold text-[#273338] dark:text-white">
+          Integration Guides
+        </CardTitle>
+        <CardDescription className="text-sm text-[#4A5D54] dark:text-[#A0B2A6]">
+          Setup instructions for external lead sources.
+        </CardDescription>
       </CardHeader>
 
-      <CardContent className="p-4 sm:p-6 space-y-6">
-        {/* Horizontal Channel Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-2">
+      <CardContent className="p-0 sm:p-4 flex flex-col md:flex-row gap-4">
+        {/* Source Navigation (Sidebar on Desktop, Grid on Mobile) */}
+        <div className="w-full md:w-1/4 flex md:flex-col overflow-x-auto gap-2 p-4 sm:p-0">
           {GUIDES.map((guide) => {
             const isSelected = guide.id === currentGuide.id
             return (
@@ -408,135 +391,98 @@ export const PakistanLeadGuides: React.FC<PakistanLeadGuidesProps> = ({
                 key={guide.id}
                 type="button"
                 onClick={() => setSelectedSourceId(guide.id)}
-                className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-colors whitespace-nowrap md:whitespace-normal ${
                   isSelected
-                    ? 'bg-[#2B5748] text-white border-[#2B5748] shadow-sm font-bold'
-                    : 'bg-[#F5F7F4] dark:bg-[#202B2F] text-[#273338] dark:text-white border-[#D8E2D6] dark:border-[#618764]/40 hover:bg-[#EDF2EB] dark:hover:bg-[#273338]'
+                    ? 'bg-[#9CB080] text-[#273338] border-[#9CB080] font-medium'
+                    : 'bg-transparent text-[#4A5D54] dark:text-[#A0B2A6] border-transparent hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F]'
                 }`}
               >
-                <div
-                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                  style={{
-                    backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : `${guide.color}15`,
-                    color: isSelected ? '#ffffff' : guide.color,
-                  }}
-                >
-                  <MaterialIcon name={guide.icon} size={16} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs truncate font-semibold">{guide.name}</div>
-                  <div
-                    className={`text-[10px] truncate ${
-                      isSelected ? 'text-white/80' : 'text-[#75887E] dark:text-[#A0B2A6]'
-                    }`}
-                  >
-                    {guide.cost}
-                  </div>
-                </div>
+                <MaterialIcon name={guide.icon} size={20} />
+                <span className="text-sm">{guide.name}</span>
               </button>
             )
           })}
         </div>
 
-        {/* Selected Guide Details Panel */}
-        <div className="rounded-xl border border-[#D8E2D6] dark:border-[#618764]/40 bg-[#F5F7F4]/40 dark:bg-[#202B2F]/40 p-4 sm:p-5 space-y-5">
-          {/* Header Info Banner */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#D8E2D6] dark:border-[#618764]/30">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-[#273338] dark:text-white">
-                  {currentGuide.name} Integration
-                </span>
-                <Badge variant="outline" className="text-[10px] font-semibold">
-                  {currentGuide.type}
-                </Badge>
-                <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
-                  {currentGuide.cost}
-                </Badge>
-              </div>
-              <p className="text-xs text-[#4A5D54] dark:text-[#A0B2A6]">{currentGuide.tagline}</p>
+        {/* Selected Guide Details */}
+        <div className="flex-1 p-4 sm:p-0 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-semibold text-[#273338] dark:text-white">
+                {currentGuide.name}
+              </h3>
+              <p className="text-sm text-[#4A5D54] dark:text-[#A0B2A6] mt-1">
+                {currentGuide.tagline}
+              </p>
             </div>
-
             {onOpenTester && (
               <Button
-                size="sm"
                 variant="outline"
                 onClick={() => onOpenTester(currentGuide.id)}
-                className="bg-white dark:bg-[#1A2E26] border-[#9CB080] text-[#2B5748] dark:text-[#9CB080] hover:bg-[#EDF2EB] dark:hover:bg-[#273338] text-xs font-semibold gap-1.5 shrink-0"
+                className="border-[#9CB080] text-[#2B5748] dark:text-[#9CB080] hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] shrink-0"
               >
-                <MaterialIcon name="play_circle" size={16} />
-                <span>Test in Webhook Simulator</span>
+                Test Connection
               </Button>
             )}
           </div>
 
-          {/* Endpoint Banner */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-3 rounded-lg bg-white dark:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/40">
-            <div className="flex items-center gap-2 min-w-0">
-              <Badge className="bg-[#2B5748] text-white text-[10px] font-mono shrink-0">
-                {currentGuide.method}
-              </Badge>
-              <code className="text-xs font-mono font-bold text-[#273338] dark:text-white truncate">
-                {currentGuide.endpoint}
-              </code>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
+          <div className="bg-[#F5F7F4] dark:bg-[#202B2F] p-4 rounded-lg border border-[#D8E2D6] dark:border-[#618764]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col gap-1 overflow-hidden">
+                <span className="text-xs font-medium text-[#75887E] dark:text-[#A0B2A6] uppercase tracking-wider">
+                  Endpoint URL
+                </span>
+                <code className="text-sm font-mono text-[#273338] dark:text-white truncate">
+                  <span className="mr-2 font-bold">{currentGuide.method}</span>
+                  {currentGuide.endpoint}
+                </code>
+              </div>
               <Button
-                size="sm"
                 variant="ghost"
-                onClick={() => handleCopy(currentGuide.endpoint, 'Endpoint URL')}
-                className="h-7 px-2 text-xs font-semibold text-[#4A5D54] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white gap-1"
+                size="sm"
+                onClick={() => handleCopy(currentGuide.endpoint, 'Endpoint')}
+                className="shrink-0 self-start sm:self-center"
               >
-                <MaterialIcon name="content_copy" size={14} />
-                <span>Copy Path</span>
+                Copy
               </Button>
             </div>
-          </div>
-
-          {/* Authentication Note */}
-          <div className="flex items-start gap-2 text-xs text-[#4A5D54] dark:text-[#A0B2A6] bg-amber-500/10 dark:bg-amber-500/5 p-3 rounded-lg border border-amber-500/20">
-            <MaterialIcon name="shield" size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-semibold text-amber-900 dark:text-amber-300">Security & Authentication: </span>
-              {currentGuide.authNote}
+            
+            <div className="mt-4 pt-4 border-t border-[#D8E2D6] dark:border-[#618764]">
+              <span className="text-xs font-medium text-[#75887E] dark:text-[#A0B2A6] uppercase tracking-wider block mb-1">
+                Authentication
+              </span>
+              <p className="text-sm text-[#4A5D54] dark:text-[#E2ECE4]">
+                {currentGuide.authNote}
+              </p>
             </div>
           </div>
 
-          {/* Sequential Step-by-Step Instructions */}
-          <div className="space-y-4 pt-1">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#75887E] dark:text-[#A0B2A6]">
-              Setup Steps
-            </div>
-            <div className="space-y-3">
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-[#273338] dark:text-white uppercase tracking-wider border-b border-[#D8E2D6] dark:border-[#618764] pb-2">
+              Setup Instructions
+            </h4>
+            <div className="space-y-6">
               {currentGuide.steps.map((step, idx) => (
-                <div
-                  key={idx}
-                  className="p-3.5 rounded-lg bg-white dark:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/30 space-y-2"
-                >
-                  <div className="text-xs font-bold text-[#273338] dark:text-white flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] flex items-center justify-center text-[11px] font-mono">
-                      {idx + 1}
-                    </span>
-                    <span>{step.title}</span>
-                  </div>
-                  <p className="text-xs text-[#4A5D54] dark:text-[#A0B2A6] pl-7 leading-relaxed">
+                <div key={idx} className="space-y-2">
+                  <h5 className="text-sm font-medium text-[#2B5748] dark:text-[#9CB080]">
+                    {step.title}
+                  </h5>
+                  <div className="text-sm text-[#4A5D54] dark:text-[#E2ECE4] leading-relaxed">
                     {step.detail}
-                  </p>
+                  </div>
                   {step.codeSnippet && (
-                    <div className="pl-7 pt-1">
-                      <div className="relative group">
-                        <pre className="p-2.5 rounded-md bg-[#202B2F] text-emerald-400 text-[11px] font-mono overflow-x-auto">
-                          {step.codeSnippet}
-                        </pre>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleCopy(step.codeSnippet!, 'Code Snippet')}
-                          className="absolute top-1.5 right-1.5 h-6 px-1.5 text-[10px] bg-black/40 text-white hover:bg-black/60 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          Copy
-                        </Button>
-                      </div>
+                    <div className="relative mt-2 group">
+                      <pre className="p-3 rounded-lg bg-[#273338] text-[#9CB080] text-xs font-mono overflow-x-auto">
+                        {step.codeSnippet}
+                      </pre>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleCopy(step.codeSnippet!, 'Code Snippet')}
+                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-[#273338] text-white hover:bg-black/40 transition-opacity"
+                      >
+                        Copy
+                      </Button>
                     </div>
                   )}
                 </div>

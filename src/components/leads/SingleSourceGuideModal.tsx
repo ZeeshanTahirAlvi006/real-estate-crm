@@ -6,7 +6,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { toast } from 'sonner'
@@ -132,157 +131,93 @@ export const SingleSourceGuideModal: React.FC<SingleSourceGuideModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764] p-0">
-        {/* Header with Source Branding */}
-        <DialogHeader className="p-5 sm:p-6 border-b border-[#EDF2EB] dark:border-[#618764]/30 bg-[#F5F7F4]/80 dark:bg-[#1A2E26]/90">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-xs border border-black/5 dark:border-white/10"
-                style={{
-                  backgroundColor: `${guide.color}18`,
-                  color: guide.color,
-                }}
-              >
-                <MaterialIcon name={guide.icon} size={24} />
-              </div>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-[#273338] border-[#D8E2D6] dark:border-[#618764] p-0">
+        <DialogHeader className="p-6 border-b border-[#D8E2D6] dark:border-[#618764]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <MaterialIcon name={guide.icon} size={28} className="text-[#2B5748] dark:text-[#9CB080]" />
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <DialogTitle className="text-base sm:text-lg font-bold text-[#273338] dark:text-white">
-                    Setup Guide: {source.name}
-                  </DialogTitle>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] px-2 py-0.5 font-semibold bg-white dark:bg-[#202B2F] text-[#2B5748] dark:text-[#9CB080] border-[#9CB080]/50"
-                  >
-                    {guide.name}
-                  </Badge>
-                </div>
-                <p className="text-xs text-[#4A5D54] dark:text-[#A0B2A6] mt-1 leading-relaxed">
+                <DialogTitle className="text-xl font-semibold text-[#273338] dark:text-white">
+                  {source.name} Integration
+                </DialogTitle>
+                <p className="text-sm text-[#4A5D54] dark:text-[#A0B2A6] mt-1">
                   {guide.tagline}
                 </p>
               </div>
             </div>
-
-            <div className="flex flex-col items-end gap-1.5 shrink-0">
-              <Badge
-                className={
-                  source.isActive
-                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold'
-                    : 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold'
-                }
-              >
-                {source.isActive ? 'Active Pipeline' : 'Paused'}
-              </Badge>
-              <span className="text-[10px] font-medium text-[#75887E] dark:text-[#A0B2A6]">
-                {guide.cost}
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <span className={`text-xs font-semibold px-2 py-1 rounded ${source.isActive ? 'bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080]' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
+                {source.isActive ? 'Active' : 'Paused'}
               </span>
             </div>
           </div>
         </DialogHeader>
 
-        {/* Modal Body */}
-        <div className="p-5 sm:p-6 space-y-5">
-          {/* Source Identification & Dynamic Ingestion Endpoint Banner */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-[#273338] dark:text-white">
-              <span className="flex items-center gap-1.5">
-                <MaterialIcon name="link" size={16} className="text-[#2B5748] dark:text-[#9CB080]" />
-                <span>Dedicated Ingestion Target</span>
-              </span>
-              <span className="font-mono text-[10px] text-[#75887E] dark:text-[#A0B2A6]">
-                ID: {source.id}
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-[#F5F7F4] dark:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/40">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Badge className="bg-[#2B5748] text-white text-[10px] font-mono shrink-0 px-2 py-0.5">
-                  {guide.method}
-                </Badge>
-                <code className="text-xs font-mono font-bold text-[#273338] dark:text-white truncate select-all">
+        <div className="p-6 space-y-6">
+          <div className="bg-[#F5F7F4] dark:bg-[#202B2F] p-4 rounded-lg border border-[#D8E2D6] dark:border-[#618764]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col gap-1 overflow-hidden">
+                <span className="text-xs font-medium text-[#75887E] dark:text-[#A0B2A6] uppercase tracking-wider">
+                  Ingestion Target (Source ID: {source.id})
+                </span>
+                <code className="text-sm font-mono text-[#273338] dark:text-white truncate">
+                  <span className="mr-2 font-bold">{guide.method}</span>
                   {dynamicEndpoint}
                 </code>
               </div>
               <Button
+                variant="ghost"
                 size="sm"
-                variant="outline"
                 onClick={() => handleCopy(dynamicEndpoint, 'Ingestion Target')}
-                className="h-7 text-xs font-semibold text-[#2B5748] dark:text-[#9CB080] border-[#9CB080]/60 hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] gap-1 shrink-0 cursor-pointer"
+                className="shrink-0 self-start sm:self-center"
               >
-                <MaterialIcon
-                  name={copiedLabel === 'Ingestion Target' ? 'check' : 'content_copy'}
-                  size={14}
-                />
-                <span>{copiedLabel === 'Ingestion Target' ? 'Copied' : 'Copy'}</span>
+                {copiedLabel === 'Ingestion Target' ? 'Copied' : 'Copy'}
               </Button>
             </div>
-          </div>
-
-          {/* Security & Authentication Callout */}
-          <div className="flex items-start gap-2.5 text-xs text-[#4A5D54] dark:text-[#A0B2A6] bg-amber-500/10 dark:bg-amber-500/5 p-3.5 rounded-xl border border-amber-500/25">
-            <MaterialIcon
-              name="shield"
-              size={18}
-              className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5"
-            />
-            <div className="space-y-0.5">
-              <div className="font-bold text-amber-900 dark:text-amber-300">
+            
+            <div className="mt-4 pt-4 border-t border-[#D8E2D6] dark:border-[#618764]">
+              <span className="text-xs font-medium text-[#75887E] dark:text-[#A0B2A6] uppercase tracking-wider block mb-1">
                 Security & Source Binding
-              </div>
-              <p className="leading-relaxed">
+              </span>
+              <p className="text-sm text-[#4A5D54] dark:text-[#E2ECE4]">
                 {guide.authNote}. Inbound leads are linked automatically to this lead source record
                 and routed according to your CRM distribution rules.
               </p>
             </div>
           </div>
 
-          {/* Step-by-Step Instructions */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#75887E] dark:text-[#A0B2A6]">
-                Step-by-Step Integration
-              </span>
-              <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
-                {guide.steps.length} steps to complete
-              </span>
-            </div>
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-[#273338] dark:text-white uppercase tracking-wider border-b border-[#D8E2D6] dark:border-[#618764] pb-2">
+              Setup Instructions
+            </h4>
 
-            <div className="space-y-3">
+            <div className="space-y-6">
               {guide.steps.map((step, idx) => {
-                const formattedSnippet = formatCodeSnippet(step.codeSnippet)
+                const replacedSnippet = step.codeSnippet
+                  ? formatCodeSnippet(step.codeSnippet)
+                  : undefined
+
                 return (
-                  <div
-                    key={idx}
-                    className="p-4 rounded-xl bg-white dark:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/40 space-y-2 shadow-xs"
-                  >
-                    <div className="text-xs font-bold text-[#273338] dark:text-white flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] flex items-center justify-center text-[11px] font-mono font-bold shrink-0">
-                        {idx + 1}
-                      </span>
-                      <span>{step.title}</span>
-                    </div>
-
-                    <p className="text-xs text-[#4A5D54] dark:text-[#A0B2A6] pl-7 leading-relaxed">
+                  <div key={idx} className="space-y-2">
+                    <h5 className="text-sm font-medium text-[#2B5748] dark:text-[#9CB080]">
+                      {step.title}
+                    </h5>
+                    <div className="text-sm text-[#4A5D54] dark:text-[#E2ECE4] leading-relaxed">
                       {step.detail}
-                    </p>
-
-                    {formattedSnippet && (
-                      <div className="pl-7 pt-1">
-                        <div className="relative group">
-                          <pre className="p-3 rounded-lg bg-[#202B2F] text-emerald-400 text-[11px] font-mono overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
-                            {formattedSnippet}
-                          </pre>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleCopy(formattedSnippet, `Step ${idx + 1} Snippet`)}
-                            className="absolute top-2 right-2 h-6 px-2 text-[10px] font-semibold bg-black/60 text-white hover:bg-black/80 rounded transition-opacity cursor-pointer"
-                          >
-                            <MaterialIcon name="content_copy" size={12} className="mr-1" />
-                            Copy
-                          </Button>
-                        </div>
+                    </div>
+                    {replacedSnippet && (
+                      <div className="relative mt-2 group">
+                        <pre className="p-3 rounded-lg bg-[#273338] text-[#9CB080] text-xs font-mono overflow-x-auto">
+                          {replacedSnippet}
+                        </pre>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleCopy(replacedSnippet, 'Code Snippet')}
+                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-[#273338] text-white hover:bg-black/40 transition-opacity"
+                        >
+                          Copy
+                        </Button>
                       </div>
                     )}
                   </div>

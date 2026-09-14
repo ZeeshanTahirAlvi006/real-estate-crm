@@ -483,7 +483,7 @@ export const metaWebhookVerifyHandler = (req: Request, res: Response): void => {
     if (req.query.debug === 'true') {
       res.status(200).json({ 
         expected: process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.META_VERIFY_TOKEN || 'secure_crm_token_pk_2026',
-        received: req.query['hub.verify_token']
+        query: req.query
       })
       return
     }

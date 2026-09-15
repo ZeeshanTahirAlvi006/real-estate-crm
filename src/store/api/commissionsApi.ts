@@ -5,6 +5,9 @@ import type {
   CommissionCalculationResult,
   CreateCommissionInput,
   BrokerageCommissionReport,
+  BrokerageCapSettings,
+  UpdateBrokerageCapInput,
+  UpdateAgentCapInput,
 } from '@/types/commission'
 
 interface ApiResponse<T> {
@@ -77,6 +80,32 @@ export const commissionsApi = baseApi.injectEndpoints({
       transformResponse: (response: ApiResponse<BrokerageCommissionReport>) => response.data,
       providesTags: ['Commissions'],
     }),
+
+    getCapSettings: builder.query<BrokerageCapSettings, void>({
+      query: () => '/commissions/settings/cap',
+      transformResponse: (response: ApiResponse<BrokerageCapSettings>) => response.data,
+      providesTags: ['Commissions'],
+    }),
+
+    updateBrokerageCap: builder.mutation<BrokerageCapSettings, UpdateBrokerageCapInput>({
+      query: (body) => ({
+        url: '/commissions/settings/cap',
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (response: ApiResponse<BrokerageCapSettings>) => response.data,
+      invalidatesTags: ['Commissions'],
+    }),
+
+    updateAgentCap: builder.mutation<{ success: boolean; user: any }, { agentId: string; data: UpdateAgentCapInput }>({
+      query: ({ agentId, data }) => ({
+        url: `/commissions/agents/${agentId}/cap`,
+        method: 'PATCH',
+        body: data,
+      }),
+      transformResponse: (response: ApiResponse<{ success: boolean; user: any }>) => response.data,
+      invalidatesTags: ['Commissions', 'Users', 'TeamMembers'],
+    }),
   }),
 })
 
@@ -87,4 +116,7 @@ export const {
   useGetCommissionByIdQuery,
   useUpdateCommissionStatusMutation,
   useGetCommissionReportQuery,
+  useGetCapSettingsQuery,
+  useUpdateBrokerageCapMutation,
+  useUpdateAgentCapMutation,
 } = commissionsApi

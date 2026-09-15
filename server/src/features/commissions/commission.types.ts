@@ -141,3 +141,21 @@ export interface CommissionQueryParams {
   page?: number
   limit?: number
 }
+
+export interface UpdateBrokerageCapInput {
+  defaultCommissionCap: number
+  defaultCommissionSplitAgent?: number
+}
+
+export interface UpdateAgentCapInput {
+  commissionCap: number | null // null resets to brokerage default
+  commissionSplitPercent?: number
+  commissionModel?: SplitModel
+}
+
+export interface BrokerageCapSettingsDto {
+  brokerageId: string
+  defaultCommissionCap: number
+  defaultCommissionSplitAgent: number
+  updatedAt?: string
+}

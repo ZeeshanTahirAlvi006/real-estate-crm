@@ -25,6 +25,8 @@ export interface IBrokerageConfig {
   marketType: 'north_america' | 'uae_dubai' | 'uk_europe' | 'apac'
   transferTaxRate: number
   offPlanEnabled: boolean
+  defaultCommissionCap?: number
+  defaultCommissionSplitAgent?: number
 }
 
 export interface ISettings extends Document {
@@ -53,6 +55,8 @@ export const DEFAULT_BROKERAGE_CONFIG: IBrokerageConfig = {
   marketType: 'north_america',
   transferTaxRate: 0,
   offPlanEnabled: false,
+  defaultCommissionCap: 18000,
+  defaultCommissionSplitAgent: 80,
 }
 
 const notificationPrefSchema = new Schema<INotificationPref>(
@@ -76,6 +80,8 @@ const brokerageConfigSchema = new Schema<IBrokerageConfig>(
     },
     transferTaxRate: { type: Number, min: 0, max: 100, default: 0 },
     offPlanEnabled: { type: Boolean, default: false },
+    defaultCommissionCap: { type: Number, default: 18000, min: 0 },
+    defaultCommissionSplitAgent: { type: Number, default: 80, min: 0, max: 100 },
   },
   { _id: false }
 )

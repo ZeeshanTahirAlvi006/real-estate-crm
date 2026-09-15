@@ -26,7 +26,7 @@ export const runHomeAnniversaryJob = async (
   options: HomeAnniversaryJobOptions = {}
 ): Promise<HomeAnniversaryJobResult> => {
   const startTime = Date.now()
-  logger.info('[HomeAnniversaryJob] Starting scheduled home anniversary scan...')
+  logger.info('[server/src/jobs/homeAnniversary.job.ts: Line 29] Starting scheduled home anniversary scan...')
 
   const today = new Date()
   const currentMonth = today.getMonth() + 1 // 1-12
@@ -94,10 +94,9 @@ export const runHomeAnniversaryJob = async (
         userId: targetUserId,
         brokerageId: prop.brokerageId,
         type: 'system',
-        title: `🏡 Home Purchase Anniversary: ${contactName}`,
-        message: `${contactName} purchased ${addressStr} ${yearsOwned} year${
-          yearsOwned > 1 ? 's' : ''
-        } ago today. Net equity is ${equityFormatted}. Send an anniversary equity update!`,
+        title: `Home Purchase Anniversary: ${contactName}`,
+        message: `${contactName} purchased ${addressStr} ${yearsOwned} year${yearsOwned > 1 ? 's' : ''
+          } ago today. Net equity is ${equityFormatted}. Send an anniversary equity update!`,
         linkTo: `/smart-lists`,
         metadata: {
           propertyId: prop._id.toString(),
@@ -143,7 +142,7 @@ export const runHomeAnniversaryJob = async (
 
   const durationMs = Date.now() - startTime
   logger.info(
-    `[HomeAnniversaryJob] Completed in ${durationMs}ms: Scanned ${properties.length} properties, found ${anniversariesIdentified} anniversaries, generated ${notificationsCreated} notifications.`
+    `[server/src/jobs/homeAnniversary.job.ts: Line 145] Completed in ${durationMs}ms: Scanned ${properties.length} properties, found ${anniversariesIdentified} anniversaries, generated ${notificationsCreated} notifications.`
   )
 
   return {

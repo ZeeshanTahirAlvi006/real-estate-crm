@@ -26,9 +26,9 @@ export class SmsProvider implements ICommunicationProvider {
     )
 
     if (this.isLive) {
-      logger.info('SmsProvider initialized in LIVE Twilio mode')
+      logger.info('[server/src/features/communication/providers/sms.provider.ts: Line 29] SmsProvider initialized in LIVE Twilio mode')
     } else {
-      logger.info('SmsProvider initialized in Free Developer Sandbox / Simulation mode (Zero-Card)')
+      logger.info('[server/src/features/communication/providers/sms.provider.ts: Line 31] SmsProvider initialized in Free Developer Sandbox / Simulation mode (Zero-Card)')
     }
   }
 
@@ -86,7 +86,7 @@ export class SmsProvider implements ICommunicationProvider {
 
         if (!res.ok) {
           const errorMsg = data?.message || `Twilio HTTP error ${res.status}`
-          logger.warn(`[SmsProvider] Twilio API rejected send: ${errorMsg}`)
+          logger.warn(`[server/src/features/communication/providers/sms.provider.ts: Line 89] Twilio API rejected send: ${errorMsg}`)
           return {
             success: false,
             messageId: `err-${uuidv4()}`,
@@ -106,7 +106,7 @@ export class SmsProvider implements ICommunicationProvider {
           timestamp,
         }
       } catch (err: any) {
-        logger.error(`[SmsProvider] Twilio network error: ${err?.message}`)
+        logger.error(`[server/src/features/communication/providers/sms.provider.ts: Line 109] Twilio network error: ${err?.message}`)
         return {
           success: false,
           messageId: `err-${uuidv4()}`,

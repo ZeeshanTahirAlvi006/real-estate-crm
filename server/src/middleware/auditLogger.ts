@@ -21,7 +21,7 @@ export const httpAuditLogger = (req: Request, res: Response, next: NextFunction)
 
   const requestTime = Date.now()
 
-  // Hook into response completion cleanly without monkey-patching res.end (Rule ML-001, EL-002)
+  // Hook into response completion cleanly without monkey-patching res.end 
   res.once('finish', () => {
     try {
       const statusCode = res.statusCode
@@ -31,7 +31,7 @@ export const httpAuditLogger = (req: Request, res: Response, next: NextFunction)
       const segments = resourcePath.split('/').filter(Boolean)
       const resource = segments[1] || segments[0] || 'general'
 
-      // Resilient resourceId extraction: handles route params, URL ObjectIds, UUIDs, and numeric IDs (DI-CRIT-02)
+      // Resilient resourceId extraction: handles route params, URL ObjectIds, UUIDs, and numeric IDs 
       const urlIdMatch = (req.originalUrl || req.path).match(/\/([a-f0-9]{24}|[0-9a-fA-F-]{36}|\d+)(?:[/?#]|$)/i)
       const resourceId = (req.params?.id as string) || urlIdMatch?.[1] || undefined
 

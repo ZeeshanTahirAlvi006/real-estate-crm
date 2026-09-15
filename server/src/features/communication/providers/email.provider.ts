@@ -52,9 +52,9 @@ export class EmailProvider implements ICommunicationProvider {
           pass: this.testAccount.pass,
         },
       })
-      logger.info('EmailProvider initialized with Ethereal Email sandbox (Zero-Card Dev Mode)')
+      logger.info('[server/src/features/communication/providers/email.provider.ts: Line 55] EmailProvider initialized with Ethereal Email sandbox (Zero-Card Dev Mode)')
     } catch (err: any) {
-      logger.warn(`EmailProvider failed to init transport: ${err?.message}. Falling back to mock engine.`)
+      logger.warn(`[server/src/features/communication/providers/email.provider.ts: Line 57] EmailProvider failed to init transport: ${err?.message}. Falling back to mock engine.`)
     }
   }
 
@@ -93,7 +93,7 @@ export class EmailProvider implements ICommunicationProvider {
         const previewUrl = nodemailer.getTestMessageUrl(info) || undefined
 
         if (previewUrl) {
-          logger.info(`[Email Sandbox] Ethereal Preview URL: ${previewUrl}`)
+          logger.info(`[server/src/features/communication/providers/email.provider.ts: Line 96] Ethereal Preview URL: ${previewUrl}`)
         }
 
         return {
@@ -117,7 +117,7 @@ export class EmailProvider implements ICommunicationProvider {
         timestamp,
       }
     } catch (err: any) {
-      logger.error(`[EmailProvider] Outbound send failed: ${err?.message}`)
+      logger.error(`[server/src/features/communication/providers/email.provider.ts: Line 120] Outbound send failed: ${err?.message}`)
       return {
         success: false,
         messageId: `failed-${uuidv4()}`,

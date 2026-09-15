@@ -16,6 +16,9 @@ export interface IUser extends Document {
   isActive: boolean
   mustChangePassword: boolean
   lastActiveAt?: Date
+  commissionCap?: number
+  commissionSplitPercent?: number
+  commissionModel?: 'fixed' | 'tiered' | 'capped'
   passwordResetToken?: string
   passwordResetExpires?: Date
   tokenVersion: number
@@ -105,6 +108,20 @@ const userSchema = new Schema<IUser>(
     tokenVersion: {
       type: Number,
       default: 0,
+    },
+    commissionCap: {
+      type: Number,
+      min: 0,
+    },
+    commissionSplitPercent: {
+      type: Number,
+      min: 0,
+      max: 100,
+    },
+    commissionModel: {
+      type: String,
+      enum: ['fixed', 'tiered', 'capped'],
+      default: 'capped',
     },
   },
   {

@@ -25,7 +25,7 @@ import {
   campaignDetailL1Cache,
   campaignMetricsL1Cache,
   speedMetricsL1Cache,
-} from './aiIsa.service.js'
+} from './services/aiIsa.service.js'
 import { sendSuccess, sendError } from '../../utils/apiResponse.js'
 import { HTTP_STATUS, GENERIC_AUTH_MESSAGES } from '../../utils/constants.js'
 
@@ -52,7 +52,7 @@ export const getConfigHandler = async (req: Request, res: Response, next: NextFu
       return
     }
     const isCached = aiIsaConfigL1Cache.has(`cfg:${req.user.brokerageId}`)
-    const config = await getAiIsaConfig(req.user.brokerageId)
+    const config = await getAiIsaConfig(req.tenantFilter || { brokerageId: req.user.brokerageId }, req.user)
     recordTelemetry(res, t0, 'getConfigHandler', isCached)
     sendSuccess(res, config, 'AI ISA configuration retrieved')
   } catch (error) {
@@ -68,7 +68,7 @@ export const updateConfigHandler = async (req: Request, res: Response, next: Nex
       sendError(res, GENERIC_AUTH_MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED)
       return
     }
-    const config = await updateAiIsaConfig(req.user.brokerageId, req.body, req.user)
+    const config = await updateAiIsaConfig(req.body, req.user)
     recordTelemetry(res, t0, 'updateConfigHandler')
     sendSuccess(res, config, 'AI ISA configuration updated')
   } catch (error) {

@@ -54,9 +54,8 @@ import { HTTP_STATUS } from './utils/constants.js'
 
 export const createApp = (): Express => {
   const app: Express = express()
-  // Trust first proxy (Render / Cloudflare load balancers)
+  // Enable trust proxy for Render load balancers
   app.set('trust proxy', 1)
-
   // 1. Security HTTP Headers
   app.use(
     helmet({
@@ -91,15 +90,8 @@ export const createApp = (): Express => {
   // 3. Static Uploads Folder (Local storage)
   app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')))
 
-  // 4. Body Parsers with limits and rawBody capture for webhook HMAC verification
-  app.use(
-    express.json({
-      limit: '5mb',
-      verify: (req: any, _res, buf) => {
-        req.rawBody = buf.toString('utf8')
-      },
-    })
-  )
+  // 4. Body Parsers with limits
+  app.use(express.json({ limit: '5mb' }))
   app.use(express.urlencoded({ extended: true, limit: '5mb' }))
 
   // 5. Cookie Parser with Signing Secret
@@ -202,7 +194,7 @@ export const startServer = async (): Promise<void> => {
     initSocketServer(httpServer)
 
     const server = httpServer.listen(env.PORT, () => {
-      logger.info(`Server & WebSocket running [${env.NODE_ENV}] mode`)
+      logger.info(`[server/src/app.ts: Line 197] Server & WebSocket running [${env.NODE_ENV}] mode`)
       // Start background cron scheduler
       startScheduler()
       // Start IMAP live email listener
@@ -211,12 +203,12 @@ export const startServer = async (): Promise<void> => {
 
     // Graceful Shutdown Handlers
     const handleShutdown = async (signal: string) => {
-      logger.info(`Received ${signal}. Shutting down server...`)
+      logger.info(`[server/src/app.ts: Line 206] Received ${signal}. Shutting down server...`)
       await stopScheduler()
       await imapListenerService.stop()
       server.close(async () => {
         await disconnectDB()
-        logger.info('👋 Server shutdown complete. Goodbye!')
+        logger.info('[server/src/app.ts: Line 211] Server shutdown complete. Goodbye!')
         process.exit(0)
       })
     }
@@ -224,7 +216,7 @@ export const startServer = async (): Promise<void> => {
     process.on('SIGTERM', () => handleShutdown('SIGTERM'))
     process.on('SIGINT', () => handleShutdown('SIGINT'))
   } catch (error) {
-    logger.error('Server startup failed:', error)
+    logger.error('[server/src/app.ts: Line 219] Server startup failed:', error)
     process.exit(1)
   }
 }

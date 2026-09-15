@@ -21,16 +21,14 @@ import {
 import { getPagination } from '../../utils/pagination.js'
 import mongoose from 'mongoose'
 
-// Lean projection constant (PERF-M-002: omit heavy tokens and configs)
+// Lean projection constant 
 const BROKERAGE_PROJECTION = '_id name subdomain plan logoUrl timezone isActive createdAt updatedAt'
 
 // L1 In-Memory Caches (< 0.05ms) with bounded size and 60s TTL
 export const brokeragesL1Cache = new BoundedLruCache<{ brokerages: BrokerageResponseDto[]; total: number }>(500, 60)
 export const brokerageDetailL1Cache = new BoundedLruCache<BrokerageResponseDto>(500, 60)
 
-/**
- * Coordinated cache invalidation across L1 in-memory and L2 Redis (DI-003)
- */
+// Coordinated cache invalidation across L1 in-memory and L2 Redis 
 export const invalidateBrokerageCaches = async (brokerageId?: string): Promise<void> => {
   brokeragesL1Cache.clear()
   if (brokerageId) {
@@ -48,7 +46,7 @@ export const invalidateBrokerageCaches = async (brokerageId?: string): Promise<v
       cacheInvalidatePattern('pp:global:brokerages:*'),
     ])
   } catch (err: any) {
-    logger.warn(`[BrokerageCache] Background L2 invalidation failed: ${err.message}`)
+    logger.error("[server/src/features/brokerages/brokerage.service.ts: Line 49] Background L2 cache failed ", err?.message)
   }
 }
 
@@ -107,7 +105,7 @@ export const listAllBrokerages = async (
     }
   }
 
-  // 2. Check L2 Redis Cache (< 0.5ms) with fail-safe isolation (DI-003)
+  // 2. Check L2 Redis Cache (< 0.5ms) with fail-safe isolation 
   try {
     const cachedRaw = await cacheGet(cacheKey)
     if (cachedRaw) {
@@ -126,10 +124,10 @@ export const listAllBrokerages = async (
       }
     }
   } catch (err: any) {
-    logger.warn(`[BrokerageService] Redis cache lookup failed (${err.message}). Falling through to MongoDB.`)
+    logger.warn("[server/src/features/brokerages/brokerage.service.ts: Line 127] Redis cache lookup failed, falling through to MongoDB: ", err?.message)
   }
 
-  // 3. Cache Miss: Execute indexed MongoDB query (< 10ms target, PERF-M-001)
+  // 3. Cache Miss: Execute indexed MongoDB query 
   const t0Db = process.hrtime.bigint()
   const filter: Record<string, any> = {}
   if (query.search && query.search.trim()) {
@@ -169,7 +167,7 @@ export const listAllBrokerages = async (
     total = count
   }
 
-  // Scoped member count aggregation using { brokerageId: 1, isActive: 1 } covering index (PERF-M-001)
+  // Scoped member count aggregation using { brokerageId: 1, isActive: 1 } covering index 
   const targetIds = brokerages.map((b) => b._id)
   const countMap = new Map<string, number>()
   if (targetIds.length > 0) {
@@ -195,7 +193,7 @@ export const listAllBrokerages = async (
   // 4. Populate L1 and L2 Caches asynchronously
   brokeragesL1Cache.set(cacheKey, cachePayload, 60)
   cacheSet(cacheKey, JSON.stringify(cachePayload), 300).catch((err: any) => {
-    logger.warn(`[BrokerageService] Redis cacheSet failed: ${err.message}`)
+    logger.warn(`[server/src/features/brokerages/brokerage.service.ts: Line 196] Redis cacheSet failed: ${err.message}`)
   })
 
   return {
@@ -242,7 +240,7 @@ export const getBrokerageDetail = async (
       }
     }
   } catch (err: any) {
-    logger.warn(`[BrokerageService] Redis cache lookup failed (${err.message}). Falling through to MongoDB.`)
+    logger.warn(`[server/src/features/brokerages/brokerage.service.ts: Line 243] Redis cache lookup failed (${err.message}). Falling through to MongoDB.`)
   }
 
   // 3. Cache Miss: Fetch with lean and covering queries (< 10ms)
@@ -263,7 +261,7 @@ export const getBrokerageDetail = async (
   // 4. Populate L1 and L2 Caches
   brokerageDetailL1Cache.set(cacheKey, dto, 60)
   cacheSet(cacheKey, JSON.stringify(dto), 300).catch((err: any) => {
-    logger.warn(`[BrokerageService] Redis cacheSet failed: ${err.message}`)
+    logger.warn(`[server/src/features/brokerages/brokerage.service.ts: Line 264] Redis cacheSet failed: ${err.message}`)
   })
 
   return { brokerage: dto, source: 'db' }
@@ -287,7 +285,7 @@ export const createNewBrokerage = async (
   recordDbMetric('brokerage:createNewBrokerage', t0Db, 10)
 
   // Invalidate caches immediately
-  invalidateBrokerageCaches().catch(() => {})
+  invalidateBrokerageCaches().catch(() => { })
 
   // Fire-and-forget non-blocking audit logging
   logAuditEvent({
@@ -303,7 +301,7 @@ export const createNewBrokerage = async (
     ipAddress: clientIp,
     userAgent,
   }).catch((err: any) => {
-    logger.error(`[BrokerageService] Audit log write failed: ${err.message}`)
+    logger.error(`[server/src/features/brokerages/brokerage.service.ts: Line 304] Audit log write failed: ${err.message}`)
   })
 
   return formatBrokerageDto(brokerage, 0)
@@ -357,7 +355,7 @@ export const updateBrokerageDetails = async (
   }
 
   // Cache invalidation
-  invalidateBrokerageCaches(id).catch(() => {})
+  invalidateBrokerageCaches(id).catch(() => { })
 
   // Fire-and-forget non-blocking audit logging
   logAuditEvent({
@@ -379,7 +377,7 @@ export const updateBrokerageDetails = async (
     ipAddress: clientIp,
     userAgent,
   }).catch((err: any) => {
-    logger.error(`[BrokerageService] Audit log write failed: ${err.message}`)
+    logger.error(`[server/src/features/brokerages/brokerage.service.ts: Line 380] Audit log write failed: ${err.message}`)
   })
 
   return formatBrokerageDto(updatedBrokerage, memberCount)
@@ -419,7 +417,7 @@ export const deactivateBrokerage = async (
   recordDbMetric('brokerage:deactivateBrokerage', t0Db, 10)
 
   // Invalidate caches
-  invalidateBrokerageCaches(id).catch(() => {})
+  invalidateBrokerageCaches(id).catch(() => { })
 
   // Fire-and-forget non-blocking audit logging
   logAuditEvent({
@@ -435,7 +433,7 @@ export const deactivateBrokerage = async (
     ipAddress: clientIp,
     userAgent,
   }).catch((err: any) => {
-    logger.error(`[BrokerageService] Audit log write failed: ${err.message}`)
+    logger.error(`[server/src/features/brokerages/brokerage.service.ts: Line 436] Audit log write failed: ${err.message}`)
   })
 }
 

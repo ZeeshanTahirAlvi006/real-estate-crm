@@ -59,7 +59,7 @@ export const runReactivationCampaignJob = async (
 
   // ── 1. Concurrency Guard ──────────────────────────────
   if (isLocalRunning) {
-    logger.warn('ReactivationJob: Skipped — local execution already in progress.')
+    logger.warn('[server/src/jobs/reactivation.job.ts: Line 62] ReactivationJob: Skipped — local execution already in progress.')
     return {
       success: false, campaignsProcessed: 0, totalContacted: 0,
       totalSkipped: 0, durationMs: 0, skipped: true,
@@ -69,7 +69,7 @@ export const runReactivationCampaignJob = async (
 
   const existingLock = await cacheGet(JOB_LOCK_KEY)
   if (existingLock) {
-    logger.warn('ReactivationJob: Skipped — distributed lock active.')
+    logger.warn('[server/src/jobs/reactivation.job.ts: Line 72] ReactivationJob: Skipped — distributed lock active.')
     return {
       success: false, campaignsProcessed: 0, totalContacted: 0,
       totalSkipped: 0, durationMs: 0, skipped: true,
@@ -86,7 +86,7 @@ export const runReactivationCampaignJob = async (
   let totalSkipped = 0
 
   try {
-    logger.info('ReactivationJob: Starting campaign execution cycle.')
+    logger.info('[server/src/jobs/reactivation.job.ts: Line 89] ReactivationJob: Starting campaign execution cycle.')
 
     // ── 2. Fetch target campaigns ───────────────────────
     const campaignQuery: Record<string, any> = { status: 'active' }
@@ -102,7 +102,7 @@ export const runReactivationCampaignJob = async (
       >[]
 
     if (!activeCampaigns.length) {
-      logger.info('ReactivationJob: No active campaigns found.')
+      logger.info('[server/src/jobs/reactivation.job.ts: Line 105] ReactivationJob: No active campaigns found.')
       return {
         success: true, campaignsProcessed: 0, totalContacted: 0,
         totalSkipped: 0, durationMs: Date.now() - startTime,
@@ -136,7 +136,7 @@ export const runReactivationCampaignJob = async (
           >[]
 
         if (!dormantContacts.length) {
-          logger.info(`ReactivationJob: No dormant contacts for campaign. Duration=${Date.now() - campaignStartTime}ms`)
+          logger.info(`[server/src/jobs/reactivation.job.ts: Line 139] ReactivationJob: No dormant contacts for campaign. Duration=${Date.now() - campaignStartTime}ms`)
           campaignsProcessed++
           continue
         }
@@ -208,16 +208,16 @@ export const runReactivationCampaignJob = async (
         campaignsProcessed++
 
         logger.info(
-          `ReactivationJob: Campaign batch complete. Contacted=${batchContacted} Skipped=${batchSkipped} Duration=${Date.now() - campaignStartTime}ms`
+          `[server/src/jobs/reactivation.job.ts: Line 211] ReactivationJob: Campaign batch complete. Contacted=${batchContacted} Skipped=${batchSkipped} Duration=${Date.now() - campaignStartTime}ms`
         )
       } catch (err: any) {
         // Error isolation: one campaign failure does not halt the loop
-        logger.error(`ReactivationJob: Campaign processing error — ${err?.message || 'Unknown'}`)
+        logger.error(`[server/src/jobs/reactivation.job.ts: Line 213] ReactivationJob: Campaign processing error — ${err?.message || 'Unknown'}`)
       }
     }
 
     const totalDuration = Date.now() - startTime
-    logger.info(`ReactivationJob: Cycle complete. Campaigns=${campaignsProcessed} Contacted=${totalContacted} Duration=${totalDuration}ms`)
+    logger.info(`[server/src/jobs/reactivation.job.ts: Line 220] ReactivationJob: Cycle complete. Campaigns=${campaignsProcessed} Contacted=${totalContacted} Duration=${totalDuration}ms`)
 
     await logAuditEvent({
       action: 'job.reactivation_campaign.completed',
@@ -235,7 +235,7 @@ export const runReactivationCampaignJob = async (
     }
   } catch (globalError: any) {
     const totalDuration = Date.now() - startTime
-    logger.error(`ReactivationJob: Fatal error — ${globalError?.message || 'Unknown'}`)
+    logger.error(`[server/src/jobs/reactivation.job.ts: Line 238] ReactivationJob: Fatal error — ${globalError?.message || 'Unknown'}`)
 
     await logAuditEvent({
       action: 'job.reactivation_campaign.failed',

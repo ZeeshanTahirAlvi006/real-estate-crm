@@ -31,17 +31,20 @@ export const CommissionCalculatorModal: React.FC<CommissionCalculatorModalProps>
   const [agentSplitPercent, setAgentSplitPercent] = useState(80)
   const [franchiseFeePercent, setFranchiseFeePercent] = useState(6.0)
   const [tcFee, setTcFee] = useState(395)
+  const [capThreshold, setCapThreshold] = useState(18000)
   const [isCapped, setIsCapped] = useState(false)
 
-  // Calculations
+  // Calculations with universal cap clamp
   const grossCommission = (salePrice * (commissionPercent / 100))
   const franchiseDeduction = grossCommission * (franchiseFeePercent / 100)
-  const adjustedGCI = grossCommission - franchiseDeduction
+  const adjustedGCI = Math.max(0, grossCommission - franchiseDeduction)
 
-  const effectiveAgentSplit = isCapped ? 100 : agentSplitPercent
-  const agentGrossPayout = adjustedGCI * (effectiveAgentSplit / 100)
+  const rawBrokerageCut = isCapped ? 0 : Math.round(adjustedGCI * ((100 - agentSplitPercent) / 100))
+  const remainingCap = isCapped ? 0 : capThreshold
+  const brokerageNetProfit = Math.min(rawBrokerageCut, remainingCap)
+  const agentGrossPayout = Math.max(0, adjustedGCI - brokerageNetProfit)
+  const effectiveAgentSplit = adjustedGCI > 0 ? Number(((agentGrossPayout / adjustedGCI) * 100).toFixed(1)) : (isCapped ? 100 : agentSplitPercent)
   const agentNetPayout = Math.max(0, agentGrossPayout - tcFee)
-  const brokerageNetProfit = Math.max(0, adjustedGCI - agentGrossPayout)
 
   const handleSaveToLedger = async () => {
     if (!user?.id) return
@@ -52,10 +55,11 @@ export const CommissionCalculatorModal: React.FC<CommissionCalculatorModalProps>
         transactionId,
         salePrice,
         commissionRate: commissionPercent,
-        splitModel: isCapped ? 'capped' : 'fixed',
+        splitModel: 'capped',
         splitPercentAgent: agentSplitPercent,
         franchiseFeePercent,
         tcFee,
+        capThreshold,
         status: 'approved',
       }).unwrap()
       toast.success('Commission settlement saved to ledger!')
@@ -136,6 +140,16 @@ export const CommissionCalculatorModal: React.FC<CommissionCalculatorModalProps>
                 type="number"
                 value={tcFee}
                 onChange={(e) => setTcFee(Number(e.target.value) || 0)}
+                className="h-9 text-xs font-mono border-[#D8E2D6] dark:border-[#618764]"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Annual Cap ($)</Label>
+              <Input
+                type="number"
+                value={capThreshold}
+                onChange={(e) => setCapThreshold(Number(e.target.value) || 0)}
                 className="h-9 text-xs font-mono border-[#D8E2D6] dark:border-[#618764]"
               />
             </div>

@@ -103,19 +103,21 @@ const applyDeterministicQualificationUpdates = async (
         },
         createdBy: caller?._id,
         createdByName: caller ? `${caller.firstName} ${caller.lastName}` : 'AI ISA Engine',
-      }).catch((err) => logger.error(`[ActivityLog] Qualification activity error: ${err.message}`))
+      }).catch((err) => logger.error(`[server/src/features/ai-chatbot/chatbot.service.ts: Line 106] Qualification activity error: ${err.message}`))
     }
   } catch (err: any) {
-    logger.warn(`[AI Chatbot] Failed to apply qualification updates: ${err?.message}`)
+    logger.warn(`[server/src/features/ai-chatbot/chatbot.service.ts: Line 109] Failed to apply qualification updates: ${err?.message}`)
   }
 }
 
-// 1. Lead Qualification Bot 
+// 1. Lead Qualification Bot (supports optional token streaming)
 export const qualifyLead = async (
   input: QualifyLeadInput,
-  caller?: IUser
+  caller?: IUser,
+  onToken?: (token: string) => void
 ): Promise<QualifyLeadResult> => {
-  const stopTimer = startTimer('qualifyLead')
+  const timerName = onToken ? 'streamQualifyLead' : 'qualifyLead'
+  const stopTimer = startTimer(timerName)
   try {
     const { leadMessage, contactId, conversationHistory = [] } = input
 
@@ -129,12 +131,20 @@ export const qualifyLead = async (
     }))
     messages.push({ role: 'user', content: leadMessage })
 
-    const rawResponse = await callLLM({
-      systemPrompt: QUALIFICATION_SYSTEM_PROMPT,
-      messages,
-      temperature: 0.5,
-      jsonMode: true,
-    })
+    const rawResponse = onToken
+      ? await streamLLM({
+          systemPrompt: QUALIFICATION_SYSTEM_PROMPT,
+          messages,
+          temperature: 0.5,
+          jsonMode: true,
+          onChunk: onToken,
+        })
+      : await callLLM({
+          systemPrompt: QUALIFICATION_SYSTEM_PROMPT,
+          messages,
+          temperature: 0.5,
+          jsonMode: true,
+        })
 
     let result: QualifyLeadResult
     try {
@@ -166,69 +176,17 @@ export const qualifyLead = async (
     return result
   } catch (error) {
     stopTimer()
+    logger.warn(`[server/src/features/ai-chatbot/chatbot.service.ts]: Failed to ${onToken ? 'stream qualify' : 'qualify'} lead`)
     throw error
   }
 }
 
-// 1B. Lead Qualification Bot (SSE Token Streaming)
-export const streamQualifyLead = async (
+// 1B. Lead Qualification Bot (SSE Token Streaming wrapper for backward compatibility)
+export const streamQualifyLead = (
   input: QualifyLeadInput,
   onToken: (token: string) => void,
   caller?: IUser
-): Promise<QualifyLeadResult> => {
-  const stopTimer = startTimer('streamQualifyLead')
-  try {
-    const { leadMessage, contactId, conversationHistory = [] } = input
-
-    // Run Fair Housing scan on lead inbound text
-    const complianceCheck = scanFairHousingCompliance(leadMessage)
-
-    const messages = conversationHistory.map((m) => ({
-      role: (m.role === 'lead' ? 'user' : 'assistant') as 'user' | 'assistant',
-      content: m.text,
-    }))
-    messages.push({ role: 'user', content: leadMessage })
-
-    const rawResponse = await streamLLM({
-      systemPrompt: QUALIFICATION_SYSTEM_PROMPT,
-      messages,
-      temperature: 0.5,
-      jsonMode: true,
-      onChunk: onToken,
-    })
-
-    let result: QualifyLeadResult
-    try {
-      result = JSON.parse(rawResponse)
-    } catch {
-      result = {
-        reply: rawResponse,
-        extractedCriteria: {},
-        isQualified: false,
-        handoffTriggered: false,
-        fairHousingPassed: !complianceCheck.hasWarning,
-        fairHousingFlags: complianceCheck.flaggedPhrases.map((f) => f.phrase),
-        confidenceScore: 85,
-      }
-    }
-
-    if (complianceCheck.hasWarning) {
-      result.fairHousingPassed = false
-      result.fairHousingFlags = [
-        ...new Set([...(result.fairHousingFlags || []), ...complianceCheck.flaggedPhrases.map((f) => f.phrase)]),
-      ]
-    }
-
-    // Apply deterministic fixed scoring & direct MongoDB activity logging
-    await applyDeterministicQualificationUpdates(contactId, result, caller)
-
-    stopTimer()
-    return result
-  } catch (error) {
-    stopTimer()
-    throw error
-  }
-}
+): Promise<QualifyLeadResult> => qualifyLead(input, caller, onToken)
 
 // 2. Agent Copilot Reply Drafting
 export const draftAgentResponse = async (
@@ -269,6 +227,7 @@ export const draftAgentResponse = async (
     }
   } catch (error) {
     stopTimer()
+    logger.warn("[server/src/features/ai-chatbot/chatbot.service.ts: Line 272]: Failed to draft agent response")
     throw error
   }
 }
@@ -323,6 +282,7 @@ export const summarizeConversation = async (
     }
   } catch (error) {
     stopTimer()
+    logger.warn("[server/src/features/ai-chatbot/chatbot.service.ts: Line 326]: Failed to summarize conversation")
     throw error
   }
 }
@@ -389,6 +349,7 @@ export const suggestNextActions = async (
     }
   } catch (error) {
     stopTimer()
+    logger.warn("[server/src/features/ai-chatbot/chatbot.service.ts: Line 392]: Failed to suggest next actions")
     throw error
   }
 }

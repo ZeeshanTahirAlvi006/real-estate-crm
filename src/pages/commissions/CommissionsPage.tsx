@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,11 @@ import {
   useUpdateCommissionStatusMutation,
   useCalculateCommissionMutation,
   useCreateCommissionMutation,
+  useGetCapSettingsQuery,
+  useUpdateBrokerageCapMutation,
+  useUpdateAgentCapMutation,
 } from '@/store/api/commissionsApi'
+import { useGetUsersQuery } from '@/store/api/usersApi'
 import { useAppSelector } from '@/store/hooks'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -32,6 +36,36 @@ export function CommissionsPage() {
   const [calculateCommission, { isLoading: isCalculating }] = useCalculateCommissionMutation()
   const [createCommission, { isLoading: isCreatingCommission }] = useCreateCommissionMutation()
 
+  // Brokerage Cap Configuration
+  const [brokerCapModalOpen, setBrokerCapModalOpen] = useState(false)
+  const { data: capSettings } = useGetCapSettingsQuery(undefined, { skip: !isBrokerOrLead })
+  const [updateBrokerageCap, { isLoading: isUpdatingBrokerCap }] = useUpdateBrokerageCapMutation()
+  const [defaultBrokerCap, setDefaultBrokerCap] = useState(18000)
+  const [defaultBrokerSplit, setDefaultBrokerSplit] = useState(80)
+
+  useEffect(() => {
+    if (capSettings) {
+      setDefaultBrokerCap(capSettings.defaultCommissionCap)
+      setDefaultBrokerSplit(capSettings.defaultCommissionSplitAgent)
+    }
+  }, [capSettings])
+
+  // Agent Quick-Edit Cap Modal
+  const [agentCapModalOpen, setAgentCapModalOpen] = useState(false)
+  const [editingAgent, setEditingAgent] = useState<{
+    id: string
+    name: string
+    currentCap: number
+    splitPercent: number
+    model: 'capped' | 'tiered' | 'fixed'
+  } | null>(null)
+  const [updateAgentCap, { isLoading: isUpdatingAgentCap }] = useUpdateAgentCapMutation()
+
+  // Team users for agent dropdown in calculator
+  const { data: usersData } = useGetUsersQuery()
+  const eligibleAgents =
+    usersData?.users?.filter((u) => u.role === 'agent' || u.role === 'team_lead' || u.role === 'brokerage_owner') || []
+
   // Calculator Dialog State
   const [calcOpen, setCalcOpen] = useState(false)
   const [salePrice, setSalePrice] = useState(650000)
@@ -43,8 +77,8 @@ export function CommissionsPage() {
   const [eoInsuranceFee, setEoInsuranceFee] = useState(150)
   const [deskFee, setDeskFee] = useState(100)
   const [referralFeePercent] = useState(0)
-  const [selectedAgentId] = useState(user?.id || '')
-  const [capThreshold] = useState(18000)
+  const [selectedAgentId, setSelectedAgentId] = useState(user?.id || '')
+  const [capThreshold, setCapThreshold] = useState(18000)
 
   // Live calculation preview state
   const [calcPreview, setCalcPreview] = useState<any>(null)
@@ -66,6 +100,22 @@ export function CommissionsPage() {
     end: report?.pendingApprovalCount || 0,
     duration: 1000,
   })
+
+  const handleAgentSelect = (agentId: string) => {
+    setSelectedAgentId(agentId)
+    const repAgent = report?.agentReports.find((r) => r.agentId === agentId)
+    const userAgent = eligibleAgents.find((u) => u.id === agentId)
+    if (repAgent) {
+      setCapThreshold(repAgent.annualCap)
+    } else if (userAgent?.commissionCap) {
+      setCapThreshold(userAgent.commissionCap)
+    } else if (capSettings?.defaultCommissionCap) {
+      setCapThreshold(capSettings.defaultCommissionCap)
+    }
+    if (userAgent?.commissionSplitPercent) {
+      setAgentSplitPercent(userAgent.commissionSplitPercent)
+    }
+  }
 
   const handleRunCalculation = async () => {
     try {
@@ -225,6 +275,35 @@ export function CommissionsPage() {
         </div>
       ),
     },
+    ...(isBrokerOrLead
+      ? [
+          {
+            id: 'actions',
+            header: 'Actions',
+            className: 'text-right',
+            cell: (agent: AgentCommissionReport) => (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setEditingAgent({
+                    id: agent.agentId,
+                    name: agent.agentName,
+                    currentCap: agent.annualCap,
+                    splitPercent: 80,
+                    model: 'capped',
+                  })
+                  setAgentCapModalOpen(true)
+                }}
+                className="h-7 px-2 text-xs font-semibold text-[#2B5748] dark:text-[#9CB080] hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] cursor-pointer"
+              >
+                <MaterialIcon name="tune" size={14} className="mr-1" />
+                <span>Cap</span>
+              </Button>
+            ),
+          },
+        ]
+      : []),
   ]
 
   const renderLeaderboardCard = (agent: AgentCommissionReport) => (
@@ -246,18 +325,40 @@ export function CommissionsPage() {
             </p>
           </div>
         </div>
-        {agent.isCapped ? (
-          <Badge className="bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/30 text-[10px] font-bold shrink-0">
-            Capped
-          </Badge>
-        ) : (
-          <Badge
-            variant="outline"
-            className="text-[10px] border-[#D8E2D6] dark:border-[#618764] text-[#75887E] dark:text-[#A0B2A6] shrink-0"
-          >
-            Progress
-          </Badge>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {agent.isCapped ? (
+            <Badge className="bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/30 text-[10px] font-bold shrink-0">
+              Capped
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="text-[10px] border-[#D8E2D6] dark:border-[#618764] text-[#75887E] dark:text-[#A0B2A6] shrink-0"
+            >
+              Progress
+            </Badge>
+          )}
+          {isBrokerOrLead && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setEditingAgent({
+                  id: agent.agentId,
+                  name: agent.agentName,
+                  currentCap: agent.annualCap,
+                  splitPercent: 80,
+                  model: 'capped',
+                })
+                setAgentCapModalOpen(true)
+              }}
+              className="h-6 w-6 p-0 text-[#75887E] hover:text-[#2B5748] dark:hover:text-[#9CB080] rounded-md cursor-pointer"
+              title="Configure Cap"
+            >
+              <MaterialIcon name="tune" size={14} />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-1.5 bg-[#F5F7F4] dark:bg-[#273338]/60 p-3 rounded-lg border border-[#D8E2D6]/60 dark:border-[#618764]/30">
@@ -319,16 +420,29 @@ export function CommissionsPage() {
           </p>
         </div>
 
-        <Button
-          onClick={() => {
-            setCalcOpen(true)
-            handleRunCalculation()
-          }}
-          className="gap-1.5 text-xs font-bold bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] shadow-xs transition-all duration-200 cursor-pointer self-start sm:self-center"
-        >
-          <MaterialIcon name="calculate" size={16} />
-          <span>Calculate</span>
-        </Button>
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          {isBrokerOrLead && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBrokerCapModalOpen(true)}
+              className="gap-1.5 text-xs font-semibold border-[#D8E2D6] dark:border-[#618764] bg-white dark:bg-[#202B2F] text-[#273338] dark:text-white hover:bg-[#EDF2EB] shadow-xs cursor-pointer"
+            >
+              <MaterialIcon name="tune" size={16} />
+              <span>Cap Rules</span>
+            </Button>
+          )}
+          <Button
+            onClick={() => {
+              setCalcOpen(true)
+              handleRunCalculation()
+            }}
+            className="gap-1.5 text-xs font-bold bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] shadow-xs transition-all duration-200 cursor-pointer"
+          >
+            <MaterialIcon name="calculate" size={16} />
+            <span>Calculate</span>
+          </Button>
+        </div>
       </div>
 
       {/* ═══════ Global KPI Cards with Single-Word Precise Titles ═══════ */}
@@ -542,6 +656,25 @@ export function CommissionsPage() {
           </DialogHeader>
 
           <div className="p-5 space-y-4 text-xs">
+            {/* Assigned Agent Selector */}
+            {isBrokerOrLead && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">Assigned Agent</Label>
+                <select
+                  value={selectedAgentId}
+                  onChange={(e) => handleAgentSelect(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-[#D8E2D6] dark:border-[#618764] bg-[#F5F7F4] dark:bg-[#202B2F] px-3 text-xs font-semibold text-[#273338] dark:text-white focus:ring-1 focus:ring-[#9CB080]"
+                >
+                  <option value="">Select Agent...</option>
+                  {eligibleAgents.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.firstName} {a.lastName} ({a.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5 sm:col-span-2">
                 <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">
@@ -551,6 +684,16 @@ export function CommissionsPage() {
                   type="number"
                   value={salePrice}
                   onChange={(e) => setSalePrice(Number(e.target.value) || 0)}
+                  className="h-9 text-xs font-mono font-bold bg-[#F5F7F4] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white focus:ring-1 focus:ring-[#9CB080]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">Annual Cap ($)</Label>
+                <Input
+                  type="number"
+                  value={capThreshold}
+                  onChange={(e) => setCapThreshold(Number(e.target.value) || 0)}
                   className="h-9 text-xs font-mono font-bold bg-[#F5F7F4] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white focus:ring-1 focus:ring-[#9CB080]"
                 />
               </div>
@@ -712,6 +855,196 @@ export function CommissionsPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════ Brokerage Cap Configuration Modal ═══════ */}
+      <Dialog open={brokerCapModalOpen} onOpenChange={setBrokerCapModalOpen}>
+        <DialogContent className="sm:max-w-md border border-[#D8E2D6] dark:border-[#618764] bg-white dark:bg-[#202B2F] rounded-2xl shadow-xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/30">
+                <MaterialIcon name="corporate_fare" size={20} />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-[#273338] dark:text-white">
+                  Brokerage Commission Cap Rules
+                </DialogTitle>
+                <p className="text-xs text-[#4A5D54] dark:text-[#A0B2A6]">
+                  Configure organization-wide default annual cap thresholds for all agents.
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="space-y-4 pt-2 text-xs">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">
+                Default Annual Cap ($)
+              </Label>
+              <Input
+                type="number"
+                value={defaultBrokerCap}
+                onChange={(e) => setDefaultBrokerCap(Number(e.target.value) || 0)}
+                className="h-9 font-mono font-bold bg-[#F5F7F4] dark:bg-[#273338] border border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white"
+              />
+              <p className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+                Once an agent contributes this amount to the brokerage in an anniversary year, they reach 100% split.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">
+                Default Agent Split (%)
+              </Label>
+              <Input
+                type="number"
+                value={defaultBrokerSplit}
+                onChange={(e) => setDefaultBrokerSplit(Number(e.target.value) || 0)}
+                className="h-9 font-mono bg-[#F5F7F4] dark:bg-[#273338] border border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#D8E2D6] dark:border-[#618764]/40">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBrokerCapModalOpen(false)}
+                className="border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={isUpdatingBrokerCap}
+                onClick={async () => {
+                  try {
+                    await updateBrokerageCap({
+                      defaultCommissionCap: defaultBrokerCap,
+                      defaultCommissionSplitAgent: defaultBrokerSplit,
+                    }).unwrap()
+                    toast.success('Brokerage cap settings updated successfully!')
+                    setBrokerCapModalOpen(false)
+                  } catch (err: any) {
+                    toast.error(err?.data?.message || 'Failed to update cap settings')
+                  }
+                }}
+                className="bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold cursor-pointer"
+              >
+                {isUpdatingBrokerCap ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════ Agent Quick-Edit Cap Modal ═══════ */}
+      <Dialog open={agentCapModalOpen} onOpenChange={setAgentCapModalOpen}>
+        <DialogContent className="sm:max-w-md border border-[#D8E2D6] dark:border-[#618764] bg-white dark:bg-[#202B2F] rounded-2xl shadow-xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/30">
+                <MaterialIcon name="person" size={20} />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-[#273338] dark:text-white">
+                  Agent Cap Override
+                </DialogTitle>
+                <p className="text-xs text-[#4A5D54] dark:text-[#A0B2A6]">
+                  Configure custom annual cap threshold for {editingAgent?.name}.
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          {editingAgent && (
+            <div className="space-y-4 pt-2 text-xs">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">
+                  Annual Cap Amount ($)
+                </Label>
+                <Input
+                  type="number"
+                  value={editingAgent.currentCap}
+                  onChange={(e) =>
+                    setEditingAgent({
+                      ...editingAgent,
+                      currentCap: Number(e.target.value) || 0,
+                    })
+                  }
+                  className="h-9 font-mono font-bold bg-[#F5F7F4] dark:bg-[#273338] border border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">
+                  Default Split (%)
+                </Label>
+                <Input
+                  type="number"
+                  value={editingAgent.splitPercent}
+                  onChange={(e) =>
+                    setEditingAgent({
+                      ...editingAgent,
+                      splitPercent: Number(e.target.value) || 0,
+                    })
+                  }
+                  className="h-9 font-mono bg-[#F5F7F4] dark:bg-[#273338] border border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-[#D8E2D6] dark:border-[#618764]/40">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await updateAgentCap({
+                        agentId: editingAgent.id,
+                        data: { commissionCap: null },
+                      }).unwrap()
+                      toast.success(`Reset ${editingAgent.name}'s cap to brokerage default!`)
+                      setAgentCapModalOpen(false)
+                    } catch (err: any) {
+                      toast.error(err?.data?.message || 'Failed to reset cap')
+                    }
+                  }}
+                  className="text-xs text-[#75887E] dark:text-[#A0B2A6] hover:text-red-500 cursor-pointer"
+                >
+                  Reset to Default
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAgentCapModalOpen(false)}
+                    className="border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={isUpdatingAgentCap}
+                    onClick={async () => {
+                      try {
+                        await updateAgentCap({
+                          agentId: editingAgent.id,
+                          data: {
+                            commissionCap: editingAgent.currentCap,
+                            commissionSplitPercent: editingAgent.splitPercent,
+                            commissionModel: editingAgent.model,
+                          },
+                        }).unwrap()
+                        toast.success(`Updated commission cap for ${editingAgent.name}!`)
+                        setAgentCapModalOpen(false)
+                      } catch (err: any) {
+                        toast.error(err?.data?.message || 'Failed to update agent cap')
+                      }
+                    }}
+                    className="bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold cursor-pointer"
+                  >
+                    {isUpdatingAgentCap ? 'Saving...' : 'Save Cap'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

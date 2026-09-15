@@ -48,6 +48,9 @@ export interface User {
   timezone?: string
   isActive: boolean
   mustChangePassword?: boolean
+  commissionCap?: number
+  commissionSplitPercent?: number
+  commissionModel?: 'fixed' | 'tiered' | 'capped'
   createdAt: string
   lastActiveAt?: string
 }

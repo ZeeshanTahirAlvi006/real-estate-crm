@@ -20,6 +20,8 @@ export interface IBrokerage extends Document {
   timezone: string
   isActive: boolean
   whatsappConfig?: IWhatsAppConfig
+  defaultCommissionCap: number
+  defaultCommissionSplitAgent: number
   createdBy?: mongoose.Types.ObjectId
   createdAt: Date
   updatedAt: Date
@@ -82,6 +84,17 @@ const brokerageSchema = new Schema<IBrokerage>(
       },
       verifiedName: { type: String, trim: true },
       lastTestedAt: { type: Date },
+    },
+    defaultCommissionCap: {
+      type: Number,
+      default: 18000,
+      min: 0,
+    },
+    defaultCommissionSplitAgent: {
+      type: Number,
+      default: 80,
+      min: 0,
+      max: 100,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

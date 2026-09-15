@@ -28,6 +28,8 @@ export const inviteUserSchema = z
     ]),
     phone: z.string().trim().optional(),
     brokerageId: z.string().trim().optional(),
+    commissionCap: z.number().min(0).optional(),
+    commissionSplitPercent: z.number().min(0).max(100).optional(),
   })
   .strict()
 
@@ -39,6 +41,8 @@ export const updateUserSchema = z
     phone: z.string().trim().optional(),
     timezone: z.string().trim().optional(),
     avatarUrl: z.string().trim().url('Invalid avatar URL format').optional(),
+    commissionCap: z.number().min(0).optional().nullable(),
+    commissionSplitPercent: z.number().min(0).max(100).optional(),
   })
   .strict()
 

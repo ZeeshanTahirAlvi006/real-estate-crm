@@ -9,7 +9,7 @@ import { Brokerage } from '../../models/Brokerage.js'
 import { IUser } from '../../models/User.js'
 import { whatsAppProvider, ParsedInboundWhatsAppMessage } from './providers/whatsapp.provider.js'
 import { getSocketServer } from '../../config/socket.js'
-import { handleInboundLeadChat } from '../ai-isa/aiIsa.service.js'
+import { handleInboundLeadChat } from '../ai-isa/services/aiIsa.service.js'
 import { logAuditEvent } from '../../utils/auditLogger.js'
 import { logger } from '../../utils/logger.js'
 import { encrypt } from '../../utils/cryptoHelper.js'
@@ -346,6 +346,8 @@ export const sendWhatsAppMessage = async (
       },
       createdBy: caller._id,
       createdByName: `${caller.firstName} ${caller.lastName}`,
+    }).catch((e: any) => {
+      logger.error(`[server/src/features/communication/comm.service.ts: Line 349] Activity.create Error] ${e.message}`)
     })
   }
 
@@ -380,6 +382,8 @@ export const sendWhatsAppMessage = async (
       },
       ipAddress,
       userAgent: userAgent || '',
+    }).catch((e: any) => {
+      logger.error(`[server/src/features/communication/comm.service.ts: Line 386] logAuditEvent Error] ${e.message}`)
     })
   }
 
@@ -432,7 +436,7 @@ export const processInboundWebhook = async (rawPayload: any): Promise<{ processe
         contact.dncStatus = 'clean'
         contact.optedOutAt = undefined
         await contact.save()
-        logger.info(`Restored existing Contact ${contact._id} (${contact.firstName} ${contact.lastName}) upon receiving inbound WhatsApp`)
+        logger.info(`[server/src/features/communication/whatsapp.service.ts: Line 439] Restored existing Contact ${contact._id} (${contact.firstName} ${contact.lastName}) upon receiving inbound WhatsApp`)
       }
     }
 
@@ -447,7 +451,7 @@ export const processInboundWebhook = async (rawPayload: any): Promise<{ processe
     }
 
     if (!brokerageId) {
-      logger.warn(`Inbound WhatsApp dropped: Could not resolve brokerage for phone +${rawFrom}`)
+      logger.warn(`[server/src/features/communication/whatsapp.service.ts: Line 454] Inbound WhatsApp dropped: Could not resolve brokerage for phone +${rawFrom}`)
       continue
     }
 
@@ -467,7 +471,7 @@ export const processInboundWebhook = async (rawPayload: any): Promise<{ processe
         leadSource: 'whatsapp_inbound',
         tags: ['WhatsApp Lead', 'Inbound'],
       })
-      logger.info(`Created new Lead ${contact._id} (${firstName} ${lastName}) from inbound WhatsApp +${rawFrom}`)
+      logger.info(`[server/src/features/communication/whatsapp.service.ts: Line 474] Created new Lead ${contact._id} (${firstName} ${lastName}) from inbound WhatsApp +${rawFrom}`)
     }
 
     const bodyText = msg.text || msg.caption || `[Received WhatsApp ${msg.type}]`
@@ -582,7 +586,7 @@ export const processInboundWebhook = async (rawPayload: any): Promise<{ processe
 
         io.to(`brokerage:${brokerageId.toString()}`).emit('notification:new', {
           id: `notif_${Date.now()}`,
-          title: '💬 New WhatsApp Message',
+          title: 'New WhatsApp Message',
           message: `${contact.firstName} ${contact.lastName}: "${bodyText.slice(0, 60)}"`,
           type: 'message',
           link: '/inbox',
@@ -598,7 +602,7 @@ export const processInboundWebhook = async (rawPayload: any): Promise<{ processe
           inboundText: bodyText,
           channel: 'whatsapp',
         }).catch((err: any) => {
-          logger.error('Failed to trigger AI ISA for inbound WhatsApp:', err)
+          logger.error('[server/src/features/communication/whatsapp.service.ts: Line 605] Failed to trigger AI ISA for inbound WhatsApp:', err)
         })
       }
     }
@@ -671,7 +675,10 @@ export const createAndExecuteBroadcast = async (
           },
         },
         caller
-      )
+      ).catch((e: any) => {
+        logger.info(`[server/src/features/communication/whatsapp.service.ts: Line 678] Error sending WhatsApp message: ${e.message}`)
+        failed++
+      })
       sent++
     } catch {
       failed++
@@ -812,7 +819,7 @@ export const testTenantWhatsAppConnection = async (
           headers: { Authorization: `Bearer ${credentials.token}` },
         })
       } catch (e: any) {
-        logger.warn(`Failed to subscribe WABA on test: ${e?.message}`)
+        logger.warn(`[server/src/features/communication/whatsapp.service.ts: Line 822] Failed to subscribe WABA on test: ${e?.message}`)
       }
     }
 
@@ -826,7 +833,7 @@ export const testTenantWhatsAppConnection = async (
   if (testPhone && testPhone.trim()) {
     handshakeResult = await whatsAppProvider.sendTextMessage(
       testPhone.trim(),
-      `🚀 PropPulse WhatsApp Integration Test: Connected successfully to ${verifyRes.verifiedName || 'your brokerage'}!`,
+      `WhatsApp Integration Test: Connected successfully to ${verifyRes.verifiedName || 'your brokerage'}!`,
       { brokerageId }
     )
   }

@@ -125,3 +125,21 @@ export interface BrokerageCommissionReport {
   pendingApprovalCount: number
   agentReports: AgentCommissionReport[]
 }
+
+export interface BrokerageCapSettings {
+  brokerageId: string
+  defaultCommissionCap: number
+  defaultCommissionSplitAgent: number
+  updatedAt?: string
+}
+
+export interface UpdateBrokerageCapInput {
+  defaultCommissionCap: number
+  defaultCommissionSplitAgent?: number
+}
+
+export interface UpdateAgentCapInput {
+  commissionCap: number | null
+  commissionSplitPercent?: number
+  commissionModel?: SplitModel
+}

@@ -1,6 +1,8 @@
 import mongoose from 'mongoose'
 import { Commission, ICommission } from '../../models/Commission.js'
 import { User, IUser } from '../../models/User.js'
+import { Brokerage } from '../../models/Brokerage.js'
+import { Settings } from '../../models/Settings.js'
 import { logger } from '../../utils/logger.js'
 import { AppError } from '../../middleware/errorHandler.js'
 import {
@@ -12,6 +14,9 @@ import {
   BrokerageCommissionReportDto,
   AgentCommissionReportDto,
   SplitModel,
+  UpdateBrokerageCapInput,
+  UpdateAgentCapInput,
+  BrokerageCapSettingsDto,
 } from './commission.types.js'
 
 function formatCommissionDto(c: ICommission): CommissionDto {
@@ -70,7 +75,7 @@ export function computeCommissionSplit(
 
   const adjustedGCI = Math.max(0, grossCommission - franchiseDeduction - referralDeduction)
 
-  const splitModel: SplitModel = input.splitModel ?? 'fixed'
+  const splitModel: SplitModel = input.splitModel ?? 'capped'
   const capThreshold = input.capThreshold ?? 18000
   let effectiveAgentSplit = input.splitPercentAgent ?? 80
   let effectiveBrokerageSplit = 100 - effectiveAgentSplit
@@ -93,29 +98,34 @@ export function computeCommissionSplit(
     }
     effectiveBrokerageSplit = 100 - effectiveAgentSplit
     brokerageContributionThisDeal = Math.round(adjustedGCI * (effectiveBrokerageSplit / 100))
-  } else if (splitModel === 'capped') {
+  } else {
+    // 'capped' split model
+    const standardBrokerageCut = Math.round(adjustedGCI * ((100 - (input.splitPercentAgent ?? 80)) / 100))
+    brokerageContributionThisDeal = standardBrokerageCut
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Universal Cap Clamping Guard:
+  // Under ANY plan where capThreshold > 0, the brokerage contribution this deal
+  // is strictly capped to the remaining allowance (capThreshold - priorYtdContribution).
+  // It is mathematically impossible for prior + current to exceed capThreshold.
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (capThreshold > 0) {
     const remainingCap = Math.max(0, capThreshold - priorYtdContribution)
     if (remainingCap <= 0) {
-      // 100% Cap already achieved!
+      // 100% Cap already achieved prior to this deal!
       isCapped = true
-      effectiveAgentSplit = 100
-      effectiveBrokerageSplit = 0
       brokerageContributionThisDeal = 0
+      effectiveBrokerageSplit = 0
+      effectiveAgentSplit = 100
+    } else if (brokerageContributionThisDeal >= remainingCap) {
+      // Reaches or crosses cap threshold on this deal!
+      isCapped = true
+      brokerageContributionThisDeal = remainingCap
+      effectiveBrokerageSplit = adjustedGCI > 0 ? Number(((remainingCap / adjustedGCI) * 100).toFixed(2)) : 0
+      effectiveAgentSplit = Number((100 - effectiveBrokerageSplit).toFixed(2))
     } else {
-      const standardBrokerageCut = Math.round(adjustedGCI * ((100 - (input.splitPercentAgent ?? 80)) / 100))
-      if (standardBrokerageCut >= remainingCap) {
-        // Caps out on this exact deal
-        isCapped = true
-        brokerageContributionThisDeal = remainingCap
-        effectiveBrokerageSplit = adjustedGCI > 0 ? (remainingCap / adjustedGCI) * 100 : 0
-        effectiveAgentSplit = 100 - effectiveBrokerageSplit
-      } else {
-        // Under cap threshold
-        isCapped = false
-        effectiveAgentSplit = input.splitPercentAgent ?? 80
-        effectiveBrokerageSplit = 100 - effectiveAgentSplit
-        brokerageContributionThisDeal = standardBrokerageCut
-      }
+      isCapped = false
     }
   }
 
@@ -168,14 +178,15 @@ export function computeCommissionSplit(
     }
   }
 
-  const totalPostSplitDeductions = (tcFee > 0 ? tcFee : 0) +
+  const totalPostSplitDeductions =
+    (tcFee > 0 ? tcFee : 0) +
     (eoFee > 0 ? eoFee : 0) +
     (deskFee > 0 ? deskFee : 0) +
     (input.customDeductions ? input.customDeductions.reduce((acc, c) => acc + (c.amount || 0), 0) : 0)
 
   const agentNetPayout = Math.max(0, agentGrossPayout - totalPostSplitDeductions)
   const brokerageNetProfit = brokerageContributionThisDeal
-  const newYtdContribution = priorYtdContribution + brokerageContributionThisDeal
+  const newYtdContribution = Math.min(capThreshold, priorYtdContribution + brokerageContributionThisDeal)
   const capRemaining = Math.max(0, capThreshold - newYtdContribution)
 
   return {
@@ -204,33 +215,91 @@ export function computeCommissionSplit(
 
 export class CommissionService {
   async calculate(user: IUser, input: CalculateCommissionInput): Promise<CommissionCalculationResult> {
+    const t0 = process.hrtime.bigint()
     let priorYtdContribution = 0
     let agentPriorYtdGci = 0
 
     const targetAgentId = input.agentId || (user.role === 'agent' ? user.id : undefined)
+    const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
+
+    let agentDoc: any = null
+    if (targetAgentId && mongoose.Types.ObjectId.isValid(targetAgentId)) {
+      const aId = new mongoose.Types.ObjectId(targetAgentId.toString())
+      agentDoc = await User.findOne({ _id: aId, brokerageId: bId })
+        .select('commissionCap commissionSplitPercent commissionModel')
+        .lean()
+    }
+
+    let brokerageDoc: any = null
+    if (input.capThreshold === undefined || input.splitPercentAgent === undefined) {
+      brokerageDoc = await Brokerage.findById(bId)
+        .select('defaultCommissionCap defaultCommissionSplitAgent')
+        .lean()
+    }
+
+    // Dynamic Cascading Precedence:
+    // Deal Input Override >> Agent Custom Config >> Brokerage Default >> System Fallback ($18k, 80%)
+    const resolvedCapThreshold =
+      input.capThreshold ??
+      agentDoc?.commissionCap ??
+      brokerageDoc?.defaultCommissionCap ??
+      18000
+
+    const resolvedSplitPercentAgent =
+      input.splitPercentAgent ??
+      agentDoc?.commissionSplitPercent ??
+      brokerageDoc?.defaultCommissionSplitAgent ??
+      80
+
+    const resolvedSplitModel = input.splitModel ?? agentDoc?.commissionModel ?? 'capped'
 
     if (targetAgentId && mongoose.Types.ObjectId.isValid(targetAgentId)) {
       const currentYear = new Date().getFullYear()
       const startOfYear = new Date(currentYear, 0, 1)
+      const aId = new mongoose.Types.ObjectId(targetAgentId.toString())
 
       const history = await Commission.find({
-        brokerageId: user.brokerageId,
-        agentId: targetAgentId,
+        brokerageId: bId,
+        agentId: aId,
         settlementDate: { $gte: startOfYear },
         status: { $in: ['approved', 'paid'] },
-      }).select('brokerageNetProfit grossCommission').lean()
+      })
+        .select('brokerageNetProfit grossCommission')
+        .lean()
 
       priorYtdContribution = history.reduce((acc, c) => acc + (c.brokerageNetProfit || 0), 0)
       agentPriorYtdGci = history.reduce((acc, c) => acc + (c.grossCommission || 0), 0)
     }
 
-    return computeCommissionSplit(input, priorYtdContribution, agentPriorYtdGci)
+    const result = computeCommissionSplit(
+      {
+        ...input,
+        capThreshold: resolvedCapThreshold,
+        splitPercentAgent: resolvedSplitPercentAgent,
+        splitModel: resolvedSplitModel,
+      },
+      priorYtdContribution,
+      agentPriorYtdGci
+    )
+
+    const t1 = process.hrtime.bigint()
+    console.log(`[COMMISSION-PERF][service:calculate] ${(Number(t1 - t0) / 1e6).toFixed(3)}ms (agent: ${targetAgentId || 'self'})`)
+
+    return result
   }
 
   async create(user: IUser, input: CreateCommissionInput): Promise<CommissionDto> {
+    const t0 = process.hrtime.bigint()
+    const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
+
+    if (!mongoose.Types.ObjectId.isValid(input.agentId)) {
+      throw new AppError('Invalid agent ID', 400)
+    }
+    const aId = new mongoose.Types.ObjectId(input.agentId.toString())
+
     const agent = await User.findOne({
-      _id: input.agentId,
-      brokerageId: user.brokerageId,
+      _id: aId,
+      brokerageId: bId,
     }).lean()
 
     if (!agent) {
@@ -243,10 +312,10 @@ export class CommissionService {
     })
 
     const newCommission = await Commission.create({
-      brokerageId: user.brokerageId,
-      transactionId: input.transactionId ? new mongoose.Types.ObjectId(input.transactionId) : undefined,
-      dealId: input.dealId ? new mongoose.Types.ObjectId(input.dealId) : undefined,
-      contactId: input.contactId ? new mongoose.Types.ObjectId(input.contactId) : undefined,
+      brokerageId: bId,
+      transactionId: input.transactionId && mongoose.Types.ObjectId.isValid(input.transactionId) ? new mongoose.Types.ObjectId(input.transactionId) : undefined,
+      dealId: input.dealId && mongoose.Types.ObjectId.isValid(input.dealId) ? new mongoose.Types.ObjectId(input.dealId) : undefined,
+      contactId: input.contactId && mongoose.Types.ObjectId.isValid(input.contactId) ? new mongoose.Types.ObjectId(input.contactId) : undefined,
       agentId: agent._id,
       agentName: `${agent.firstName} ${agent.lastName}`.trim(),
       salePrice: input.salePrice,
@@ -266,28 +335,32 @@ export class CommissionService {
       status: input.status || 'draft',
       settlementDate: input.settlementDate ? new Date(input.settlementDate) : new Date(),
       notes: input.notes,
-      createdBy: user._id,
+      createdBy: new mongoose.Types.ObjectId(user._id.toString()),
     })
 
+    const t1 = process.hrtime.bigint()
+    console.log(`[COMMISSION-PERF][service:create] ${(Number(t1 - t0) / 1e6).toFixed(3)}ms (commission: ${newCommission._id})`)
     logger.info(`[Commission] Created settlement ledger entry for agent ${agent._id} on transaction ${input.transactionId || 'custom'}`)
     return formatCommissionDto(newCommission)
   }
 
   async list(user: IUser, params: CommissionQueryParams): Promise<{ commissions: CommissionDto[]; total: number; page: number; limit: number }> {
-    const query: any = { brokerageId: user.brokerageId }
+    const t0 = process.hrtime.bigint()
+    const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
+    const query: any = { brokerageId: bId }
 
     if (user.role === 'agent') {
-      query.agentId = user._id
+      query.agentId = new mongoose.Types.ObjectId(user._id.toString())
     } else if (params.agentId && mongoose.Types.ObjectId.isValid(params.agentId)) {
-      query.agentId = params.agentId
+      query.agentId = new mongoose.Types.ObjectId(params.agentId)
     }
 
     if (params.transactionId && mongoose.Types.ObjectId.isValid(params.transactionId)) {
-      query.transactionId = params.transactionId
+      query.transactionId = new mongoose.Types.ObjectId(params.transactionId)
     }
 
     if (params.dealId && mongoose.Types.ObjectId.isValid(params.dealId)) {
-      query.dealId = params.dealId
+      query.dealId = new mongoose.Types.ObjectId(params.dealId)
     }
 
     if (params.status) {
@@ -305,12 +378,15 @@ export class CommissionService {
     const skip = (page - 1) * limit
 
     const [items, total] = await Promise.all([
-      Commission.find(query).sort({ settlementDate: -1, createdAt: -1 }).skip(skip).limit(limit),
+      Commission.find(query).sort({ settlementDate: -1, createdAt: -1 }).skip(skip).limit(limit).lean(),
       Commission.countDocuments(query),
     ])
 
+    const t1 = process.hrtime.bigint()
+    console.log(`[COMMISSION-PERF][service:list] ${(Number(t1 - t0) / 1e6).toFixed(3)}ms (count: ${items.length})`)
+
     return {
-      commissions: items.map(formatCommissionDto),
+      commissions: items.map(formatCommissionDto as any),
       total,
       page,
       limit,
@@ -318,21 +394,26 @@ export class CommissionService {
   }
 
   async getById(user: IUser, id: string): Promise<CommissionDto> {
+    const t0 = process.hrtime.bigint()
     if (!mongoose.Types.ObjectId.isValid(id)) {
       throw new AppError('Invalid commission ID', 400)
     }
 
-    const query: any = { _id: id, brokerageId: user.brokerageId }
+    const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
+    const query: any = { _id: new mongoose.Types.ObjectId(id), brokerageId: bId }
     if (user.role === 'agent') {
-      query.agentId = user._id
+      query.agentId = new mongoose.Types.ObjectId(user._id.toString())
     }
 
-    const item = await Commission.findOne(query)
+    const item = await Commission.findOne(query).lean()
     if (!item) {
       throw new AppError('Commission record not found', 404)
     }
 
-    return formatCommissionDto(item)
+    const t1 = process.hrtime.bigint()
+    console.log(`[COMMISSION-PERF][service:getById] ${(Number(t1 - t0) / 1e6).toFixed(3)}ms`)
+
+    return formatCommissionDto(item as any)
   }
 
   async updateStatus(user: IUser, id: string, status: 'draft' | 'pending_approval' | 'approved' | 'paid', notes?: string): Promise<CommissionDto> {
@@ -340,52 +421,73 @@ export class CommissionService {
       throw new AppError('Insufficient permissions to approve or disburse commissions', 403)
     }
 
-    const query: any = { _id: id, brokerageId: user.brokerageId }
-    const commission = await Commission.findOne(query)
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new AppError('Invalid commission ID', 400)
+    }
+
+    const t0 = process.hrtime.bigint()
+    const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
+    const cId = new mongoose.Types.ObjectId(id)
+
+    const updateFields: any = { status }
+    if (notes) updateFields.notes = notes
+    if (status === 'approved' || status === 'paid') {
+      updateFields.approvedBy = new mongoose.Types.ObjectId(user._id.toString())
+    }
+    if (status === 'paid') {
+      updateFields.paidAt = new Date()
+    }
+
+    const commission = await Commission.findOneAndUpdate(
+      { _id: cId, brokerageId: bId },
+      { $set: updateFields },
+      { new: true }
+    ).lean()
+
     if (!commission) {
       throw new AppError('Commission record not found', 404)
     }
 
-    commission.status = status
-    if (notes) commission.notes = notes
-    if (status === 'approved' || status === 'paid') {
-      commission.approvedBy = user._id
-    }
-    if (status === 'paid') {
-      commission.paidAt = new Date()
-    }
-
-    await commission.save()
+    const t1 = process.hrtime.bigint()
+    console.log(`[COMMISSION-PERF][service:updateStatus] ${(Number(t1 - t0) / 1e6).toFixed(3)}ms (status: ${status})`)
     logger.info(`[Commission] Updated commission status to ${status} for ID ${id}`)
-    return formatCommissionDto(commission)
+    return formatCommissionDto(commission as any)
   }
 
   async getReport(user: IUser, startDate?: string, endDate?: string): Promise<BrokerageCommissionReportDto> {
+    const t0 = process.hrtime.bigint()
     const currentYear = new Date().getFullYear()
     const start = startDate ? new Date(startDate) : new Date(currentYear, 0, 1)
     const end = endDate ? new Date(endDate) : new Date()
 
+    const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
+
     const query: any = {
-      brokerageId: user.brokerageId,
+      brokerageId: bId,
       settlementDate: { $gte: start, $lte: end },
     }
 
     if (user.role === 'agent') {
-      query.agentId = user._id
+      query.agentId = new mongoose.Types.ObjectId(user._id.toString())
     }
 
-    const [commissions, agents] = await Promise.all([
+    const [commissions, agents, brokerageDoc] = await Promise.all([
       Commission.find(query).lean(),
       User.find({
-        brokerageId: user.brokerageId,
+        brokerageId: bId,
         role: { $in: ['agent', 'team_lead', 'brokerage_owner'] },
-      }).select('firstName lastName email').lean(),
+      })
+        .select('firstName lastName email commissionCap commissionSplitPercent')
+        .lean(),
+      Brokerage.findById(bId).select('defaultCommissionCap defaultCommissionSplitAgent').lean(),
     ])
 
+    const brokerageDefaultCap = (brokerageDoc as any)?.defaultCommissionCap ?? 18000
     const agentMap: Record<string, AgentCommissionReportDto> = {}
 
     for (const a of agents) {
       const aId = a._id.toString()
+      const effectiveCap = (a as any).commissionCap ?? brokerageDefaultCap
       agentMap[aId] = {
         agentId: aId,
         agentName: `${a.firstName} ${a.lastName}`.trim(),
@@ -395,9 +497,9 @@ export class CommissionService {
         totalGrossCommission: 0,
         totalAgentNetPayout: 0,
         totalBrokerageRetained: 0,
-        annualCap: 18000,
+        annualCap: effectiveCap,
         capContributionYtd: 0,
-        capRemaining: 18000,
+        capRemaining: effectiveCap,
         capPercent: 0,
         isCapped: false,
       }
@@ -421,6 +523,7 @@ export class CommissionService {
 
       const aId = c.agentId.toString()
       if (!agentMap[aId]) {
+        const annualCap = c.capThreshold || brokerageDefaultCap
         agentMap[aId] = {
           agentId: aId,
           agentName: c.agentName || 'Agent',
@@ -430,9 +533,9 @@ export class CommissionService {
           totalGrossCommission: 0,
           totalAgentNetPayout: 0,
           totalBrokerageRetained: 0,
-          annualCap: c.capThreshold || 18000,
+          annualCap,
           capContributionYtd: 0,
-          capRemaining: c.capThreshold || 18000,
+          capRemaining: annualCap,
           capPercent: 0,
           isCapped: false,
         }
@@ -445,14 +548,18 @@ export class CommissionService {
       rep.totalAgentNetPayout += c.agentNetPayout || 0
       rep.totalBrokerageRetained += c.brokerageNetProfit || 0
       rep.capContributionYtd += c.brokerageNetProfit || 0
-      rep.annualCap = c.capThreshold || 18000
     }
 
     const agentReports: AgentCommissionReportDto[] = Object.values(agentMap).map((rep) => {
-      const capRem = Math.max(0, rep.annualCap - rep.capContributionYtd)
-      const capPct = rep.annualCap > 0 ? Math.min(100, Math.round((rep.capContributionYtd / rep.annualCap) * 100)) : 100
+      // Hard clamp: cap contribution displayed should never exceed annualCap
+      const effectiveCap = rep.annualCap > 0 ? rep.annualCap : brokerageDefaultCap
+      const effectiveContribution = Math.min(effectiveCap, rep.capContributionYtd)
+      const capRem = Math.max(0, effectiveCap - effectiveContribution)
+      const capPct = effectiveCap > 0 ? Math.min(100, Math.round((effectiveContribution / effectiveCap) * 100)) : 100
       return {
         ...rep,
+        annualCap: effectiveCap,
+        capContributionYtd: effectiveContribution,
         capRemaining: capRem,
         capPercent: capPct,
         isCapped: capRem === 0,
@@ -460,6 +567,9 @@ export class CommissionService {
     })
 
     const averageCommissionRate = totalVolume > 0 ? Number(((totalGrossCommission / totalVolume) * 100).toFixed(2)) : 3.0
+
+    const t1 = process.hrtime.bigint()
+    console.log(`[COMMISSION-PERF][service:getReport] ${(Number(t1 - t0) / 1e6).toFixed(3)}ms (commissions: ${commissions.length})`)
 
     return {
       period: `${start.toISOString().split('T')[0]} to ${end.toISOString().split('T')[0]}`,
@@ -473,6 +583,129 @@ export class CommissionService {
       agentReports: user.role === 'agent'
         ? agentReports.filter((r) => r.agentId === user.id)
         : agentReports.sort((a, b) => b.totalGrossCommission - a.totalGrossCommission),
+    }
+  }
+
+  async getCapSettings(user: IUser): Promise<BrokerageCapSettingsDto> {
+    const t0 = process.hrtime.bigint()
+    const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
+    const brokerage = await Brokerage.findById(bId)
+      .select('defaultCommissionCap defaultCommissionSplitAgent updatedAt')
+      .lean()
+
+    if (!brokerage) {
+      throw new AppError('Brokerage not found', 404)
+    }
+
+    const t1 = process.hrtime.bigint()
+    console.log(`[COMMISSION-PERF][service:getCapSettings] ${(Number(t1 - t0) / 1e6).toFixed(3)}ms`)
+
+    return {
+      brokerageId: user.brokerageId.toString(),
+      defaultCommissionCap: (brokerage as any).defaultCommissionCap ?? 18000,
+      defaultCommissionSplitAgent: (brokerage as any).defaultCommissionSplitAgent ?? 80,
+      updatedAt: brokerage.updatedAt ? brokerage.updatedAt.toISOString() : undefined,
+    }
+  }
+
+  async updateBrokerageCap(user: IUser, input: UpdateBrokerageCapInput): Promise<BrokerageCapSettingsDto> {
+    if (!['super_admin', 'brokerage_owner'].includes(user.role)) {
+      throw new AppError('Only brokerage owners or super admins can update commission cap rules', 403)
+    }
+
+    const t0 = process.hrtime.bigint()
+    const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
+
+    const updateFields: any = {
+      defaultCommissionCap: input.defaultCommissionCap,
+    }
+    if (input.defaultCommissionSplitAgent !== undefined) {
+      updateFields.defaultCommissionSplitAgent = input.defaultCommissionSplitAgent
+    }
+
+    const updatedBrokerage = await Brokerage.findByIdAndUpdate(bId, { $set: updateFields }, { new: true }).lean()
+
+    if (!updatedBrokerage) {
+      throw new AppError('Brokerage not found', 404)
+    }
+
+    // Also sync Settings.brokerageConfig if present
+    await Settings.updateOne(
+      { brokerageId: bId, scope: 'brokerage' },
+      {
+        $set: {
+          'brokerageConfig.defaultCommissionCap': input.defaultCommissionCap,
+          ...(input.defaultCommissionSplitAgent !== undefined && {
+            'brokerageConfig.defaultCommissionSplitAgent': input.defaultCommissionSplitAgent,
+          }),
+        },
+      }
+    ).catch((err) => logger.warn('[Commission] Non-critical settings sync warning:', err))
+
+    const t1 = process.hrtime.bigint()
+    console.log(`[COMMISSION-PERF][service:updateBrokerageCap] ${(Number(t1 - t0) / 1e6).toFixed(3)}ms`)
+    logger.info(`[Commission] Brokerage ${bId} default cap updated to $${input.defaultCommissionCap}`)
+
+    return {
+      brokerageId: user.brokerageId.toString(),
+      defaultCommissionCap: (updatedBrokerage as any).defaultCommissionCap,
+      defaultCommissionSplitAgent: (updatedBrokerage as any).defaultCommissionSplitAgent ?? 80,
+      updatedAt: updatedBrokerage.updatedAt ? updatedBrokerage.updatedAt.toISOString() : undefined,
+    }
+  }
+
+  async updateAgentCap(user: IUser, agentId: string, input: UpdateAgentCapInput): Promise<{ success: boolean; user: any }> {
+    if (!['super_admin', 'brokerage_owner'].includes(user.role)) {
+      throw new AppError('Only brokerage owners or super admins can update agent commission caps', 403)
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(agentId)) {
+      throw new AppError('Invalid agent ID', 400)
+    }
+
+    const t0 = process.hrtime.bigint()
+    const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
+    const aId = new mongoose.Types.ObjectId(agentId)
+
+    const updateFields: any = {}
+    if (input.commissionCap !== undefined) {
+      updateFields.commissionCap = input.commissionCap
+    }
+    if (input.commissionSplitPercent !== undefined) {
+      updateFields.commissionSplitPercent = input.commissionSplitPercent
+    }
+    if (input.commissionModel !== undefined) {
+      updateFields.commissionModel = input.commissionModel
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: aId, brokerageId: bId },
+      { $set: updateFields },
+      { new: true }
+    )
+      .select('_id firstName lastName email role commissionCap commissionSplitPercent commissionModel')
+      .lean()
+
+    if (!updatedUser) {
+      throw new AppError('Agent not found in brokerage', 404)
+    }
+
+    const t1 = process.hrtime.bigint()
+    console.log(`[COMMISSION-PERF][service:updateAgentCap] ${(Number(t1 - t0) / 1e6).toFixed(3)}ms`)
+    logger.info(`[Commission] Agent ${agentId} cap updated to ${input.commissionCap === null ? 'brokerage default' : `$${input.commissionCap}`}`)
+
+    return {
+      success: true,
+      user: {
+        id: updatedUser._id.toString(),
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        commissionCap: (updatedUser as any).commissionCap,
+        commissionSplitPercent: (updatedUser as any).commissionSplitPercent,
+        commissionModel: (updatedUser as any).commissionModel,
+      },
     }
   }
 }

@@ -22,11 +22,11 @@ let isSchedulerRunning = false
  */
 export const startScheduler = (): void => {
   if (isSchedulerRunning) {
-    logger.warn('Scheduler is already running. Skipping duplicate startup.')
+    logger.warn('[server/src/jobs/scheduler.ts: Line 25] Scheduler is already running. Skipping duplicate startup.')
     return
   }
 
-  logger.info(`Initializing system background jobs...`)
+  logger.info(`[server/src/jobs/scheduler.ts: Line 29] Initializing system background jobs...`)
 
   try {
     // ── 1. Daily Data Health & Deduplication Scan (2:00 AM PKT) ───────────
@@ -34,11 +34,11 @@ export const startScheduler = (): void => {
     const dataHealthTask = cron.schedule(
       '0 2 * * *',
       async () => {
-        logger.info('Triggering scheduled Data Health Scan Job')
+        logger.info('[server/src/jobs/scheduler.ts: Line 37] Triggering scheduled Data Health Scan Job')
         try {
           await runDataHealthScanJob()
         } catch (jobErr: any) {
-          logger.error(`Error running Data Health Scan Job: ${jobErr?.message}`)
+          logger.error(`[server/src/jobs/scheduler.ts: Line 41] Error running Data Health Scan Job: ${jobErr?.message}`)
         }
       },
       {
@@ -59,12 +59,12 @@ export const startScheduler = (): void => {
     const reactivationTask = cron.schedule(
       '0 3 * * *',
       async () => {
-        logger.info('Triggering scheduled Reactivation Campaign Job')
+        logger.info('[server/src/jobs/scheduler.ts: Line 62] Triggering scheduled Reactivation Campaign Job')
         try {
           const result = await runReactivationCampaignJob()
           recordScheduledRun(result)
         } catch (jobErr: any) {
-          logger.error(`Error running Reactivation Campaign Job: ${jobErr?.message}`)
+          logger.error(`[server/src/jobs/scheduler.ts: Line 67] Error running Reactivation Campaign Job: ${jobErr?.message}`)
         }
       },
       {
@@ -85,11 +85,11 @@ export const startScheduler = (): void => {
     const anniversaryTask = cron.schedule(
       '0 4 * * *',
       async () => {
-        logger.info('Triggering scheduled Home Purchase Anniversary Job')
+        logger.info('[server/src/jobs/scheduler.ts: Line 88] Triggering scheduled Home Purchase Anniversary Job')
         try {
           await runHomeAnniversaryJob()
         } catch (jobErr: any) {
-          logger.error(`Error running Home Anniversary Job: ${jobErr?.message}`)
+          logger.error(`[server/src/jobs/scheduler.ts: Line 92] Error running Home Anniversary Job: ${jobErr?.message}`)
         }
       },
       {
@@ -107,10 +107,10 @@ export const startScheduler = (): void => {
 
     isSchedulerRunning = true
     logger.info(
-      `Background scheduler started successfully.`
+      `[server/src/jobs/scheduler.ts: Line 110] Background scheduler started successfully.`
     )
   } catch (error: any) {
-    logger.error(`Failed to initialize cron jobs: ${error?.message}`)
+    logger.error(`[server/src/jobs/scheduler.ts: Line 113] Failed to initialize cron jobs: ${error?.message}`)
   }
 }
 
@@ -122,18 +122,18 @@ export const stopScheduler = async (): Promise<void> => {
     return
   }
 
-  logger.info('Stopping all background jobs...')
+  logger.info('[server/src/jobs/scheduler.ts: Line 125]Stopping all background jobs...')
   for (const job of activeJobs) {
     try {
       await job.task.stop()
     } catch (err: any) {
-      logger.warn(`Error stopping job "${job.name}": ${err?.message}`)
+      logger.warn(`[server/src/jobs/scheduler.ts: Line 130] Error stopping job "${job.name}": ${err?.message}`)
     }
   }
 
   activeJobs.length = 0
   isSchedulerRunning = false
-  logger.info('All background jobs stopped successfully.')
+  logger.info('[server/src/jobs/scheduler.ts: Line 136] All background jobs stopped successfully.')
 }
 
 /**

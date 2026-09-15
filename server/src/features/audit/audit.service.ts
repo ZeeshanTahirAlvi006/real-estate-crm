@@ -33,7 +33,7 @@ export const invalidateAuditCaches = async (brokerageId?: string): Promise<void>
     const pattern = brokerageId ? `pp:${brokerageId}:audit-logs:*` : 'pp:*:audit-logs:*'
     await cacheInvalidatePattern(pattern)
   } catch (err: any) {
-    logger.warn(`[AuditCache] Background L2 invalidation failed: ${err.message}`)
+    logger.error("[server/src/features/audit/audit.service.ts: Line 36] ", err)
   }
 }
 

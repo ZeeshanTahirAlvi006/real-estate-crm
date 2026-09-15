@@ -26,9 +26,9 @@ export class VoiceProvider implements ICommunicationProvider {
     )
 
     if (this.isLive) {
-      logger.info('VoiceProvider initialized in LIVE Twilio Voice mode')
+      logger.info('[server/src/features/communication/providers/voice.provider.ts: Line 29] VoiceProvider initialized in LIVE Twilio Voice mode')
     } else {
-      logger.info('VoiceProvider initialized in Free Developer Voice Simulator (Zero-Card)')
+      logger.info('[server/src/features/communication/providers/voice.provider.ts: Line 31] VoiceProvider initialized in Free Developer Voice Simulator (Zero-Card)')
     }
   }
 
@@ -73,7 +73,7 @@ export class VoiceProvider implements ICommunicationProvider {
 
         if (!res.ok) {
           const errorMsg = data?.message || `Twilio Voice HTTP error ${res.status}`
-          logger.warn(`[VoiceProvider] Twilio API call failed: ${errorMsg}`)
+          logger.warn(`[server/src/features/communication/providers/voice.provider.ts: Line 76] Twilio API call failed: ${errorMsg}`)
           return {
             success: false,
             messageId: `err-${uuidv4()}`,
@@ -93,7 +93,7 @@ export class VoiceProvider implements ICommunicationProvider {
           timestamp,
         }
       } catch (err: any) {
-        logger.error(`[VoiceProvider] Twilio voice call error: ${err?.message}`)
+        logger.error(`[server/src/features/communication/providers/voice.provider.ts: Line 96] Twilio voice call error: ${err?.message}`)
         return {
           success: false,
           messageId: `err-${uuidv4()}`,
@@ -107,7 +107,7 @@ export class VoiceProvider implements ICommunicationProvider {
 
     // 2. Zero-Card Developer Voice Simulator
     const callSid = `CA${uuidv4().replace(/-/g, '').substring(0, 32)}`
-    logger.info(`[Voice Sandbox] Simulated Call initiated to ${formattedTo.substring(0, 5)}*** (CallSID: ${callSid})`)
+    logger.info(`[server/src/features/communication/providers/voice.provider.ts: Line 110] Simulated Call initiated to ${formattedTo.substring(0, 5)}*** (CallSID: ${callSid})`)
 
     return {
       success: true,

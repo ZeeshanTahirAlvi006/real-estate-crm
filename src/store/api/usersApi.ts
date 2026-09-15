@@ -8,6 +8,8 @@ export interface InviteUserPayload {
   role: UserRole
   phone?: string
   brokerageId?: string
+  commissionCap?: number
+  commissionSplitPercent?: number
 }
 
 export interface InviteUserResponse {

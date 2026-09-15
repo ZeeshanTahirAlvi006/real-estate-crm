@@ -10,15 +10,15 @@ const deductionInputSchema = z.object({
 export const calculateCommissionSchema = z.object({
   salePrice: z.number().positive('Sale price must be a positive number'),
   commissionRate: z.number().min(0).max(100).optional().default(3.0),
-  splitModel: z.enum(['fixed', 'tiered', 'capped']).optional().default('fixed'),
-  splitPercentAgent: z.number().min(0).max(100).optional().default(80),
+  splitModel: z.enum(['fixed', 'tiered', 'capped']).optional().default('capped'),
+  splitPercentAgent: z.number().min(0).max(100).optional(),
   franchiseFeePercent: z.number().min(0).max(100).optional().default(6.0),
   tcFee: z.number().min(0).optional().default(395),
   eoInsuranceFee: z.number().min(0).optional().default(150),
   deskFee: z.number().min(0).optional().default(100),
   referralFeePercent: z.number().min(0).max(100).optional().default(0),
   agentId: z.string().optional(),
-  capThreshold: z.number().min(0).optional().default(18000),
+  capThreshold: z.number().min(0).optional(),
   customDeductions: z.array(deductionInputSchema).optional().default([]),
 })
 
@@ -29,14 +29,14 @@ export const createCommissionSchema = z.object({
   agentId: z.string().min(1, 'Agent ID is required'),
   salePrice: z.number().positive('Sale price must be a positive number'),
   commissionRate: z.number().min(0).max(100).optional().default(3.0),
-  splitModel: z.enum(['fixed', 'tiered', 'capped']).optional().default('fixed'),
-  splitPercentAgent: z.number().min(0).max(100).optional().default(80),
+  splitModel: z.enum(['fixed', 'tiered', 'capped']).optional().default('capped'),
+  splitPercentAgent: z.number().min(0).max(100).optional(),
   franchiseFeePercent: z.number().min(0).max(100).optional().default(6.0),
   tcFee: z.number().min(0).optional().default(395),
   eoInsuranceFee: z.number().min(0).optional().default(150),
   deskFee: z.number().min(0).optional().default(100),
   referralFeePercent: z.number().min(0).max(100).optional().default(0),
-  capThreshold: z.number().min(0).optional().default(18000),
+  capThreshold: z.number().min(0).optional(),
   customDeductions: z.array(deductionInputSchema).optional().default([]),
   settlementDate: z.string().optional(),
   notes: z.string().max(1000).optional(),
@@ -46,4 +46,15 @@ export const createCommissionSchema = z.object({
 export const updateCommissionStatusSchema = z.object({
   status: z.enum(['draft', 'pending_approval', 'approved', 'paid']),
   notes: z.string().max(1000).optional(),
+})
+
+export const updateBrokerageCapSchema = z.object({
+  defaultCommissionCap: z.number().min(0, 'Cap threshold must be a non-negative number').max(10000000, 'Cap threshold cannot exceed 10,000,000'),
+  defaultCommissionSplitAgent: z.number().min(0).max(100).optional(),
+})
+
+export const updateAgentCapSchema = z.object({
+  commissionCap: z.number().min(0, 'Cap threshold must be a non-negative number').max(10000000, 'Cap threshold cannot exceed 10,000,000').nullable(),
+  commissionSplitPercent: z.number().min(0).max(100).optional(),
+  commissionModel: z.enum(['fixed', 'tiered', 'capped']).optional(),
 })

@@ -95,5 +95,6 @@ const commissionSchema = new Schema<ICommission>(
 commissionSchema.index({ brokerageId: 1, agentId: 1, createdAt: -1 })
 commissionSchema.index({ brokerageId: 1, status: 1, createdAt: -1 })
 commissionSchema.index({ brokerageId: 1, settlementDate: -1 })
+commissionSchema.index({ brokerageId: 1, agentId: 1, settlementDate: -1, status: 1 })
 
 export const Commission = mongoose.model<ICommission>('Commission', commissionSchema)

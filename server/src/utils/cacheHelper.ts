@@ -45,10 +45,10 @@ export const fetchWithSWR = async <T>(
             return cacheSet(key, JSON.stringify(envelope), staleTtlSeconds)
           })
           .catch((err) => {
-            logger.warn(`[SWR] Background refresh failed for ${key}: ${err.message}`)
+            logger.warn(`[server/src/utils/cacheHelper.ts: Line 48] Background refresh failed for ${key}: ${err.message}`)
           })
           .finally(() => {
-            cacheDelete(lockKey).catch(() => {})
+            cacheDelete(lockKey).catch(() => { })
           })
       }
       return { data, source: 'swr-background' }
@@ -86,7 +86,7 @@ export const safeJsonParse = <T>(raw: string | null): T | null => {
   try {
     return JSON.parse(raw) as T
   } catch (error: any) {
-    logger.warn(`Failed to parse cached JSON payload (${error.message}). Gracefully falling back to DB.`)
+    logger.warn(`[server/src/utils/cacheHelper.ts: Line 89]Failed to parse cached JSON payload (${error.message}). Gracefully falling back to DB.`)
     return null
   }
 }
@@ -106,7 +106,7 @@ export const recordDbMetric = (
   const deltaMs = measureExecutionMs(startTime)
   if (deltaMs > thresholdMs) {
     logger.warn(
-      `[PERF-M-004 WARNING] Hot-path DB operation "${operationName}" exceeded ${thresholdMs}ms budget: ${deltaMs.toFixed(3)}ms`
+      `[server/src/utils/cacheHelper.ts: Line 109] Hot-path DB operation "${operationName}" exceeded ${thresholdMs}ms budget: ${deltaMs.toFixed(3)}ms`
     )
   }
   return deltaMs

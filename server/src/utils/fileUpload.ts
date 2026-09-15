@@ -48,7 +48,7 @@ export class FileStorageService {
           provider: 's3',
         }
       }
-      logger.warn('S3 requested but S3 client unavailable. Falling back to local storage.')
+      logger.warn('[server/src/utils/fileUpload.ts: Line 51] S3 requested but S3 client unavailable. Falling back to local storage.')
     }
 
     // Local Storage Fallback
@@ -94,7 +94,7 @@ export class FileStorageService {
       }
       return true
     } catch (error) {
-      logger.error(`Failed to delete file with key ${storageKey}:`, error)
+      logger.error(`[server/src/utils/fileUpload.ts: Line 97] Failed to delete file with key ${storageKey}:`, error)
       return false
     }
   }

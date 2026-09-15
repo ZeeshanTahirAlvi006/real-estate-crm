@@ -51,10 +51,10 @@ export const callLLM = async (options: CompletionOptions): Promise<string> => {
         const content = data.choices?.[0]?.message?.content
         if (content) return content
       } else {
-        logger.warn(`Mistral returned status ${response.status}. Falling back to alternative provider.`)
+        logger.warn(`[server/src/features/ai-chatbot/ai.client.ts: Line 54] Mistral returned status ${response.status}. Falling back to alternative provider.`)
       }
     } catch (err) {
-      logger.warn('Mistral call error:', err)
+      logger.warn('[server/src/features/ai-chatbot/ai.client.ts: Line 57] Mistral call error:', err)
     }
   }
 
@@ -84,10 +84,10 @@ export const callLLM = async (options: CompletionOptions): Promise<string> => {
         const content = data.choices?.[0]?.message?.content
         if (content) return content
       } else {
-        logger.warn(`OpenRouter returned status ${response.status}. Falling back to alternative provider.`)
+        logger.warn(`[server/src/features/ai-chatbot/ai.client.ts: Line 87] OpenRouter returned status ${response.status}. Falling back to alternative provider.`)
       }
     } catch (err) {
-      logger.warn('OpenRouter call error:', err)
+      logger.warn('[server/src/features/ai-chatbot/ai.client.ts: Line 90] OpenRouter call error:', err)
     }
   }
 
@@ -114,15 +114,15 @@ export const callLLM = async (options: CompletionOptions): Promise<string> => {
         const content = data.choices?.[0]?.message?.content
         if (content) return content
       } else {
-        logger.warn(`OpenAI returned status ${response.status}. Falling back to alternative provider.`)
+        logger.warn(`[server/src/features/ai-chatbot/ai.client.ts: Line 117] OpenAI returned status ${response.status}. Falling back to alternative provider.`)
       }
     } catch (err) {
-      logger.warn('OpenAI call error:', err)
+      logger.warn('[server/src/features/ai-chatbot/ai.client.ts: Line 120] OpenAI call error:', err)
     }
   }
 
   // 4. Local High-Precision NLP Fallback Engine
-  logger.info('Using local intelligent real estate NLP fallback engine')
+  logger.info('[server/src/features/ai-chatbot/ai.client.ts: Line 125] Using local intelligent real estate NLP fallback engine')
   return runLocalRealEstateNLP(fullMessages, jsonMode)
 }
 
@@ -164,7 +164,7 @@ export const streamLLM = async (options: StreamCompletionOptions): Promise<strin
         if (fullContent) return fullContent
       }
     } catch (err) {
-      logger.warn('OpenRouter streaming error, falling back:', err)
+      logger.warn('[server/src/features/ai-chatbot/ai.client.ts: Line 167] OpenRouter streaming error, falling back:', err)
     }
   }
 
@@ -192,7 +192,7 @@ export const streamLLM = async (options: StreamCompletionOptions): Promise<strin
         if (fullContent) return fullContent
       }
     } catch (err) {
-      logger.warn('Mistral streaming error, falling back:', err)
+      logger.warn('[server/src/features/ai-chatbot/ai.client.ts: Line 195] Mistral streaming error, falling back:', err)
     }
   }
 
@@ -220,7 +220,7 @@ export const streamLLM = async (options: StreamCompletionOptions): Promise<strin
         if (fullContent) return fullContent
       }
     } catch (err) {
-      logger.warn('OpenAI streaming error, falling back:', err)
+      logger.warn('[server/src/features/ai-chatbot/ai.client.ts: Line 223] OpenAI streaming error, falling back:', err)
     }
   }
 

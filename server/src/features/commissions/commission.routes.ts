@@ -6,12 +6,19 @@ import {
   calculateCommissionSchema,
   createCommissionSchema,
   updateCommissionStatusSchema,
+  updateBrokerageCapSchema,
+  updateAgentCapSchema,
 } from './commission.validators.js'
 
 const router = Router()
 
 // All commission endpoints require authentication
 router.use(authenticate)
+
+// Brokerage & Agent Cap Configuration
+router.get('/settings/cap', commissionController.getCapSettings)
+router.patch('/settings/cap', validate(updateBrokerageCapSchema), commissionController.updateBrokerageCap)
+router.patch('/agents/:agentId/cap', validate(updateAgentCapSchema), commissionController.updateAgentCap)
 
 // Calculation & Aggregations
 router.post('/calculate', validate(calculateCommissionSchema), commissionController.calculate)

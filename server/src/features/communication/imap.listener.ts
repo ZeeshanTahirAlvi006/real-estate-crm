@@ -6,7 +6,7 @@ import { Message } from '../../models/Message.js'
 import { Activity } from '../../models/Activity.js'
 import { getSocketServer } from '../../config/socket.js'
 import { commService } from './comm.service.js'
-import { handleInboundLeadChat } from '../ai-isa/aiIsa.service.js'
+import { handleInboundLeadChat } from '../ai-isa/services/aiIsa.service.js'
 import { logger } from '../../utils/logger.js'
 
 export class ImapListenerService {
@@ -79,7 +79,7 @@ export class ImapListenerService {
       if (this.pollTimer) clearInterval(this.pollTimer)
       this.pollTimer = setInterval(() => {
         if (this.isRunning) {
-          this.processNewIncomingEmails().catch(() => {})
+          this.processNewIncomingEmails().catch(() => { })
         }
       }, 10000)
     } catch (err: any) {

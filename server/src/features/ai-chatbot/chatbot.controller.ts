@@ -9,13 +9,14 @@ import {
 import { scanFairHousingCompliance } from '../compliance/nlp/fairHousing.js'
 import { dncComplianceService } from '../compliance/dnc.service.js'
 import { sendSuccess } from '../../utils/apiResponse.js'
+import { logger } from '../../utils/logger.js'
 
 // Helper for telemetry and cmd timer logging
 const recordChatbotTelemetry = (res: Response, startTime: bigint, handlerName: string) => {
   const deltaMs = Number(process.hrtime.bigint() - startTime) / 1e6
   res.setHeader('X-Response-Time', `${deltaMs.toFixed(3)}ms`)
   setImmediate(() => {
-    console.log(`[Chatbot Controller Timer] ${handlerName} executed in ${deltaMs.toFixed(3)}ms`)
+    logger.info(`[server/src/features/ai-chatbot/chatbot.controller.ts: Line 19] [Chatbot Controller Timer] ${handlerName} executed in ${deltaMs.toFixed(3)}ms`)
   })
 }
 

@@ -39,7 +39,7 @@ export class CircuitBreaker {
       const now = Date.now()
       if (now - this.lastFailureTime >= this.cooldownMs) {
         this.state = 'HALF_OPEN'
-        logger.info(`Circuit breaker [${this.name}] entered HALF_OPEN`)
+        logger.info(`[server/src/utils/circuitBreaker.ts: Line 42] Circuit breaker [${this.name}] entered HALF_OPEN`)
       }
     }
   }
@@ -48,7 +48,7 @@ export class CircuitBreaker {
     if (this.state === 'HALF_OPEN') {
       this.state = 'CLOSED'
       this.failureCount = 0
-      logger.info(`Circuit breaker [${this.name}] recovered! State reset to CLOSED.`)
+      logger.info(`[server/src/utils/circuitBreaker.ts: Line 51] Circuit breaker [${this.name}] recovered! State reset to CLOSED.`)
     } else if (this.state === 'CLOSED') {
       this.failureCount = 0
     }
@@ -59,13 +59,13 @@ export class CircuitBreaker {
     this.failureCount += 1
 
     logger.warn(
-      `Circuit breaker [${this.name}] recorded failure #${this.failureCount} (${err?.message || 'Vendor error'})`
+      `[server/src/utils/circuitBreaker.ts: Line 62] Circuit breaker [${this.name}] recorded failure #${this.failureCount} (${err?.message || 'Vendor error'})`
     )
 
     if (this.state === 'HALF_OPEN' || this.failureCount >= this.failureThreshold) {
       this.state = 'OPEN'
       logger.error(
-        `Circuit breaker [${this.name}] TRIPPED to OPEN! Fast-failing calls for ${Math.round(this.cooldownMs / 1000)}s.`
+        `[server/src/utils/circuitBreaker.ts: Line 68] Circuit breaker [${this.name}] TRIPPED to OPEN! Fast-failing calls for ${Math.round(this.cooldownMs / 1000)}s.`
       )
     }
   }
@@ -74,7 +74,7 @@ export class CircuitBreaker {
     this.state = 'CLOSED'
     this.failureCount = 0
     this.lastFailureTime = 0
-    logger.info(`Circuit breaker [${this.name}] manually reset to CLOSED.`)
+    logger.info(`[server/src/utils/circuitBreaker.ts: Line 77] Circuit breaker [${this.name}] manually reset to CLOSED.`)
   }
 
   /**

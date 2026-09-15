@@ -31,7 +31,7 @@ export const runDataHealthScanJob = async (): Promise<JobExecutionResult> => {
 
   // 1. Concurrency Guard (Local Process + Distributed Redis Lock)
   if (isLocalRunning) {
-    logger.warn('DataHealthJob Execution skipped: Local job already in progress.')
+    logger.warn('[server/src/jobs/dataHealthScan.job.ts: Line 34] DataHealthJob Execution skipped: Local job already in progress.')
     return {
       success: false,
       brokeragesProcessed: 0,
@@ -45,7 +45,7 @@ export const runDataHealthScanJob = async (): Promise<JobExecutionResult> => {
 
   const existingLock = await cacheGet(JOB_LOCK_KEY)
   if (existingLock) {
-    logger.warn('DataHealthJob Execution skipped: Distributed lock is active.')
+    logger.warn('[server/src/jobs/dataHealthScan.job.ts: Line 48] DataHealthJob Execution skipped: Distributed lock is active.')
     return {
       success: false,
       brokeragesProcessed: 0,
@@ -66,7 +66,7 @@ export const runDataHealthScanJob = async (): Promise<JobExecutionResult> => {
   let totalIssuesFound = 0
 
   try {
-    logger.info('Starting scheduled multi-tenant data health scan...')
+    logger.info('[server/src/jobs/dataHealthScan.job.ts: Line 69] Starting scheduled multi-tenant data health scan...')
 
     // 2. Fetch all active brokerages (lean query for minimal memory footprint)
     const activeBrokerages = await Brokerage.find({ isActive: true })
@@ -74,7 +74,7 @@ export const runDataHealthScanJob = async (): Promise<JobExecutionResult> => {
       .lean()
 
     if (!activeBrokerages.length) {
-      logger.info('No active brokerages found to scan.')
+      logger.info('[server/src/jobs/dataHealthScan.job.ts: Line 77] No active brokerages found to scan.')
       return {
         success: true,
         brokeragesProcessed: 0,
@@ -114,19 +114,19 @@ export const runDataHealthScanJob = async (): Promise<JobExecutionResult> => {
 
         // Production-safe log (no customer PII)
         logger.info(
-          `Brokerage scan complete.Duration=${brokerageDuration}ms`
+          `[server/src/jobs/dataHealthScan.job.ts: Line 117] Brokerage scan complete.Duration=${brokerageDuration}ms`
         )
       } catch (err: any) {
         // Error isolation: single brokerage failure does not stop the loop
         logger.error(
-          `Error scanning brokerage: ${err?.message || 'Unknown error'}`
+          `[server/src/jobs/dataHealthScan.job.ts: Line 122] Error scanning brokerage: ${err?.message || 'Unknown error'}`
         )
       }
     }
 
     const totalDuration = Date.now() - startTime
     logger.info(
-      `Finished data health scan. TotalDuration=${totalDuration}ms`
+      `[server/src/jobs/dataHealthScan.job.ts: Line 129] Finished data health scan. TotalDuration=${totalDuration}ms`
     )
 
     // 4. Record system audit event
@@ -151,7 +151,7 @@ export const runDataHealthScanJob = async (): Promise<JobExecutionResult> => {
     }
   } catch (globalError: any) {
     const totalDuration = Date.now() - startTime
-    logger.error(`Error during scan execution: ${globalError?.message}`)
+    logger.error(`[server/src/jobs/dataHealthScan.job.ts: Line 154]Error during scan execution: ${globalError?.message}`)
 
     await logAuditEvent({
       action: 'job.data_health_scan.failed',

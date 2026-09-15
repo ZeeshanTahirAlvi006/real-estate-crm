@@ -177,8 +177,11 @@ export class CommunicationService {
             senderType: 'agent',
             channel,
           },
+        }).catch((e: any) => {
+          logger.error(`[server/src/features/communication/comm.service.ts: Line 180] Conversation.create Error] ${e.message}`)
+          return null
         })
-        conversationId = newConvo._id.toString()
+        conversationId = newConvo?._id?.toString()
       }
     }
 
@@ -227,7 +230,10 @@ export class CommunicationService {
           previewUrl: result.previewUrl,
         },
         performedBy: userId,
+      }).catch((e: any) => {
+        logger.error(`[server/src/features/communication/comm.service.ts: Line 231] Activity.create Error] ${e.message}`)
       })
+
     }
 
     // 4. Broadcast live Socket.io event to brokerage room
@@ -239,11 +245,12 @@ export class CommunicationService {
           message: messageDoc.toObject(),
         })
       }
-    } catch {
+    } catch (e: any) {
+      logger.error(`[server/src/features/communication/comm.service.ts: Line 246] io.to.emit Error] ${e.message}`)
       // Non-blocking socket broadcast
     }
 
-    logger.info(`[CommunicationService] Dispatched ${channel.toUpperCase()} to ${recipient.substring(0, 4)}*** (ID: ${result.messageId})`)
+    logger.info(`[server/src/features/communication/comm.service.ts: Line 250] Dispatched ${channel.toUpperCase()} to ${recipient.substring(0, 4)}*** (ID: ${result.messageId})`)
 
     return {
       success: true,
@@ -281,7 +288,7 @@ export class CommunicationService {
         },
       })
 
-      logger.info(`[OptOutEngine] Contact (${senderPhoneOrEmail.substring(0, 4)}***) opted out via keyword "${cleanText}"`)
+      logger.info(`[server/src/features/communication/comm.service.ts: Line 261] [OptOutEngine] Contact (${senderPhoneOrEmail.substring(0, 4)}***) opted out via keyword "${cleanText}"`)
     } else if (isReConsent) {
       const filter: Record<string, any> = {
         $or: [{ phone: senderPhoneOrEmail }, { email: senderPhoneOrEmail.toLowerCase() }],
@@ -293,17 +300,18 @@ export class CommunicationService {
           dncStatus: 'clean',
           optedOutAt: null,
         },
+      }).catch((e: any) => {
+        logger.error(`[server/src/features/communication/comm.service.ts: Line 301] [OptOutEngine] Contact re-consented via keyword "${cleanText}" Error] ${e.message}`)
       })
 
-      logger.info(`[OptOutEngine] Contact (${senderPhoneOrEmail.substring(0, 4)}***) re-consented via keyword "${cleanText}"`)
+      logger.info(`[server/src/features/communication/comm.service.ts: Line 304] [OptOutEngine] Contact re-consented via keyword "${cleanText}"`)
     }
 
     return { isOptOut, isReConsent }
   }
 
-  /**
-   * Manual Opt-Out endpoint
-   */
+  //Manual Opt-Out endpoint
+
   public async optOut(input: OptOutInput, brokerageId: string, performedBy?: string): Promise<{ success: boolean; message: string }> {
     const query: Record<string, any> = { brokerageId }
     if (input.contactId) {
@@ -337,9 +345,7 @@ export class CommunicationService {
     }
   }
 
-  /**
-   * Manual Opt-Back-In (Re-consent) endpoint
-   */
+  // Manual Opt-Back-In (Re-consent) endpoint
   public async optBackIn(input: OptBackInInput, brokerageId: string, performedBy?: string): Promise<{ success: boolean; message: string }> {
     const query: Record<string, any> = { brokerageId }
     if (input.contactId) {
@@ -373,9 +379,8 @@ export class CommunicationService {
     }
   }
 
-  /**
-   * Retrieve communication quick reply templates
-   */
+  //Retrieve communication quick reply templates
+
   public getQuickTemplates(channel?: string): QuickTemplateDto[] {
     if (!channel || channel === 'all') return QUICK_TEMPLATES
     return QUICK_TEMPLATES.filter((t) => t.channel === 'all' || t.channel === channel)

@@ -276,7 +276,7 @@ describe('Commission Cap & Cascading Rules Unit Tests', () => {
       assert.equal(negativeCap.success, false)
 
       const excessiveCap = updateBrokerageCapSchema.safeParse({
-        defaultCommissionCap: 20000000, // max is 10,000,000
+        defaultCommissionCap: 20000000000, // max is 10,000,000,000
       })
       assert.equal(excessiveCap.success, false)
 

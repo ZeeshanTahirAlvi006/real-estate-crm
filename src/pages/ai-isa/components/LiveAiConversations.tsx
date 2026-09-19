@@ -47,7 +47,7 @@ export const LiveAiConversations: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Live AI Active Conversations Split View */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[520px]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-130">
         {/* Left Column: Active AI Lead Queue (5 cols on lg) */}
         <div className="lg:col-span-5 bg-white dark:bg-[#254238] border border-[#D8E2D6] dark:border-[#618764] rounded-2xl p-4 sm:p-5 shadow-xs space-y-4 flex flex-col">
           <div className="flex items-center justify-between pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/40">
@@ -81,7 +81,7 @@ export const LiveAiConversations: React.FC = () => {
               <p className="text-[11px]">Incoming WhatsApp and email leads will appear here</p>
             </div>
           ) : (
-            <div className="space-y-2 overflow-y-auto max-h-[500px] pr-1">
+            <div className="space-y-2 overflow-y-auto max-h-125 pr-1">
               {aiConversations.map((c) => {
                 const isSelected = c.id === activeConvId
                 const isWhatsApp = c.lastChannel === 'whatsapp'
@@ -96,11 +96,10 @@ export const LiveAiConversations: React.FC = () => {
                   <div
                     key={c.id}
                     onClick={() => setSelectedConversationId(c.id)}
-                    className={`p-3.5 rounded-xl border cursor-pointer transition-all text-xs space-y-1.5 ${
-                      isSelected
+                    className={`p-3.5 rounded-xl border cursor-pointer transition-all text-xs space-y-1.5 ${isSelected
                         ? 'bg-[#EDF2EB] dark:bg-[#1A2E26] border-[#9CB080] shadow-xs'
                         : 'bg-white dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764]/50 hover:bg-[#F5F7F4] dark:hover:bg-[#1E282D]'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -108,11 +107,10 @@ export const LiveAiConversations: React.FC = () => {
                           {c.contactName || c.contactPhone || 'Lead'}
                         </span>
                         <span
-                          className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                            previewChannel === 'whatsapp' || isWhatsApp
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${previewChannel === 'whatsapp' || isWhatsApp
                               ? 'bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/40'
                               : 'bg-[#EDF2EB] dark:bg-[#2B5748] text-[#4A5D54] dark:text-[#E2ECE4] border border-[#D8E2D6] dark:border-[#618764]'
-                          }`}
+                            }`}
                         >
                           {previewChannel}
                         </span>
@@ -187,7 +185,7 @@ export const LiveAiConversations: React.FC = () => {
               </div>
 
               {/* Message Bubbles Container */}
-              <div className="space-y-3 overflow-y-auto max-h-[500px] p-2 pr-3 flex-1">
+              <div className="space-y-3 overflow-y-auto max-h-125 p-2 pr-3 flex-1">
                 {loadingMessages ? (
                   <div className="text-center text-xs text-[#75887E] dark:text-[#A0B2A6] py-8">Loading messages...</div>
                 ) : messages.length === 0 ? (
@@ -207,11 +205,10 @@ export const LiveAiConversations: React.FC = () => {
                             {isLead ? `${activeConversation.contactName || 'Lead'}` : 'AI ISA'}
                           </span>
                           <div
-                            className={`max-w-[85%] rounded-xl p-3 text-xs shadow-xs ${
-                              isLead
+                            className={`max-w-[85%] rounded-xl p-3 text-xs shadow-xs ${isLead
                                 ? 'bg-[#EDF2EB] dark:bg-[#202B2F] text-[#273338] dark:text-white border border-[#D8E2D6] dark:border-[#618764]/60 rounded-tl-xs'
                                 : 'bg-[#2B5748] text-white border border-[#618764] rounded-tr-xs'
-                            }`}
+                              }`}
                           >
                             <p className="leading-relaxed whitespace-pre-wrap">{m.body}</p>
                             <span className="text-[9px] block text-right mt-1 opacity-75 font-mono">

@@ -92,7 +92,7 @@ describe('Sprint 24 — CMA AI Storytelling & Equity Narrative Engine Unit Tests
     })
 
     assert.ok(story.headline.includes('Buyer Advisory') || story.headline.includes('Fair Market'))
-    assert.ok(story.executiveSummary.includes('$720,000') && story.executiveSummary.includes('$780,000'))
+    assert.ok(story.executiveSummary.includes('PKR 720,000') && story.executiveSummary.includes('PKR 780,000'))
     assert.ok(story.compsAnalysis.includes('748 Evergreen Terrace'))
     assert.ok(story.recommendedStrategy.includes('appraisal shortfalls') || story.recommendedStrategy.includes('proposals'))
   })

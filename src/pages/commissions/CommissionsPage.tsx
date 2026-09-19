@@ -175,14 +175,15 @@ export function CommissionsPage() {
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-PK', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'PKR',
       maximumFractionDigits: 0,
     }).format(amount)
   }
 
   const [leaderboardView, setLeaderboardView] = useState<TableGridViewMode>('table')
+  const [ledgerView, setLedgerView] = useState<TableGridViewMode>('table')
 
   const leaderboardColumns: TableColumn<AgentCommissionReport>[] = [
     {
@@ -407,6 +408,151 @@ export function CommissionsPage() {
     </Card>
   )
 
+
+  const ledgerColumns: TableColumn<any>[] = [
+    {
+      header: 'Agent',
+      accessorKey: 'agentName',
+      cell: (c) => <span className="font-sans font-semibold text-[#273338] dark:text-white">{c.agentName}</span>
+    },
+    {
+      header: 'Price',
+      accessorKey: 'salePrice',
+      cell: (c) => <span className="text-[#75887E] dark:text-[#A0B2A6] font-sans">{formatCurrency(c.salePrice)}</span>
+    },
+    {
+      header: 'GCI',
+      accessorKey: 'grossCommission',
+      cell: (c) => <span className="font-bold text-[#273338] dark:text-white">{formatCurrency(c.grossCommission)} ({c.commissionRate}%)</span>
+    },
+    {
+      header: 'Split',
+      accessorKey: 'splitPercentAgent',
+      cell: (c) => (
+        <span className="text-[11px] font-semibold capitalize text-[#4A5D54] dark:text-[#A0B2A6]">
+          {c.splitModel} ({c.splitPercentAgent}%)
+        </span>
+      )
+    },
+    {
+      header: 'Net',
+      accessorKey: 'agentNetPayout',
+      cell: (c) => <span className="font-bold text-[#2B5748] dark:text-[#9CB080]">{formatCurrency(c.agentNetPayout)}</span>
+    },
+    {
+      header: 'Retained',
+      accessorKey: 'brokerageNetProfit',
+      cell: (c) => <span className="font-semibold text-[#618764] dark:text-[#9CB080]">{formatCurrency(c.brokerageNetProfit)}</span>
+    },
+    {
+      header: 'Status',
+      accessorKey: 'status',
+      cell: (c) => (
+        c.status === 'paid' ? (
+          <Badge className="bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/30 text-[10px] font-bold">
+            Paid
+          </Badge>
+        ) : c.status === 'approved' ? (
+          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+            Approved
+          </Badge>
+        ) : (
+          <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[10px] font-bold">
+            Pending
+          </Badge>
+        )
+      )
+    },
+    {
+      header: 'Action',
+      accessorKey: 'id',
+      className: 'text-right',
+      cell: (c) => (
+        <div className="flex items-center justify-end font-sans">
+          {isBrokerOrLead && c.status === 'pending_approval' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs font-bold gap-1 bg-[#9CB080]/15 hover:bg-[#9CB080] text-[#2B5748] dark:text-[#9CB080] hover:text-[#273338] border-[#9CB080]/40 transition-colors"
+              disabled={isUpdatingStatus}
+              onClick={() => handleStatusChange(c.id, 'approved')}
+            >
+              <MaterialIcon name="check" size={13} />
+              <span>Approve</span>
+            </Button>
+          )}
+          {isBrokerOrLead && c.status === 'approved' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs font-bold gap-1 bg-emerald-500/15 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-300 hover:text-white border-emerald-500/30 transition-colors"
+              disabled={isUpdatingStatus}
+              onClick={() => handleStatusChange(c.id, 'paid')}
+            >
+              <MaterialIcon name="paid" size={13} />
+              <span>Pay</span>
+            </Button>
+          )}
+        </div>
+      )
+    }
+  ]
+
+  const renderLedgerCard = (c: any) => (
+    <Card key={c.id} className="p-4 sm:p-5 flex flex-col gap-4 border border-[#D8E2D6]/60 dark:border-[#618764]/30 shadow-none bg-white dark:bg-[#273338]">
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col">
+          <span className="font-bold text-[#273338] dark:text-white">{c.agentName}</span>
+          <span className="text-xs text-[#75887E] dark:text-[#A0B2A6]">{formatCurrency(c.salePrice)} Sale</span>
+        </div>
+        {c.status === 'paid' ? (
+          <Badge className="bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/30 text-[10px] font-bold">Paid</Badge>
+        ) : c.status === 'approved' ? (
+          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">Approved</Badge>
+        ) : (
+          <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[10px] font-bold">Pending</Badge>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <div className="bg-[#EDF2EB]/30 dark:bg-[#202B2F]/40 p-2 rounded-lg flex flex-col items-center">
+          <span className="text-[10px] uppercase font-semibold text-[#75887E] dark:text-[#A0B2A6]">Net</span>
+          <span className="font-bold font-mono text-[#2B5748] dark:text-[#9CB080]">{formatCurrency(c.agentNetPayout)}</span>
+        </div>
+        <div className="bg-[#EDF2EB]/30 dark:bg-[#202B2F]/40 p-2 rounded-lg flex flex-col items-center">
+          <span className="text-[10px] uppercase font-semibold text-[#75887E] dark:text-[#A0B2A6]">Retained</span>
+          <span className="font-bold font-mono text-[#618764] dark:text-[#9CB080]">{formatCurrency(c.brokerageNetProfit)}</span>
+        </div>
+      </div>
+      {isBrokerOrLead && (c.status === 'pending_approval' || c.status === 'approved') && (
+        <div className="pt-2 border-t border-[#D8E2D6]/60 dark:border-[#618764]/30 flex justify-end">
+          {c.status === 'pending_approval' ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs font-bold gap-1 bg-[#9CB080]/15 hover:bg-[#9CB080] text-[#2B5748] dark:text-[#9CB080]"
+              disabled={isUpdatingStatus}
+              onClick={() => handleStatusChange(c.id, 'approved')}
+            >
+              <MaterialIcon name="check" size={13} />
+              Approve
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs font-bold gap-1 bg-emerald-500/15 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-300"
+              disabled={isUpdatingStatus}
+              onClick={() => handleStatusChange(c.id, 'paid')}
+            >
+              <MaterialIcon name="paid" size={13} />
+              Pay
+            </Button>
+          )}
+        </div>
+      )}
+    </Card>
+  )
+
   return (
     <div className="-m-4 sm:-m-6 min-h-[calc(100vh-4rem)] p-4 sm:p-6 pb-20 md:pb-8 bg-[#F5F7F4] dark:bg-[#273338] space-y-6 transition-colors duration-200">
       {/* ═══════ Top Header: Clean, Simple One-Word Title ═══════ */}
@@ -528,11 +674,16 @@ export function CommissionsPage() {
         {/* ─── Tab 2: Ledger ─── */}
         <TabsContent value="ledger" className="focus-visible:outline-none">
           <Card className="rounded-xl border border-[#D8E2D6] dark:border-[#618764] bg-white dark:bg-[#2B5748] shadow-xs overflow-hidden">
-            <CardHeader className="p-4 sm:p-5 pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/40 bg-[#EDF2EB]/40 dark:bg-[#202B2F]/40">
+            <CardHeader className="p-4 sm:p-5 pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/40 bg-[#EDF2EB]/40 dark:bg-[#202B2F]/40 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-[#273338] dark:text-white flex items-center gap-2">
                 <MaterialIcon name="table_chart" size={18} className="text-[#618764] dark:text-[#9CB080]" />
                 <span>Ledger</span>
               </CardTitle>
+              <TableGridToggleButton
+                view={ledgerView}
+                onViewChange={setLedgerView}
+                storageKey="crm_commissions_ledger_view"
+              />
             </CardHeader>
             <CardContent className="p-0">
               {commissionsLoading ? (
@@ -544,92 +695,17 @@ export function CommissionsPage() {
                   No settlements recorded.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-[#EDF2EB]/60 dark:bg-[#202B2F]/60 border-b border-[#D8E2D6] dark:border-[#618764]/40 text-[#4A5D54] dark:text-[#A0B2A6] uppercase text-[10px] font-bold">
-                      <tr>
-                        <th className="py-3 px-4">Agent</th>
-                        <th className="py-3 px-4">Price</th>
-                        <th className="py-3 px-4">GCI</th>
-                        <th className="py-3 px-4">Split</th>
-                        <th className="py-3 px-4">Net</th>
-                        <th className="py-3 px-4">Retained</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#D8E2D6]/60 dark:divide-[#618764]/40 font-mono">
-                      {commissionsData.commissions.map((c) => (
-                        <tr
-                          key={c.id}
-                          className="hover:bg-[#EDF2EB]/30 dark:hover:bg-[#202B2F]/30 transition-colors"
-                        >
-                          <td className="py-3 px-4 font-sans font-semibold text-[#273338] dark:text-white">
-                            {c.agentName}
-                          </td>
-                          <td className="py-3 px-4 text-[#75887E] dark:text-[#A0B2A6] font-sans">
-                            {formatCurrency(c.salePrice)}
-                          </td>
-                          <td className="py-3 px-4 font-bold text-[#273338] dark:text-white">
-                            {formatCurrency(c.grossCommission)} ({c.commissionRate}%)
-                          </td>
-                          <td className="py-3 px-4 font-sans">
-                            <span className="text-[11px] font-semibold capitalize text-[#4A5D54] dark:text-[#A0B2A6]">
-                              {c.splitModel} ({c.splitPercentAgent}%)
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 font-bold text-[#2B5748] dark:text-[#9CB080]">
-                            {formatCurrency(c.agentNetPayout)}
-                          </td>
-                          <td className="py-3 px-4 font-semibold text-[#618764] dark:text-[#9CB080]">
-                            {formatCurrency(c.brokerageNetProfit)}
-                          </td>
-                          <td className="py-3 px-4 font-sans">
-                            {c.status === 'paid' ? (
-                              <Badge className="bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/30 text-[10px] font-bold">
-                                Paid
-                              </Badge>
-                            ) : c.status === 'approved' ? (
-                              <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
-                                Approved
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[10px] font-bold">
-                                Pending
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-right font-sans">
-                            {isBrokerOrLead && c.status === 'pending_approval' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs font-bold gap-1 bg-[#9CB080]/15 hover:bg-[#9CB080] text-[#2B5748] dark:text-[#9CB080] hover:text-[#273338] border-[#9CB080]/40 transition-colors"
-                                disabled={isUpdatingStatus}
-                                onClick={() => handleStatusChange(c.id, 'approved')}
-                              >
-                                <MaterialIcon name="check" size={13} />
-                                <span>Approve</span>
-                              </Button>
-                            )}
-                            {isBrokerOrLead && c.status === 'approved' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs font-bold gap-1 bg-emerald-500/15 hover:bg-emerald-600 text-emerald-700 dark:text-emerald-300 hover:text-white border-emerald-500/30 transition-colors"
-                                disabled={isUpdatingStatus}
-                                onClick={() => handleStatusChange(c.id, 'paid')}
-                              >
-                                <MaterialIcon name="payments" size={13} />
-                                <span>Pay</span>
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <TableGridToggle<any>
+                  data={commissionsData.commissions}
+                  keyExtractor={(c) => c.id}
+                  columns={ledgerColumns}
+                  renderCard={renderLedgerCard}
+                  view={ledgerView}
+                  onViewChange={setLedgerView}
+                  storageKey="crm_commissions_ledger_view"
+                  hideToggle={true}
+                  emptyTitle="No settlements recorded."
+                />
               )}
             </CardContent>
           </Card>
@@ -678,7 +754,7 @@ export function CommissionsPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5 sm:col-span-2">
                 <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">
-                  Price ($)
+                  Price (PKR)
                 </Label>
                 <Input
                   type="number"
@@ -689,7 +765,7 @@ export function CommissionsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">Annual Cap ($)</Label>
+                <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">Annual Cap (PKR)</Label>
                 <Input
                   type="number"
                   value={capThreshold}
@@ -747,7 +823,7 @@ export function CommissionsPage() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">
-                  TC Fee ($)
+                  TC Fee (PKR)
                 </Label>
                 <Input
                   type="number"
@@ -759,7 +835,7 @@ export function CommissionsPage() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">
-                  E&O ($)
+                  E&O (PKR)
                 </Label>
                 <Input
                   type="number"
@@ -771,7 +847,7 @@ export function CommissionsPage() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">
-                  Desk Fee ($)
+                  Desk Fee (PKR)
                 </Label>
                 <Input
                   type="number"
@@ -879,7 +955,7 @@ export function CommissionsPage() {
           <div className="space-y-4 pt-2 text-xs">
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">
-                Default Annual Cap ($)
+                Default Annual Cap (PKR)
               </Label>
               <Input
                 type="number"
@@ -957,7 +1033,7 @@ export function CommissionsPage() {
             <div className="space-y-4 pt-2 text-xs">
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4]">
-                  Annual Cap Amount ($)
+                  Annual Cap Amount (PKR)
                 </Label>
                 <Input
                   type="number"

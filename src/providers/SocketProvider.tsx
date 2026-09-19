@@ -101,6 +101,18 @@ export function SocketProvider({ children }: SocketProviderProps) {
       dispatch(baseApi.util.invalidateTags(['Conversations', 'Messages']))
     })
 
+    // 2.1. Real-time Feature Flags Synchronizer
+    socket.on('feature_flags:updated', (data: any) => {
+      dispatch(baseApi.util.invalidateTags(['FeatureFlags']))
+      if (data?.flag?.name) {
+        if (data.flag.isEnabled) {
+          toast.success(`Subsystem [${data.flag.name}] is now online`)
+        } else {
+          toast.warning(`Subsystem [${data.flag.name}] paused for maintenance`)
+        }
+      }
+    })
+
     // 3. Real-time Push Notification (Central Toast Broadcaster with Deduplication)
     socket.on('notification:new', (notification) => {
       if (!notification) return

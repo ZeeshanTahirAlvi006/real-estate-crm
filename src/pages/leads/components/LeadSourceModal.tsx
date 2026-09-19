@@ -32,16 +32,26 @@ interface LeadSourceModalProps {
   onCreated?: (source: LeadSource) => void
 }
 
-const SOURCE_OPTIONS: { type: LeadSourceType; label: string; icon: string; desc: string }[] = [
-  { type: 'zameen', label: 'Zameen.com', icon: 'domain', desc: 'Pakistan #1 portal inquiries' },
-  { type: 'graana', label: 'Graana.com', icon: 'apartment', desc: 'Smart real estate portal leads' },
-  { type: 'olx', label: 'OLX Pakistan', icon: 'storefront', desc: 'Classifieds & buyer chat inquiries' },
-  { type: 'meta_ads', label: 'Meta Ads', icon: 'campaign', desc: 'Facebook & Instagram Instant forms' },
-  { type: 'google_ads', label: 'Google Ads', icon: 'ads_click', desc: 'Lead form extensions & Search ads' },
-  { type: 'whatsapp', label: 'WhatsApp', icon: 'chat', desc: 'Click-to-chat & messaging leads' },
-  { type: 'website', label: 'Website Widget', icon: 'language', desc: 'Embeddable capture form' },
-  { type: 'webhook', label: 'Universal Webhook', icon: 'webhook', desc: 'Generic JSON receiver' },
-  { type: 'manual', label: 'Manual Intake', icon: 'edit_note', desc: 'Direct agent phone or walk-in' },
+export interface SourceOption {
+  type: LeadSourceType
+  label: string
+  icon: string
+  desc: string
+  isAvailable: boolean
+}
+
+export const ACTIVE_SOURCE_TYPES: LeadSourceType[] = ['google_ads', 'whatsapp', 'website']
+
+export const SOURCE_OPTIONS: SourceOption[] = [
+  { type: 'zameen', label: 'Zameen.com', icon: 'domain', desc: 'Pakistan #1 portal inquiries', isAvailable: false },
+  { type: 'graana', label: 'Graana.com', icon: 'apartment', desc: 'Smart real estate portal leads', isAvailable: false },
+  { type: 'olx', label: 'OLX Pakistan', icon: 'storefront', desc: 'Classifieds & buyer chat inquiries', isAvailable: false },
+  { type: 'meta_ads', label: 'Meta Ads', icon: 'campaign', desc: 'Facebook & Instagram Instant forms', isAvailable: false },
+  { type: 'google_ads', label: 'Google Ads', icon: 'ads_click', desc: 'Lead form extensions & Search ads', isAvailable: true },
+  { type: 'whatsapp', label: 'WhatsApp', icon: 'chat', desc: 'Click-to-chat & messaging leads', isAvailable: true },
+  { type: 'website', label: 'Website Widget', icon: 'language', desc: 'Embeddable capture form', isAvailable: true },
+  { type: 'webhook', label: 'Universal Webhook', icon: 'webhook', desc: 'Generic JSON receiver', isAvailable: false },
+  { type: 'manual', label: 'Manual Intake', icon: 'edit_note', desc: 'Direct agent phone or walk-in', isAvailable: false },
 ]
 
 export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
@@ -54,8 +64,10 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
   const [updateSource, { isLoading: isUpdating }] = useUpdateLeadSourceMutation()
 
   const [name, setName] = useState('')
-  const [type, setType] = useState<LeadSourceType>('zameen')
+  const [type, setType] = useState<LeadSourceType>('google_ads')
   const [isActive, setIsActive] = useState(true)
+  const [allowedDomains, setAllowedDomains] = useState<string[]>([])
+  const [newDomain, setNewDomain] = useState('')
   const [fieldMappings, setFieldMappings] = useState<{ sourceKey: string; targetKey: string }[]>([])
 
   useEffect(() => {
@@ -63,6 +75,8 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
       setName(leadSource.name)
       setType(leadSource.type)
       setIsActive(leadSource.isActive)
+      setAllowedDomains(leadSource.allowedDomains || [])
+      setNewDomain('')
       const mappingEntries = leadSource.config?.fieldMapping
         ? Object.entries(leadSource.config.fieldMapping).map(([sourceKey, targetKey]) => ({
             sourceKey,
@@ -72,11 +86,26 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
       setFieldMappings(mappingEntries)
     } else {
       setName('')
-      setType('zameen')
+      setType('google_ads')
       setIsActive(true)
+      setAllowedDomains([])
+      setNewDomain('')
       setFieldMappings([])
     }
   }, [leadSource, open])
+
+  const handleAddDomain = () => {
+    const trimmed = newDomain.trim().toLowerCase()
+    if (!trimmed) return
+    if (!allowedDomains.includes(trimmed)) {
+      setAllowedDomains([...allowedDomains, trimmed])
+    }
+    setNewDomain('')
+  }
+
+  const handleRemoveDomain = (domainToRemove: string) => {
+    setAllowedDomains(allowedDomains.filter((d) => d !== domainToRemove))
+  }
 
   const handleAddFieldMapping = () => {
     setFieldMappings([...fieldMappings, { sourceKey: '', targetKey: 'email' }])
@@ -99,6 +128,12 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
       return
     }
 
+    const selectedOption = SOURCE_OPTIONS.find((o) => o.type === type)
+    if (selectedOption && !selectedOption.isAvailable && (!leadSource || leadSource.type !== type)) {
+      toast.error(`${selectedOption.label} is coming soon and cannot be connected.`)
+      return
+    }
+
     const mappingObj: Record<string, string> = {}
     fieldMappings.forEach((m) => {
       if (m.sourceKey.trim() && m.targetKey.trim()) {
@@ -114,6 +149,7 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
             name: name.trim(),
             type,
             isActive,
+            allowedDomains: type === 'website' ? allowedDomains : undefined,
             config: { fieldMapping: mappingObj },
           },
         }).unwrap()
@@ -123,6 +159,7 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
           name: name.trim(),
           type,
           isActive,
+          allowedDomains: type === 'website' ? allowedDomains : undefined,
           config: { fieldMapping: mappingObj },
         }).unwrap()
         toast.success(`Source "${name}" created!`)
@@ -139,6 +176,10 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
   }
 
   const isLoading = isCreating || isUpdating
+  const selectedOption = SOURCE_OPTIONS.find((o) => o.type === type)
+  const isCurrentTypeDisabled = Boolean(
+    selectedOption && !selectedOption.isAvailable && (!leadSource || leadSource.type !== type)
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,31 +196,86 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {/* Source Provider Type */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-[#273338] dark:text-white">Source Provider</Label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {SOURCE_OPTIONS.map((opt) => (
-                <button
-                  type="button"
-                  key={opt.type}
-                  onClick={() => {
-                    setType(opt.type)
-                    if (!name || SOURCE_OPTIONS.some((o) => o.label === name)) {
-                      setName(opt.label)
-                    }
-                  }}
-                  className={`flex flex-col items-start p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                    type === opt.type
-                      ? 'border-[#9CB080] bg-[#9CB080]/15 ring-1 ring-[#9CB080]'
-                      : 'border-[#D8E2D6] dark:border-[#618764]/40 hover:bg-[#EDF2EB]/50 dark:hover:bg-[#1A2E26]'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <MaterialIcon name={opt.icon} size={16} className="text-[#2B5748] dark:text-[#9CB080]" />
-                    <span className="font-bold text-xs text-[#273338] dark:text-white truncate">{opt.label}</span>
-                  </div>
-                  <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] mt-0.5 line-clamp-1">{opt.desc}</span>
-                </button>
-              ))}
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Source Provider</Label>
+              <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+                Google Ads &amp; WhatsApp active • Others coming soon
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {SOURCE_OPTIONS.map((opt) => {
+                const isSelected = type === opt.type
+                const isAvailable = opt.isAvailable
+
+                let borderAndBg = ''
+                if (isSelected && isAvailable) {
+                  borderAndBg = 'border-[#9CB080] bg-[#9CB080]/15 ring-2 ring-[#9CB080] cursor-pointer shadow-xs'
+                } else if (isSelected && !isAvailable) {
+                  borderAndBg = 'border-amber-500/60 bg-amber-500/10 ring-2 ring-amber-500/40 opacity-80 cursor-not-allowed select-none'
+                } else if (!isAvailable) {
+                  borderAndBg = 'opacity-60 bg-[#EDF2EB]/30 dark:bg-[#1A2E26]/30 border-dashed border-[#D8E2D6] dark:border-[#618764]/30 cursor-not-allowed select-none'
+                } else {
+                  borderAndBg = 'border-[#D8E2D6] dark:border-[#618764]/40 hover:bg-[#EDF2EB]/50 dark:hover:bg-[#1A2E26] cursor-pointer'
+                }
+
+                return (
+                  <button
+                    type="button"
+                    key={opt.type}
+                    disabled={!isAvailable}
+                    aria-disabled={!isAvailable}
+                    tabIndex={isAvailable ? 0 : -1}
+                    title={!isAvailable ? `${opt.label} is coming soon and cannot be connected.` : undefined}
+                    onClick={() => {
+                      if (!isAvailable) return
+                      setType(opt.type)
+                      if (!name || SOURCE_OPTIONS.some((o) => o.label === name)) {
+                        setName(opt.label)
+                      }
+                    }}
+                    className={`flex flex-col justify-between p-2.5 rounded-xl border text-left transition-all min-h-[86px] ${borderAndBg}`}
+                  >
+                    <div className="w-full">
+                      <div className="flex items-center gap-1.5 min-w-0 w-full mb-1">
+                        <MaterialIcon
+                          name={opt.icon}
+                          size={16}
+                          className={
+                            isAvailable
+                              ? 'text-[#2B5748] dark:text-[#9CB080] shrink-0'
+                              : 'text-[#75887E]/70 dark:text-[#A0B2A6]/60 shrink-0'
+                          }
+                        />
+                        <span
+                          className={`font-bold text-xs truncate flex-1 ${
+                            isAvailable ? 'text-[#273338] dark:text-white' : 'text-[#75887E] dark:text-[#A0B2A6]'
+                          }`}
+                          title={opt.label}
+                        >
+                          {opt.label}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] line-clamp-1 block">
+                        {opt.desc}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex items-center">
+                      {!isAvailable ? (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 whitespace-nowrap">
+                          <MaterialIcon name="schedule" size={11} className="text-amber-600 dark:text-amber-400" />
+                          Coming Soon
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Active
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -189,7 +285,7 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Zameen.com DHA Inbound"
+              placeholder="e.g. Google Ads Campaign or WhatsApp Sales"
               required
               className="h-9 text-xs bg-white dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white"
             />
@@ -206,7 +302,74 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
             <Switch checked={isActive} onCheckedChange={setIsActive} />
           </div>
 
-          {/* Custom Field Mappings */}
+          {/* Allowed Domains (Origin Restriction for Website Widget) */}
+          {type === 'website' && (
+            <div className="space-y-2 pt-1 border-t border-[#D8E2D6] dark:border-[#618764]/40">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-semibold text-[#273338] dark:text-white">
+                    Allowed Domains
+                  </Label>
+                  <p className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+                    Restrict submissions to trusted websites. Leave empty to allow any website.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  value={newDomain}
+                  onChange={(e) => setNewDomain(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddDomain()
+                    }
+                  }}
+                  placeholder="e.g. example.com or *.mysite.com"
+                  className="h-8 text-xs bg-white dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764]/60 text-[#273338] dark:text-white flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddDomain}
+                  className="h-8 text-xs px-3 border-[#D8E2D6] dark:border-[#618764]/60 cursor-pointer"
+                >
+                  <MaterialIcon name="add" size={14} className="mr-1" />
+                  Add
+                </Button>
+              </div>
+
+              {allowedDomains.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {allowedDomains.map((domain) => (
+                    <span
+                      key={domain}
+                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-[#9CB080]/15 border border-[#9CB080]/40 text-[#273338] dark:text-[#D8E2D6] font-mono"
+                    >
+                      <span>{domain}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDomain(domain)}
+                        className="text-[#75887E] hover:text-red-500 cursor-pointer"
+                      >
+                        <MaterialIcon name="close" size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400">
+                  <MaterialIcon name="public" size={14} className="shrink-0" />
+                  <span>Submissions allowed from any origin (open embed).</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Custom Field Mappings (for webhooks and other integrations) */}
+          {type !== 'website' && (
           <div className="space-y-2 pt-1 border-t border-[#D8E2D6] dark:border-[#618764]/40">
             <div className="flex items-center justify-between">
               <div>
@@ -275,6 +438,7 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
               </div>
             )}
           </div>
+          )}
 
           <DialogFooter className="pt-3 border-t border-[#D8E2D6] dark:border-[#618764]/40">
             <Button
@@ -289,8 +453,8 @@ export const LeadSourceModal: React.FC<LeadSourceModalProps> = ({
             <Button
               type="submit"
               size="sm"
-              disabled={isLoading}
-              className="bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs h-9 px-4"
+              disabled={isLoading || isCurrentTypeDisabled}
+              className="bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs h-9 px-4 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {isLoading ? 'Saving...' : leadSource ? 'Save Changes' : 'Connect Source'}
             </Button>

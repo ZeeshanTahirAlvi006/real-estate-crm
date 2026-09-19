@@ -278,7 +278,7 @@ export function SignupPage() {
               className="w-full text-xs text-muted-foreground"
               onClick={handleQuickFill}
             >
-              ⚡ Fill Owner Demo
+              Fill Owner Demo
             </Button>
             <Button
               type="button"
@@ -287,7 +287,7 @@ export function SignupPage() {
               className="w-full text-xs text-muted-foreground"
               onClick={handleQuickFillAgent}
             >
-              ⚡ Fill Agent Demo
+              Fill Agent Demo
             </Button>
           </div>
         </form>

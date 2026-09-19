@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MaterialIcon } from '@/components/ui/MaterialIcon'
-import { KpiCard } from '@/components/shared/KpiCard'
+import { StatCard } from '@/components/shared/StatCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -135,7 +135,7 @@ function TransactionCardItem({ transaction: tx, onOpen }: TransactionCardProps) 
                 <MaterialIcon name="person" size={14} className="text-[#618764] dark:text-[#9CB080]/70" />
                 Client:
               </span>
-              <span className="font-semibold text-[#273338] dark:text-white truncate max-w-[150px]">
+              <span className="font-semibold text-[#273338] dark:text-white truncate max-w-37.5">
                 {tx.contactName}
               </span>
             </div>
@@ -170,7 +170,7 @@ function TransactionCardItem({ transaction: tx, onOpen }: TransactionCardProps) 
                   <MaterialIcon name="assured_workload" size={14} className="text-[#618764] dark:text-[#9CB080]/70" />
                   Escrow:
                 </span>
-                <span className="truncate max-w-[150px] font-mono">
+                <span className="truncate max-w-37.5 font-mono">
                   {tx.escrowCompany}
                 </span>
               </div>
@@ -268,31 +268,31 @@ export function TransactionsPage() {
 
       {/* ═══════ KPI Cards — Positioned at TOP for All Screen Sizes ═══════ */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 gap-y-6 pt-3">
-        <KpiCard
+        <StatCard
           title="Total Volume"
           value={formatCurrency(animatedVolume)}
-          icon="attach_money"
+          icon={<MaterialIcon name="attach_money" size={20} />}
           trend={{ value: 12.4, isPositive: true }}
           subtitle="active escrow pipeline"
         />
-        <KpiCard
+        <StatCard
           title="Under Contract"
           value={`${animatedActiveCount}`}
-          icon="apartment"
+          icon={<MaterialIcon name="apartment" size={20} />}
           trend={{ value: 15.0, isPositive: true }}
           subtitle="pending inspection & title"
         />
-        <KpiCard
-          title="Closed"
+        <StatCard
+          title="Closed "
           value={`${animatedClosedCount}`}
-          icon="task_alt"
+          icon={<MaterialIcon name="task_alt" size={20} />}
           trend={{ value: 8.2, isPositive: true }}
           subtitle="recorded & disbursed"
         />
-        <KpiCard
+        <StatCard
           title="Escrow Compliance"
           value={`${animatedCompliance}%`}
-          icon="verified_user"
+          icon={<MaterialIcon name="verified_user" size={20} />}
           trend={{ value: 0, isPositive: true }}
           subtitle="docs & disclosures tracked"
         />
@@ -348,7 +348,7 @@ export function TransactionsPage() {
               }
             }}
           >
-            <SelectTrigger className="w-[140px] border-[#D8E2D6] dark:border-[#618764] bg-white dark:bg-[#254238] text-[#273338] dark:text-white">
+            <SelectTrigger className="w-35 border-[#D8E2D6] dark:border-[#618764] bg-white dark:bg-[#254238] text-[#273338] dark:text-white">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>

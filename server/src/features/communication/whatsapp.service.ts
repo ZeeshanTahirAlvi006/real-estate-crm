@@ -13,7 +13,9 @@ import { handleInboundLeadChat } from '../ai-isa/services/aiIsa.service.js'
 import { logAuditEvent } from '../../utils/auditLogger.js'
 import { logger } from '../../utils/logger.js'
 import { encrypt } from '../../utils/cryptoHelper.js'
-import { USER_ROLES } from '../../utils/constants.js'
+import { USER_ROLES, HTTP_STATUS } from '../../utils/constants.js'
+import { AppError } from '../../middleware/errorHandler.js'
+import { assertSuperAdminCanContact } from './commGuard.js'
 import {
   WhatsAppTemplateDto,
   SendWhatsAppInput,
@@ -205,6 +207,12 @@ export const sendWhatsAppMessage = async (
   ipAddress?: string,
   userAgent?: string
 ): Promise<{ success: boolean; messageId: string; messageRecord?: any }> => {
+  await assertSuperAdminCanContact(caller, {
+    contactId: input.contactId,
+    to: input.toPhone,
+    conversationId: input.conversationId,
+  })
+
   const brokerageId = caller.brokerageId
   let contact: IContact | null = null
   let conversation: IConversation | null = null
@@ -214,7 +222,10 @@ export const sendWhatsAppMessage = async (
     conversation = await Conversation.findOne({ _id: input.conversationId, brokerageId })
     if (conversation && caller.role === USER_ROLES.SUPER_ADMIN) {
       if (!conversation.assignedAgentId || conversation.assignedAgentId.toString() !== caller._id.toString()) {
-        throw new Error('Access denied: Super Admin is restricted from sending WhatsApp messages on behalf of other users.')
+        throw new AppError(
+          'Access denied: Super Admin is restricted from sending WhatsApp messages on behalf of other users.',
+          HTTP_STATUS.FORBIDDEN
+        )
       }
     }
     if (conversation?.contactId) {
@@ -616,6 +627,13 @@ export const createAndExecuteBroadcast = async (
   input: CreateBroadcastInput,
   caller: IUser
 ): Promise<WhatsAppBroadcastDto> => {
+  if (caller.role === USER_ROLES.SUPER_ADMIN && !caller.brokerageId) {
+    throw new AppError(
+      'Access denied: Super Admin has no assigned brokerage and cannot broadcast messages.',
+      HTTP_STATUS.FORBIDDEN
+    )
+  }
+
   const brokerageId = caller.brokerageId
 
   // Determine Target Contacts Filter
@@ -669,7 +687,7 @@ export const createAndExecuteBroadcast = async (
           templateVariables: {
             firstName: c.firstName,
             propertyAddress: c.propertyInterests?.[0] || '120 Ocean View Dr',
-            estimatedValue: '$875,000',
+            estimatedValue: 'PKR 875,000',
             cmaLink: 'https://proppulse.io/cma',
             ...(input.customVariables || {}),
           },

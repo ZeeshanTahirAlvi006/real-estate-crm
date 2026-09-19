@@ -8,6 +8,7 @@ import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { useGetContactsQuery } from '@/store/api/contactsApi'
 import { useGetPipelinesQuery } from '@/store/api/pipelineApi'
 import { useGetUsersQuery } from '@/store/api/usersApi'
+import { useAppSelector } from '@/store/hooks'
 import { ROLE_LABELS } from '@/constants/roles'
 import { UserRole } from '@/types/auth'
 import type { Deal, Pipeline } from '@/types'
@@ -38,9 +39,21 @@ export const DealModal: React.FC<DealModalProps> = ({
   currentPipelineId,
   isLoading = false,
 }) => {
+  const currentUser = useAppSelector((state) => state.auth.user)
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN
+  const hasNoBrokerage = isSuperAdmin && !currentUser?.brokerageId
+
   const { data: contactsData } = useGetContactsQuery({})
   const { data: pipelines = [] } = useGetPipelinesQuery()
   const { data: usersData } = useGetUsersQuery()
+
+  // Filter cross-brokerage contacts for Super Admin
+  const availableContacts = (contactsData?.contacts || []).filter((c) => {
+    if (isSuperAdmin) {
+      return !c.isCrossBrokerage
+    }
+    return true
+  })
 
   // Filter only active agents (role === 'agent')
   const allUsers = usersData?.users || []
@@ -220,19 +233,25 @@ export const DealModal: React.FC<DealModalProps> = ({
             <Select value={contactId} onValueChange={(val) => val && setContactId(val)}>
               <SelectTrigger className="w-full h-9 text-xs bg-[#F5F7F4] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white focus:outline-none focus:border-[#9CB080] focus:ring-1 focus:ring-[#9CB080] transition-all">
                 <SelectValue placeholder="Select contact from CRM...">
-                  {contactsData?.contacts.find((c) => c.id === contactId)
-                    ? `${contactsData.contacts.find((c) => c.id === contactId)?.firstName} ${contactsData.contacts.find((c) => c.id === contactId)?.lastName}`
+                  {availableContacts.find((c) => c.id === contactId)
+                    ? `${availableContacts.find((c) => c.id === contactId)?.firstName} ${availableContacts.find((c) => c.id === contactId)?.lastName}`
                     : undefined}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white shadow-lg max-h-56">
-                {contactsData?.contacts.map((c) => (
-                  <SelectItem key={c.id} value={c.id} className="text-xs focus:bg-[#EDF2EB] dark:focus:bg-[#1A2E26]">
-                    <span className="truncate">
-                      {c.firstName} {c.lastName} {c.phone ? `(${c.phone})` : ''}
-                    </span>
-                  </SelectItem>
-                ))}
+                {availableContacts.length === 0 ? (
+                  <div className="p-3 text-xs text-[#75887E] dark:text-[#A0B2A6] text-center">
+                    {hasNoBrokerage ? 'No assigned brokerage' : 'No contacts available in your brokerage'}
+                  </div>
+                ) : (
+                  availableContacts.map((c) => (
+                    <SelectItem key={c.id} value={c.id} className="text-xs focus:bg-[#EDF2EB] dark:focus:bg-[#1A2E26]">
+                      <span className="truncate">
+                        {c.firstName} {c.lastName} {c.phone ? `(${c.phone})` : ''}
+                      </span>
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -257,7 +276,7 @@ export const DealModal: React.FC<DealModalProps> = ({
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-[#273338] dark:text-[#E2ECE4] flex items-center gap-1.5">
                 <MaterialIcon name="attach_money" size={14} className="text-[#618764] dark:text-[#9CB080]" />
-                <span>Deal Value ($)</span>
+                <span>Deal Value (PKR)</span>
               </Label>
               <Input
                 type="number"
@@ -362,6 +381,14 @@ export const DealModal: React.FC<DealModalProps> = ({
             />
           </div>
 
+          {/* Unassigned Super Admin Warning Banner */}
+          {hasNoBrokerage && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
+              <MaterialIcon name="warning" size={16} className="shrink-0 text-amber-600" />
+              <span>Your Super Admin account has no assigned brokerage. Assign a brokerage in Settings to create deals.</span>
+            </div>
+          )}
+
           {/* Submit Action Buttons */}
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#D8E2D6] dark:border-[#618764]/40">
             <Button
@@ -376,8 +403,8 @@ export const DealModal: React.FC<DealModalProps> = ({
             <Button
               type="submit"
               size="sm"
-              disabled={isLoading}
-              className="gap-1.5 bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold shadow-xs transition-all duration-200 cursor-pointer text-xs"
+              disabled={isLoading || hasNoBrokerage || !contactId}
+              className="gap-1.5 bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold shadow-xs transition-all duration-200 cursor-pointer text-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <MaterialIcon name={initialData?.id ? 'save' : 'add'} size={16} />
               <span>{initialData?.id ? 'Save Changes' : 'Create Deal'}</span>

@@ -238,6 +238,9 @@ const contactSchema = new Schema<IContact>(
 // Compound performance indexes for multi-tenant querying and deduplication
 contactSchema.index({ brokerageId: 1, email: 1, isDeleted: 1 })
 contactSchema.index({ brokerageId: 1, phone: 1, isDeleted: 1 })
+// Global covered lookup indexes for cross-brokerage communication boundary guards (Rule PERF-M-001)
+contactSchema.index({ email: 1, isDeleted: 1, brokerageId: 1 })
+contactSchema.index({ phone: 1, isDeleted: 1, brokerageId: 1 })
 contactSchema.index({ brokerageId: 1, firstName: 1, lastName: 1, isDeleted: 1 })
 contactSchema.index({ brokerageId: 1, assignedAgentId: 1, isDeleted: 1 })
 contactSchema.index({ brokerageId: 1, status: 1, isDeleted: 1 })

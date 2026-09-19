@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { useCreateCommissionMutation } from '@/store/api/commissionsApi'
 import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
 import { toast } from 'sonner'
 
 interface CommissionCalculatorModalProps {
@@ -24,6 +25,8 @@ export const CommissionCalculatorModal: React.FC<CommissionCalculatorModalProps>
   transactionId,
 }) => {
   const user = useAppSelector((state) => state.auth.user)
+  const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN
+  const hasNoBrokerage = isSuperAdmin && !user?.brokerageId
   const [createCommission, { isLoading: isSaving }] = useCreateCommissionMutation()
 
   const [salePrice, setSalePrice] = useState(defaultPrice)
@@ -48,6 +51,10 @@ export const CommissionCalculatorModal: React.FC<CommissionCalculatorModalProps>
 
   const handleSaveToLedger = async () => {
     if (!user?.id) return
+    if (hasNoBrokerage) {
+      toast.error('Super Admin has no assigned brokerage. Cannot save commission settlement.')
+      return
+    }
     try {
       await createCommission({
         agentId: user.id,
@@ -88,11 +95,17 @@ export const CommissionCalculatorModal: React.FC<CommissionCalculatorModalProps>
           </div>
         </DialogHeader>
 
+        {hasNoBrokerage && (
+          <div className="rounded-md bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-700 dark:text-amber-400">
+            Super Admin has no assigned brokerage. You cannot create or record commission settlements.
+          </div>
+        )}
+
         <div className="space-y-5 pt-2">
           {/* Inputs Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="space-y-1 sm:col-span-2">
-              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Deal Sale Price ($)</Label>
+              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Deal Sale Price (PKR)</Label>
               <Input
                 type="number"
                 value={salePrice}
@@ -135,7 +148,7 @@ export const CommissionCalculatorModal: React.FC<CommissionCalculatorModalProps>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-[#273338] dark:text-white">TC Coordinator ($)</Label>
+              <Label className="text-xs font-semibold text-[#273338] dark:text-white">TC Coordinator (PKR)</Label>
               <Input
                 type="number"
                 value={tcFee}
@@ -145,7 +158,7 @@ export const CommissionCalculatorModal: React.FC<CommissionCalculatorModalProps>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Annual Cap ($)</Label>
+              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Annual Cap (PKR)</Label>
               <Input
                 type="number"
                 value={capThreshold}
@@ -197,7 +210,7 @@ export const CommissionCalculatorModal: React.FC<CommissionCalculatorModalProps>
                 ${agentNetPayout.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
               <div className="text-[11px] text-[#75887E] dark:text-[#A0B2A6] space-y-0.5 pt-1">
-                <p>Gross GCI: ${grossCommission.toLocaleString()}</p>
+                <p>Gross GCI: PKR {grossCommission.toLocaleString()}</p>
                 <p>TC Fee Deduction: -${tcFee}</p>
               </div>
             </div>
@@ -212,7 +225,7 @@ export const CommissionCalculatorModal: React.FC<CommissionCalculatorModalProps>
                 ${brokerageNetProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
               <div className="text-[11px] text-[#75887E] dark:text-[#A0B2A6] space-y-0.5 pt-1">
-                <p>Franchise Royalty: ${franchiseDeduction.toLocaleString()}</p>
+                <p>Franchise Royalty: PKR {franchiseDeduction.toLocaleString()}</p>
                 <p>Margin: {((brokerageNetProfit / grossCommission) * 100).toFixed(1)}%</p>
               </div>
             </div>
@@ -226,7 +239,7 @@ export const CommissionCalculatorModal: React.FC<CommissionCalculatorModalProps>
             <Button
               size="sm"
               onClick={handleSaveToLedger}
-              disabled={isSaving}
+              disabled={isSaving || hasNoBrokerage}
               className="font-bold text-xs gap-1.5 bg-[#9CB080] hover:bg-[#8CA070] text-[#273338]"
             >
               <MaterialIcon name="add" size={16} />

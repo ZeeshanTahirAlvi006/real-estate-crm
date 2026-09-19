@@ -147,9 +147,9 @@ export function MicroCmaPage() {
           {/* Valuation Range Meter - Solid Unicolor Bar */}
           <div className="space-y-2 pt-4 border-t border-white/15">
             <div className="flex justify-between text-xs font-mono text-white/80">
-              <span>Low: ${range.low.toLocaleString()}</span>
-              <span className="text-[#9CB080] font-bold">Target: ${range.target.toLocaleString()}</span>
-              <span>High: ${range.high.toLocaleString()}</span>
+              <span>Low: PKR ${range.low.toLocaleString()}</span>
+              <span className="text-[#9CB080] font-bold">Target: PKR ${range.target.toLocaleString()}</span>
+              <span>High: PKR ${range.high.toLocaleString()}</span>
             </div>
             <div className="h-3 w-full rounded-full bg-[#202B2F] overflow-hidden flex p-0.5">
               <div className="h-full bg-sky-500 w-1/3 rounded-l-full" />
@@ -268,7 +268,7 @@ export function MicroCmaPage() {
                 <div>
                   <h4 className="font-bold text-xs text-[#273338] dark:text-white">{comp.address}</h4>
                   <p className="text-[11px] text-[#75887E] dark:text-[#A0B2A6] mt-0.5">
-                    {comp.beds} bd • {comp.baths} ba • {comp.squareFeet} sqft • ${comp.pricePerSqft}/sqft
+                    {comp.beds} bd • {comp.baths} ba • {comp.squareFeet} sqft • PKR ${comp.pricePerSqft}/sqft
                   </p>
                 </div>
                 <div className="text-right">

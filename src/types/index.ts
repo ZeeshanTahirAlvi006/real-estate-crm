@@ -28,6 +28,9 @@ export interface Contact {
   status: ContactStatus
   assignedAgentId?: string
   assignedAgentName?: string
+  brokerageId?: string
+  brokerageName?: string
+  isCrossBrokerage?: boolean
   notes?: string
   propertyInterests?: string[]
   socialLinks?: {
@@ -68,6 +71,7 @@ export interface LeadSource {
   webhookSecret?: string
   isActive: boolean
   leadCount: number
+  allowedDomains?: string[]
   config?: {
     fieldMapping?: Record<string, string>
   }
@@ -201,6 +205,7 @@ export interface CaptureLeadPayload {
   propertyAddress?: string
   propertyPrice?: number
   zipCode?: string
+  recaptchaToken?: string
 }
 
 // ── Webhook ──────────────────────────────────────────

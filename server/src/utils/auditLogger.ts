@@ -109,7 +109,7 @@ export const flushAuditQueue = async (): Promise<number> => {
     await AuditLog.insertMany(batch, { ordered: false })
   } catch (error: any) {
     // Non-blocking write failure handling (EL-003): avoid synchronous terminal stalls
-    logger.warn(`[AuditLog Batch Flush] Partial write error for ${batch.length} records: ${error.message}`)
+    logger.warn(`[server/src/utils/auditLogger.ts: Line 112] Partial write error for ${batch.length} records: ${error.message}`)
   } finally {
     isFlushing = false
   }
@@ -122,8 +122,8 @@ export const flushAuditQueue = async (): Promise<number> => {
   }
 
   if (batch.length > 0) {
-    invalidateAuditCaches().catch(() => {})
-    logger.info(`[AuditLog] Flushed ${batch.length} records in ${measureExecutionMs(startTime).toFixed(3)}ms`)
+    invalidateAuditCaches().catch(() => { })
+    logger.info(`[server/src/utils/auditLogger.ts: Line 126] Flushed ${batch.length} records in ${measureExecutionMs(startTime).toFixed(3)}ms`)
   }
 
   return batch.length
@@ -157,7 +157,7 @@ export const enqueueAuditEvent = (input: LogAuditInput): void => {
   // Evict oldest record if capacity saturated to guarantee bounded memory (Rule ML-002)
   if (auditQueue.length >= MAX_QUEUE_SIZE) {
     auditQueue.shift()
-    logger.warn('[AuditQueue] Queue capacity saturated (5000 items). Oldest audit event evicted.')
+    logger.warn('[server/src/utils/auditLogger.ts: Line 160] Queue capacity saturated (5000 items). Oldest audit event evicted.')
   }
 
   const userId =

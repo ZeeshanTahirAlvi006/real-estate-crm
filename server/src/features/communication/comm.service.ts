@@ -1,8 +1,6 @@
 import mongoose from 'mongoose'
 import { emailProvider } from './providers/email.provider.js'
-import { smsProvider } from './providers/sms.provider.js'
 import { whatsAppProvider } from './providers/whatsapp.provider.js'
-import { voiceProvider } from './providers/voice.provider.js'
 import { ICommunicationProvider, ProviderSendResult } from './providers/ICommunicationProvider.js'
 import { UnifiedSendInput, QuickTemplateDto, OptOutInput, OptBackInInput } from './comm.types.js'
 import { Contact } from '../../models/Contact.js'
@@ -65,9 +63,7 @@ export const QUICK_TEMPLATES: QuickTemplateDto[] = [
 export class CommunicationService {
   private providers: Record<string, ICommunicationProvider> = {
     email: emailProvider,
-    sms: smsProvider,
     whatsapp: whatsAppProvider,
-    voice: voiceProvider,
   }
 
   public getProvider(channel: string): ICommunicationProvider {
@@ -222,7 +218,7 @@ export class CommunicationService {
       await Activity.create({
         brokerageId,
         contactId,
-        type: channel === 'email' ? 'email_sent' : channel === 'voice' ? 'call_logged' : 'sms_sent',
+        type: channel === 'email' ? 'email' : 'whatsapp',
         description: `Sent outbound ${channel.toUpperCase()}: "${compiledText.substring(0, 60)}${compiledText.length > 60 ? '...' : ''}"`,
         metadata: {
           messageId: result.messageId,

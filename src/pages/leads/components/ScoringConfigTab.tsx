@@ -466,7 +466,7 @@ export function ScoringConfigTab() {
 
               {/* Price Input */}
               <div className="space-y-1">
-                <Label className="text-[11px] font-semibold text-[#4A5D54] dark:text-[#A0B2A6]">Property Price ($)</Label>
+                <Label className="text-[11px] font-semibold text-[#4A5D54] dark:text-[#A0B2A6]">Property Price (PKR)</Label>
                 <Input
                   type="number"
                   value={simPrice}

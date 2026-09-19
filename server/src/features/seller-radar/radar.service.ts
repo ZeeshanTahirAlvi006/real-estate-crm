@@ -21,6 +21,7 @@ import { BoundedLruCache } from '../../utils/lruCache.js'
 import { cacheGet, cacheSet, cacheInvalidatePattern } from '../../config/redis.js'
 import { buildCacheKey, safeJsonParse } from '../../utils/cacheHelper.js'
 import { logger } from '../../utils/logger.js'
+import { HTTP_STATUS } from '../../utils/constants.js'
 
 // High-performance lean projection for seller radar prospects (omits bloated 3KB notes & unneeded fields)
 const PROPERTY_PROSPECT_PROJECTION =
@@ -329,6 +330,9 @@ export class RadarService {
     filters: ProspectsQueryFilters
   ): Promise<{ prospects: SellerRadarProspect[]; total: number; page: number; limit: number }> {
     const t0 = process.hrtime.bigint()
+    if (!user.brokerageId) {
+      return { prospects: [], total: 0, page: 1, limit: filters?.limit || 50 }
+    }
     const brokerageIdStr = user.brokerageId.toString()
     const cacheKey = buildCacheKey(brokerageIdStr, 'seller-radar:prospects', filters as any)
 
@@ -469,6 +473,23 @@ export class RadarService {
    */
   async getDashboardMetrics(user: IUser): Promise<SellerRadarDashboardMetrics> {
     const t0 = process.hrtime.bigint()
+    if (!user.brokerageId) {
+      return {
+        totalProspects: 0,
+        totalEquity: 0,
+        avgEquity: 0,
+        avgSellProbability: 0,
+        hotProspectsCount: 0,
+        warmProspectsCount: 0,
+        anniversariesThisMonth: 0,
+        equityDistribution: {
+          under200k: 0,
+          between200kAnd500k: 0,
+          above500k: 0,
+        },
+        topProspects: [],
+      }
+    }
     const brokerageIdStr = user.brokerageId.toString()
     const cacheKey = buildCacheKey(brokerageIdStr, 'seller-radar:dashboard', 'metrics')
 
@@ -619,6 +640,10 @@ export class RadarService {
   async analyzeProperty(user: IUser, input: AnalyzePropertyInput): Promise<PropertyAnalysisResult> {
     const t0 = process.hrtime.bigint()
 
+    if (!user.brokerageId) {
+      throw new AppError('An assigned brokerage is required to analyze properties', HTTP_STATUS.FORBIDDEN)
+    }
+
     const formattedAddr: IPropertyAddress =
       typeof input.address === 'string'
         ? {
@@ -684,9 +709,30 @@ export class RadarService {
           .select('_id')
           .lean()
 
-        if (prop) savedPropertyId = prop._id.toString()
+        if (!prop) {
+          const existsAnywhere = await Property.findById(input.propertyId)
+          if (existsAnywhere) {
+            throw new AppError('The specified property belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+          }
+          throw new AppError('Property not found', HTTP_STATUS.NOT_FOUND)
+        }
+
+        savedPropertyId = prop._id.toString()
         invalidateSellerRadarCaches(user.brokerageId.toString()).catch(() => {})
       } else if (input.contactId && mongoose.isValidObjectId(input.contactId)) {
+        const contact = await Contact.findOne({
+          _id: new mongoose.Types.ObjectId(input.contactId),
+          brokerageId: brokerageObjectId,
+          isDeleted: false,
+        })
+        if (!contact) {
+          const existsAnywhere = await Contact.findById(input.contactId)
+          if (existsAnywhere) {
+            throw new AppError('The specified contact belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+          }
+          throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
+        }
+
         const newProp = await Property.create({
           brokerageId: brokerageObjectId,
           ownerContactId: new mongoose.Types.ObjectId(input.contactId),
@@ -748,7 +794,41 @@ export class RadarService {
    */
   async generateMicroCma(user: IUser, input: GenerateCmaInput): Promise<ICmaReport & { publicUrl: string }> {
     const t0 = process.hrtime.bigint()
+
+    if (!user.brokerageId) {
+      throw new AppError('An assigned brokerage is required to generate Micro-CMAs', HTTP_STATUS.FORBIDDEN)
+    }
     const brokerageObjectId = new mongoose.Types.ObjectId(user.brokerageId)
+
+    if (input.propertyId && mongoose.isValidObjectId(input.propertyId)) {
+      const propExists = await Property.findOne({
+        _id: new mongoose.Types.ObjectId(input.propertyId),
+        brokerageId: brokerageObjectId,
+        isDeleted: false,
+      })
+      if (!propExists) {
+        const existsAnywhere = await Property.findById(input.propertyId)
+        if (existsAnywhere) {
+          throw new AppError('The specified property belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+        }
+        throw new AppError('Property not found', HTTP_STATUS.NOT_FOUND)
+      }
+    }
+
+    if (input.contactId && mongoose.isValidObjectId(input.contactId)) {
+      const contactExists = await Contact.findOne({
+        _id: new mongoose.Types.ObjectId(input.contactId),
+        brokerageId: brokerageObjectId,
+        isDeleted: false,
+      })
+      if (!contactExists) {
+        const existsAnywhere = await Contact.findById(input.contactId)
+        if (existsAnywhere) {
+          throw new AppError('The specified contact belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+        }
+        throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
+      }
+    }
 
     // Parallel fetch: Property, Contact (if provided), and Brokerage name
     const [property, explicitContact, brokerage] = await Promise.all([

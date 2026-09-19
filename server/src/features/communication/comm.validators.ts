@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const sendUnifiedSchema = z.object({
-  channel: z.enum(['email', 'sms', 'whatsapp', 'voice']),
+  channel: z.enum(['email', 'whatsapp']),
   to: z.string().min(1, 'Recipient address or phone is required'),
   text: z.string().min(1, 'Message text is required'),
   subject: z.string().optional(),
@@ -33,7 +33,7 @@ export const optBackInSchema = z.object({
 
 export const createQuickTemplateSchema = z.object({
   title: z.string().min(2, 'Template title is required'),
-  channel: z.enum(['all', 'email', 'sms', 'whatsapp']),
+  channel: z.enum(['all', 'email', 'whatsapp']),
   category: z.string().default('general'),
   subject: z.string().optional(),
   body: z.string().min(1, 'Template body is required'),

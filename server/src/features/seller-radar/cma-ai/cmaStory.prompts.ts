@@ -35,7 +35,7 @@ export const buildCmaStoryUserPrompt = (
   valuationRange?: { low: number; target: number; high: number },
   tone: string = 'consultative'
 ): string => {
-  const formatCurrency = (val?: number) => (val != null ? `$${Math.round(val).toLocaleString()}` : 'N/A')
+  const formatCurrency = (val?: number) => (val != null ? `PKR ${Math.round(val).toLocaleString()}` : 'N/A')
 
   const compsList = comps
     .map(

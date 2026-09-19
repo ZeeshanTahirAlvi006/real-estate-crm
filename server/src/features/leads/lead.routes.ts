@@ -80,9 +80,10 @@ leadIngestionRoutes.get(
   metaWebhookVerifyHandler
 )
 
-// Meta Lead Ads Webhook event intake (POST real-time event)
+// Meta Lead Ads Webhook event intake (POST real-time event, feature-gated)
 leadIngestionRoutes.post(
   '/meta/webhook',
+  requireFeature('lead_ingestion'),
   metaWebhookEventHandler
 )
 

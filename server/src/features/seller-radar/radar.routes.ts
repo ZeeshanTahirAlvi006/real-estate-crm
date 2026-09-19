@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate.js'
+import { strictOperationalScope } from '../../middleware/tenantScope.js'
 import { validate } from '../../middleware/validate.js'
 import { radarController } from './radar.controller.js'
 import {
@@ -17,8 +18,9 @@ const router = Router()
 // Must be mounted before authenticate middleware so homeowners can view without login
 router.get('/cma/:id', validate(cmaParamSchema), radarController.getPublicCma)
 
-// 2. Authenticated Endpoints
+// 2. Authenticated Endpoints with strict operational scoping
 router.use(authenticate)
+router.use(strictOperationalScope)
 
 // Dashboard KPIs
 router.get('/dashboard', radarController.getDashboard)

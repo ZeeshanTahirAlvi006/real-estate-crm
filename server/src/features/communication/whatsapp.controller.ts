@@ -80,7 +80,7 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
     )
     sendSuccess(res, result, 'WhatsApp message sent successfully')
   } catch (err: any) {
-    sendError(res, err.message, HTTP_STATUS.BAD_REQUEST)
+    sendError(res, err.message, err.statusCode || HTTP_STATUS.BAD_REQUEST)
   }
 }
 
@@ -91,7 +91,7 @@ export const createBroadcast = async (req: Request, res: Response): Promise<void
     const result = await createAndExecuteBroadcast(req.body, caller)
     sendSuccess(res, result, 'WhatsApp broadcast campaign initiated successfully', HTTP_STATUS.CREATED)
   } catch (err: any) {
-    sendError(res, err.message, HTTP_STATUS.BAD_REQUEST)
+    sendError(res, err.message, err.statusCode || HTTP_STATUS.BAD_REQUEST)
   }
 }
 

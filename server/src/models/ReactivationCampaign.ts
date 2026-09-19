@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema, Model } from 'mongoose'
 
 export type CampaignStatus = 'active' | 'paused' | 'draft' | 'completed'
-export type CampaignChannel = 'sms' | 'whatsapp' | 'email'
+export type CampaignChannel = 'whatsapp' | 'email'
 
 export interface IReactivationCampaign extends Document {
   brokerageId: mongoose.Types.ObjectId
@@ -48,8 +48,8 @@ const reactivationCampaignSchema = new Schema<IReactivationCampaign>(
     },
     channel: {
       type: String,
-      enum: ['sms', 'whatsapp', 'email'],
-      default: 'sms',
+      enum: ['whatsapp', 'email', 'sms'],
+      default: 'whatsapp',
     },
     messageTemplate: {
       type: String,

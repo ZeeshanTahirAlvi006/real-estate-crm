@@ -1,6 +1,6 @@
 // ── Communication & Omnichannel Inbox Types ─────────────────────────
 
-export type ChannelType = 'whatsapp' | 'sms' | 'email' | 'call'
+export type ChannelType = 'whatsapp' | 'email'
 
 export type MessageDirection = 'inbound' | 'outbound'
 
@@ -109,94 +109,6 @@ export interface WhatsAppBroadcast {
   createdAt: string
 }
 
-export interface LocalPresenceInfo {
-  areaCode: string
-  city: string
-  state: string
-  metro: string
-  callerIdPhone: string
-  callerIdFormatted: string
-  isExactMatch: boolean
-}
-
-// ── Multi-Line Parallel Dialer Types ──────────────────────────────────
-
-export type DialerLineCount = 1 | 3 | 5
-
-export type LineState =
-  | 'idle'
-  | 'dialing'
-  | 'ringing'
-  | 'connected'
-  | 'busy'
-  | 'no_answer'
-  | 'voicemail_dropped'
-  | 'completed'
-
-export interface DialerLine {
-  lineIndex: number
-  contactId?: string
-  contactName?: string
-  contactPhone?: string
-  state: LineState
-  callDurationSeconds: number
-  isMuted: boolean
-  isRecording: boolean
-  localPresence?: LocalPresenceInfo
-}
-
-export type CallDisposition =
-  | 'interested'
-  | 'showing_requested'
-  | 'nurture_long_term'
-  | 'wrong_number'
-  | 'not_interested'
-  | 'dnc_requested'
-  | 'voicemail_left'
-  | 'call_back_later'
-  | 'no_answer'
-
-export interface CallLog {
-  id: string
-  contactId: string
-  contactName: string
-  contactPhone: string
-  durationSeconds: number
-  direction: MessageDirection
-  disposition: CallDisposition
-  recordingUrl?: string
-  liveTranscript?: string
-  sentiment: 'positive' | 'neutral' | 'negative'
-  aiSummary?: string
-  linesUsed: DialerLineCount
-  createdAt: string
-  agentName: string
-}
-
-export interface VoicemailAudioDrop {
-  id: string
-  title: string
-  audioUrl: string
-  durationSeconds: number
-  category: 'general' | 'seller_equity' | 'price_drop' | 'followup'
-}
-
-export interface DialerQueueContact {
-  id: string
-  contactId?: string
-  firstName: string
-  lastName: string
-  phone: string
-  leadScore: number
-  leadSource: string
-  dncStatus: DncStatus
-  lastContactedAt?: string
-  propertyInterest?: string
-  notes?: string
-  priority?: number
-  localPresence?: LocalPresenceInfo
-}
-
 // Sub-30s Omnichannel AI ISA Engine Types 
 
 export interface AiIsaConfig {
@@ -210,7 +122,7 @@ export interface AiIsaConfig {
     customInstructions?: string
   }
   officeHoursOnly: boolean
-  autoReplyChannels: Array<'sms' | 'whatsapp' | 'email'>
+  autoReplyChannels: Array<'whatsapp' | 'email'>
   autoPilotEnabled: boolean
   humanHandoffDelaySeconds: number
   qualificationThresholdScore: number

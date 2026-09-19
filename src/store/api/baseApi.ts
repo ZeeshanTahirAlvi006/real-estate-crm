@@ -136,6 +136,12 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
         api.dispatch(setInitialized())
       }
     } else {
+      if (result.error.status === 503) {
+        const errData = result.error.data as any
+        if (errData?.code === 'FEATURE_MAINTENANCE') {
+          api.dispatch(baseApi.util.invalidateTags(['FeatureFlags']))
+        }
+      }
       // Mark session check initialized so UI does not hang
       api.dispatch(setInitialized())
     }
@@ -167,9 +173,6 @@ export const baseApi = createApi({
     'Conversations',
     'Messages',
     'QuickTemplates',
-    'DialerQueue',
-    'CallLogs',
-    'VoicemailDrops',
     'QualificationCriteria',
     'ReactivationCampaigns',
     'SpeedToLead',

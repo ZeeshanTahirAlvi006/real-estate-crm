@@ -107,10 +107,10 @@ export function PipelineColumn({
         {/* Financial KPIs for this column */}
         <div className="flex items-center justify-between text-[11px] font-mono">
           <span className="text-[#75887E] dark:text-[#A0B2A6]">
-            Total: <strong className="text-[#273338] dark:text-white font-bold">${(totalValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}K</strong>
+            Total: <strong className="text-[#273338] dark:text-white font-bold">${(totalValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k</strong>
           </span>
           <span className="text-[#2B5748] dark:text-[#9CB080] font-semibold">
-            Forecast: ${(weightedValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}K
+            Forecast: PKR {(weightedValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k
           </span>
         </div>
       </div>

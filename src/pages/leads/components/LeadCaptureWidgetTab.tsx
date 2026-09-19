@@ -45,16 +45,35 @@ export function LeadCaptureWidgetTab() {
   const apiBaseUrl = typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:5000/api'
 
   // Embed Snippets
-  const scriptEmbedCode = `<!-- PropPulse OS Lead Capture Widget -->
-<div id="proppulse-lead-widget" data-capture-key="${captureKey}"></div>
+  const scriptEmbedCode = `<!-- PropPulse OS Lead Capture Widget (Inline Container) -->
+<div id="proppulse-lead-widget"
+  data-capture-key="${captureKey}"
+  data-title="${widgetTitle}"
+  data-subtitle="${widgetSubtext}"
+  data-button-text="${buttonText}"
+  data-accent="${accentColor}"
+  data-mode="inline"
+></div>
 <script src="${apiBaseUrl}/widget/lead-capture.js" async defer></script>`
 
+  const popupEmbedCode = `<!-- PropPulse OS Lead Capture Widget (Floating Popup Button) -->
+<script
+  src="${apiBaseUrl}/widget/lead-capture.js"
+  data-capture-key="${captureKey}"
+  data-title="${widgetTitle}"
+  data-subtitle="${widgetSubtext}"
+  data-button-text="${buttonText}"
+  data-accent="${accentColor}"
+  data-mode="popup"
+  async defer
+></script>`
+
   const iframeEmbedCode = `<iframe
-  src="${apiBaseUrl}/widget/embed?key=${captureKey}&theme=auto"
+  src="${apiBaseUrl}/widget/embed?key=${captureKey}&title=${encodeURIComponent(widgetTitle)}&subtitle=${encodeURIComponent(widgetSubtext)}&buttonText=${encodeURIComponent(buttonText)}&accent=${encodeURIComponent(accentColor)}"
   width="100%"
-  height="460"
+  height="540"
   frameborder="0"
-  style="border-radius: 12px; overflow: hidden;"
+  style="border-radius: 12px; overflow: hidden; border: none;"
 ></iframe>`
 
   const handleCopySnippet = (snippet: string, label: string) => {
@@ -158,6 +177,32 @@ export function LeadCaptureWidgetTab() {
                 </div>
                 <div className="p-3 rounded-lg bg-[#EDF2EB]/50 dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/50 font-mono text-[11px] select-all text-[#4A5D54] dark:text-[#A0B2A6] overflow-x-auto whitespace-pre">
                   {scriptEmbedCode}
+                </div>
+              </div>
+
+              {/* Floating Popup option */}
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-[#273338] dark:text-white">Floating Button Popup</span>
+                  <button
+                    onClick={() => handleCopySnippet(popupEmbedCode, 'Popup Snippet')}
+                    className="text-[#2B5748] dark:text-[#9CB080] hover:underline font-bold text-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedSnippet === 'Popup Snippet' ? (
+                      <>
+                        <MaterialIcon name="check" size={13} className="text-[#618764]" />
+                        <span className="text-[#618764]">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <MaterialIcon name="content_copy" size={13} />
+                        <span>Copy Code</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className="p-3 rounded-lg bg-[#EDF2EB]/50 dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/50 font-mono text-[11px] select-all text-[#4A5D54] dark:text-[#A0B2A6] overflow-x-auto whitespace-pre">
+                  {popupEmbedCode}
                 </div>
               </div>
 
@@ -362,7 +407,7 @@ export function LeadCaptureWidgetTab() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[11px] font-semibold text-[#273338] dark:text-white">Price / Budget ($)</Label>
+                      <Label className="text-[11px] font-semibold text-[#273338] dark:text-white">Price / Budget (PKR)</Label>
                       <Input
                         type="number"
                         value={testPrice}

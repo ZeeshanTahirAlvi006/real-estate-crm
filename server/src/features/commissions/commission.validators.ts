@@ -49,12 +49,12 @@ export const updateCommissionStatusSchema = z.object({
 })
 
 export const updateBrokerageCapSchema = z.object({
-  defaultCommissionCap: z.number().min(0, 'Cap threshold must be a non-negative number').max(10000000, 'Cap threshold cannot exceed 10,000,000'),
+  defaultCommissionCap: z.number().min(0, 'Cap threshold must be a non-negative number').max(10000000000, 'Cap threshold cannot exceed 10,000,000,000'),
   defaultCommissionSplitAgent: z.number().min(0).max(100).optional(),
 })
 
 export const updateAgentCapSchema = z.object({
-  commissionCap: z.number().min(0, 'Cap threshold must be a non-negative number').max(10000000, 'Cap threshold cannot exceed 10,000,000').nullable(),
+  commissionCap: z.number().min(0, 'Cap threshold must be a non-negative number').max(10000000000, 'Cap threshold cannot exceed 10,000,000,000').nullable(),
   commissionSplitPercent: z.number().min(0).max(100).optional(),
   commissionModel: z.enum(['fixed', 'tiered', 'capped']).optional(),
 })

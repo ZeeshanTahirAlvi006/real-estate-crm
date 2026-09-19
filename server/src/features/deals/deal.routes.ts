@@ -12,7 +12,7 @@ import {
 } from './deal.controller.js'
 import { authenticate } from '../../middleware/authenticate.js'
 import { authorize } from '../../middleware/authorize.js'
-import { tenantScope } from '../../middleware/tenantScope.js'
+import { strictOperationalScope } from '../../middleware/tenantScope.js'
 import { validate } from '../../middleware/validate.js'
 import {
   createDealSchema,
@@ -24,10 +24,10 @@ import { USER_ROLES } from '../../utils/constants.js'
 
 const router = Router()
 
-// All deal routes require authentication + tenant scoping
+// All deal routes require authentication + strict operational scoping
 router.use(
   authenticate,
-  tenantScope,
+  strictOperationalScope,
   authorize(
     USER_ROLES.SUPER_ADMIN,
     USER_ROLES.BROKERAGE_OWNER,

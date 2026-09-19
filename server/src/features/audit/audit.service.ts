@@ -10,6 +10,8 @@ import {
 import { cacheGet, cacheSet, cacheInvalidatePattern } from '../../config/redis.js'
 import { BoundedLruCache } from '../../utils/lruCache.js'
 import { logger } from '../../utils/logger.js'
+import { IUser } from '../../models/User.js'
+import { isCrossBrokerage, maskEmail, redactDeep } from '../../utils/maskingHelper.js'
 
 // Lean projection constant (Rule PERF-M-002: omit heavy JSON blobs on list paths)
 export const AUDIT_LIST_PROJECTION =
@@ -38,7 +40,7 @@ export const invalidateAuditCaches = async (brokerageId?: string): Promise<void>
 }
 
 // Format plain AuditLog document/aggregation object into DTO (Rule DI-002)
-export const formatAuditLogDto = (log: any): AuditLogResponseDto => {
+export const formatAuditLogDto = (log: any, caller?: IUser): AuditLogResponseDto => {
   const createdAtIso =
     log.createdAt instanceof Date
       ? log.createdAt.toISOString()
@@ -48,18 +50,30 @@ export const formatAuditLogDto = (log: any): AuditLogResponseDto => {
           ? new Date(log.createdAt).toISOString()
           : new Date().toISOString()
 
+  let userEmail = log.userEmail
+  let details = log.details
+  let previousState = log.previousState
+  let newState = log.newState
+
+  if (caller && isCrossBrokerage(log.brokerageId, caller)) {
+    userEmail = maskEmail(userEmail)
+    details = redactDeep(details)
+    previousState = redactDeep(previousState)
+    newState = redactDeep(newState)
+  }
+
   return {
     id: log._id ? log._id.toString() : log.id?.toString() || '',
     userId: log.userId?.toString(),
-    userEmail: log.userEmail,
+    userEmail,
     userRole: log.userRole,
     brokerageId: log.brokerageId?.toString(),
     action: log.action,
     resource: log.resource,
     resourceId: log.resourceId,
-    details: log.details,
-    previousState: log.previousState,
-    newState: log.newState,
+    details,
+    previousState,
+    newState,
     ipAddress: log.ipAddress || '127.0.0.1',
     userAgent: log.userAgent || 'system',
     status: log.status || 'success',
@@ -111,11 +125,13 @@ export const buildAuditFilter = (query: ListAuditLogsQuery, tenantFilter: Record
 // List audit logs with multi-tier caching (PERF-R-004), single-pass $facet aggregation (PERF-M-003), and projection constraints (PERF-M-002)
 export const listAuditLogs = async (
   query: ListAuditLogsQuery,
-  tenantFilter: Record<string, any> = {}
+  tenantFilter: Record<string, any> = {},
+  caller?: IUser
 ): Promise<{ logs: AuditLogResponseDto[]; total: number; source?: 'l1' | 'l2' | 'db' }> => {
   // 1. Build deterministic cache key (pp:{tenant}:audit-logs:{hash})
   const tenantKey = tenantFilter.brokerageId ? tenantFilter.brokerageId.toString() : 'super_admin'
-  const cacheKey = buildCacheKey(tenantKey, 'audit-logs', query)
+  const callerKey = caller?._id ? caller._id.toString() : 'anon'
+  const cacheKey = buildCacheKey(tenantKey, 'audit-logs', { ...query, callerKey })
 
   // 2. L1 In-Memory Cache Check (< 0.05ms loopback)
   const l1Hit = auditLogsL1Cache.get(cacheKey)
@@ -134,7 +150,7 @@ export const listAuditLogs = async (
       }
     }
   } catch {
-    // Gracefully fall through to MongoDB on cache read error (Rule DI-003)
+    // Gracefully fall through to MongoDB on cache read error 
   }
 
   // 4. Cache Miss: Execute Single-Pass $facet Aggregation backed by covered indexes (Rule PERF-M-003)
@@ -183,7 +199,7 @@ export const listAuditLogs = async (
   const rawLogs = aggregationResult[0]?.data || []
   const total = aggregationResult[0]?.totalCount[0]?.count || 0
   const result = {
-    logs: rawLogs.map(formatAuditLogDto),
+    logs: rawLogs.map((l: any) => formatAuditLogDto(l, caller)),
     total,
     source: 'db' as const,
   }
@@ -202,7 +218,8 @@ export const listAuditLogs = async (
 // Retrieve single audit log by ID with full state snapshots (details, previousState, newState)
 export const getAuditLogById = async (
   id: string,
-  tenantFilter: Record<string, any> = {}
+  tenantFilter: Record<string, any> = {},
+  caller?: IUser
 ): Promise<(AuditLogResponseDto & { source?: 'l1' | 'l2' | 'db' }) | null> => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return null
@@ -246,7 +263,7 @@ export const getAuditLogById = async (
     return null
   }
 
-  const dto = formatAuditLogDto(doc)
+  const dto = formatAuditLogDto(doc, caller)
   auditLogDetailL1Cache.set(cacheKey, dto, 60)
   try {
     await cacheSet(cacheKey, JSON.stringify(dto), 60)

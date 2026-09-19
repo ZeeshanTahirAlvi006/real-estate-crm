@@ -10,6 +10,7 @@ export const createLeadSourceSchema = z
       errorMap: () => ({ message: `Type must be one of: ${LEAD_SOURCE_TYPES.join(', ')}` }),
     }),
     isActive: z.boolean().optional().default(true),
+    allowedDomains: z.array(z.string().trim().max(255)).optional().default([]),
     config: z
       .object({
         fieldMapping: z.record(z.string().trim().max(100), z.string().trim().max(100)).optional(),
@@ -26,6 +27,7 @@ export const updateLeadSourceSchema = z
       .enum(LEAD_SOURCE_TYPES as unknown as [string, ...string[]])
       .optional(),
     isActive: z.boolean().optional(),
+    allowedDomains: z.array(z.string().trim().max(255)).optional(),
     config: z
       .object({
         fieldMapping: z.record(z.string().trim().max(100), z.string().trim().max(100)).optional(),
@@ -217,6 +219,7 @@ export const leadCaptureSchema = z
     propertyAddress: z.string().trim().max(300).optional(),
     propertyPrice: z.coerce.number().min(0).optional(),
     zipCode: z.string().trim().max(20).optional(),
+    recaptchaToken: z.string().trim().optional(),
   })
   .strict()
 

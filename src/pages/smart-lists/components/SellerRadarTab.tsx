@@ -12,6 +12,8 @@ import {
   useTriggerAnniversaryScanMutation,
   type SellerRadarLead,
 } from '@/store/api/sellerRadarApi'
+import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
 
 const fallbackSellerRadarLeads: SellerRadarLead[] = [
   {
@@ -101,6 +103,10 @@ function getSignalBadgeColor(signal: string) {
 
 export const SellerRadarTab: React.FC = () => {
   const navigate = useNavigate()
+  const currentUser = useAppSelector((state) => state.auth.user)
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN
+  const hasNoBrokerage = isSuperAdmin && !currentUser?.brokerageId
+
   const [selectedCmaLead, setSelectedCmaLead] = useState<SellerRadarLead | null>(null)
   const [isCmaOpen, setIsCmaOpen] = useState(false)
 
@@ -109,29 +115,48 @@ export const SellerRadarTab: React.FC = () => {
   const { data: dashboardData } = useGetSellerRadarDashboardQuery()
   const [triggerAnniversary, { isLoading: isScanningAnniversaries }] = useTriggerAnniversaryScanMutation()
 
-  const displayLeads =
-    prospectsData?.prospects && prospectsData.prospects.length > 0
+  const displayLeads = hasNoBrokerage
+    ? []
+    : prospectsData?.prospects && prospectsData.prospects.length > 0
       ? prospectsData.prospects
-      : fallbackSellerRadarLeads
+      : isSuperAdmin
+        ? []
+        : fallbackSellerRadarLeads
 
-  const totalTargets = dashboardData?.totalProspects || displayLeads.length
-  const totalEquityStr = dashboardData?.totalEquity
-    ? `$${(dashboardData.totalEquity / 1000000).toFixed(1)}M`
-    : '$6.4M'
-  const avgEquityStr = dashboardData?.avgEquity
-    ? `$${Math.round(dashboardData.avgEquity / 1000)}k`
-    : '$580k'
+  const totalTargets = hasNoBrokerage ? 0 : dashboardData?.totalProspects || displayLeads.length
+  const totalEquityStr = hasNoBrokerage
+    ? 'PKR 0'
+    : dashboardData?.totalEquity
+      ? `PKR ${(dashboardData.totalEquity / 1000000).toFixed(1)}M`
+      : '$6.4M'
+  const avgEquityStr = hasNoBrokerage
+    ? 'PKR 0'
+    : dashboardData?.avgEquity
+      ? `PKR ${Math.round(dashboardData.avgEquity / 1000)}k`
+      : '$580k'
 
   const handleOpenCma = (lead: SellerRadarLead) => {
+    if (hasNoBrokerage || lead.isCrossBrokerage) {
+      toast.error('Actions are restricted for contacts outside your assigned brokerage')
+      return
+    }
     setSelectedCmaLead(lead)
     setIsCmaOpen(true)
   }
 
   const handleSendAnniversaryUpdate = (lead: SellerRadarLead) => {
+    if (hasNoBrokerage || lead.isCrossBrokerage) {
+      toast.error('Actions are restricted for contacts outside your assigned brokerage')
+      return
+    }
     toast.success(`Equity update prepared for ${lead.name}`)
   }
 
   const handleRunAnniversaryScan = async () => {
+    if (hasNoBrokerage) {
+      toast.error('An assigned brokerage is required to run anniversary scans')
+      return
+    }
     try {
       const result = await triggerAnniversary({ forceAll: true }).unwrap()
       toast.success(
@@ -144,17 +169,30 @@ export const SellerRadarTab: React.FC = () => {
   }
 
   const handleOpenWhatsApp = (lead: SellerRadarLead) => {
+    if (hasNoBrokerage || lead.isCrossBrokerage) {
+      toast.error('Communication is restricted for contacts outside your assigned brokerage')
+      return
+    }
     const targetId = lead.contactId || lead.id
     navigate(`/inbox?channel=whatsapp&contactId=${targetId}`)
   }
 
   const handleOpenEmail = (lead: SellerRadarLead) => {
+    if (hasNoBrokerage || lead.isCrossBrokerage) {
+      toast.error('Communication is restricted for contacts outside your assigned brokerage')
+      return
+    }
     const targetId = lead.contactId || lead.id
     navigate(`/inbox?channel=email&contactId=${targetId}`)
   }
 
   return (
     <div className="space-y-6">
+      {hasNoBrokerage && (
+        <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 text-xs text-amber-700 dark:text-amber-400">
+          Super Admin has no assigned brokerage. Seller Radar prospects and analytics are restricted to your assigned brokerage.
+        </div>
+      )}
       {/* Top Unicolor KPI Metrics Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KpiCard
@@ -197,7 +235,7 @@ export const SellerRadarTab: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={handleRunAnniversaryScan}
-            disabled={isScanningAnniversaries}
+            disabled={isScanningAnniversaries || hasNoBrokerage}
             className="text-xs h-8 border-[#D8E2D6] dark:border-[#618764]/40 cursor-pointer"
           >
             <MaterialIcon

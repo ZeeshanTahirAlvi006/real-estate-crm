@@ -17,7 +17,6 @@ export interface IFeatureFlag extends Document {
 export const DEFAULT_FEATURE_FLAGS = [
   { key: 'deals_pipeline', name: 'Deals & Visual Pipeline', isEnabled: true, description: 'Multi-pipeline Kanban deal board, probability forecasting, and commission calculations' },
   { key: 'ai_chatbot', name: 'AI Chatbot & Copilot', isEnabled: true, description: 'Lead qualifier bot and internal agent assistant' },
-  { key: 'dialer', name: 'Integrated Dialer & Telephony', isEnabled: true, description: 'WebRTC single/multi-line power dialer and call logging' },
   { key: 'ai_isa', name: 'Autonomous AI ISA Engine', isEnabled: true, description: 'Autonomous multi-channel lead outreach and reactivation' },
   { key: 'lead_ingestion', name: 'Lead Ingestion & Webhooks', isEnabled: true, description: 'Third-party portal webhooks and automated lead routing' },
   { key: 'data_health', name: 'Data Health & Deduplication', isEnabled: true, description: 'Fuzzy duplicate detection, MX check, and database health scoring' },

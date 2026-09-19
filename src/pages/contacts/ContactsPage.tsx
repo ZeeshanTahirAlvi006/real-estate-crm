@@ -9,6 +9,10 @@ import {
   useUpdateContactMutation,
   useDeleteContactMutation,
 } from '@/store/api/contactsApi'
+import { useGetFeatureFlagsQuery } from '@/store/api/featureFlagsApi'
+import { STORAGE_KEY_TOKEN } from '@/store/slices/authSlice'
+import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
 import { ContactForm } from './components/ContactForm'
 import { SharePortalModal } from './components/SharePortalModal'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -18,6 +22,10 @@ import { TableGridToggleButton, type TableGridViewMode } from '@/components/shar
 import type { Contact, PortalCredentials } from '@/types'
 
 export function ContactsPage() {
+  const currentUser = useAppSelector((state) => state.auth.user)
+  const { data: flags } = useGetFeatureFlagsQuery(undefined, { pollingInterval: 8000 })
+  const isExportEnabled = flags ? flags.find((f) => f.key === 'export')?.isEnabled !== false : true
+
   const [view, setView] = useState<TableGridViewMode>(() => {
     const saved = localStorage.getItem('crm_contacts_view')
     return saved === 'grid' ? 'grid' : 'table'
@@ -89,33 +97,95 @@ export function ContactsPage() {
     }
   }
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
+    // 1. Feature Flag Kill-Switch Guard: block if disabled
+    if (!isExportEnabled) {
+      toast.error('Data Export is currently paused by system administrator for maintenance.')
+      return
+    }
+
     if (!data?.contacts || data.contacts.length === 0) {
       toast.error('No contacts available to export')
       return
     }
-    const headers = ['First Name', 'Last Name', 'Phone', 'Email', 'Source', 'Score', 'Status', 'Tags']
-    const rows = data.contacts.map((c) => [
-      `"${c.firstName || ''}"`,
-      `"${c.lastName || ''}"`,
-      `"${c.phone || ''}"`,
-      `"${c.email || ''}"`,
-      `"${c.leadSource || ''}"`,
-      c.leadScore ?? 0,
-      `"${c.status || 'active'}"`,
-      `"${(c.tags || []).join('; ')}"`,
-    ])
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `contacts_${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    toast.success('Contacts exported')
+
+    // 2. Attempt backend export with credentials & bearer token
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY_TOKEN) : null
+      const rawApiUrl = import.meta.env.API_URL || ''
+      const apiBase = rawApiUrl
+        ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`)
+        : '/api'
+
+      const response = await fetch(`${apiBase}/export/contacts?format=csv`, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+      })
+
+      // Backend returns 503 if feature flag is disabled at API tier
+      if (response.status === 503) {
+        const errData = await response.json().catch(() => ({}))
+        toast.error(errData.message || 'Export subsystem is currently paused for maintenance.')
+        return
+      }
+
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `contacts_${new Date().toISOString().slice(0, 10)}.csv`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+        toast.success('Contacts exported successfully')
+        return
+      }
+    } catch {
+      // Backend request failed or unreachable; continue to verified client export
+    }
+
+    // 3. Fallback: Export loaded contacts directly (only reached if export IS enabled)
+    try {
+      const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN
+      const contactsToExport = isSuperAdmin
+        ? data.contacts.filter((c) => !c.isCrossBrokerage)
+        : data.contacts
+
+      if (contactsToExport.length === 0) {
+        toast.error('No exportable contacts found for your brokerage.')
+        return
+      }
+
+      const headers = ['First Name', 'Last Name', 'Phone', 'Email', 'Source', 'Score', 'Status', 'Tags']
+      const rows = contactsToExport.map((c) => [
+        `"${c.firstName || ''}"`,
+        `"${c.lastName || ''}"`,
+        `"${c.phone || ''}"`,
+        `"${c.email || ''}"`,
+        `"${c.leadSource || ''}"`,
+        c.leadScore ?? 0,
+        `"${c.status || 'active'}"`,
+        `"${(c.tags || []).join('; ')}"`,
+      ])
+      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `contacts_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      toast.success('Contacts exported successfully')
+    } catch {
+      toast.error('Failed to export contacts')
+    }
   }
 
   return (
@@ -142,11 +212,21 @@ export function ContactsPage() {
 
           <button
             onClick={handleExportCSV}
-            className="inline-flex items-center justify-center px-3.5 py-2 text-sm font-semibold rounded-md border border-[#D8E2D6] dark:border-[#618764] bg-white dark:bg-[#1A2E26] text-[#273338] dark:text-[#E2ECE4] hover:bg-[#EDF2EB] dark:hover:bg-[#254238] transition-colors cursor-pointer shadow-xs"
-            title="Export contacts as CSV"
+            disabled={!isExportEnabled}
+            className={`inline-flex items-center justify-center px-3.5 py-2 text-sm font-semibold rounded-md border transition-colors shadow-xs ${
+              !isExportEnabled
+                ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-300 dark:border-gray-700'
+                : 'border-[#D8E2D6] dark:border-[#618764] bg-white dark:bg-[#1A2E26] text-[#273338] dark:text-[#E2ECE4] hover:bg-[#EDF2EB] dark:hover:bg-[#254238] cursor-pointer'
+            }`}
+            title={!isExportEnabled ? 'Export paused by system administrator' : 'Export contacts as CSV'}
           >
             <MaterialIcon name="download" size={18} className="mr-2 text-[#4A5D54] dark:text-[#A0B2A6]" />
-            Export CSV
+            <span>Export CSV</span>
+            {!isExportEnabled && (
+              <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                Paused
+              </span>
+            )}
           </button>
           <button
             onClick={() => setShowCreate(true)}

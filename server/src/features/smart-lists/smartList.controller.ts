@@ -4,11 +4,11 @@ import * as smartListService from './smartList.service.js'
 
 export const getSmartLists = async (req: Request, res: Response) => {
   try {
-    const brokerageId = req.user!.brokerageId.toString()
-    const userId = req.user!._id.toString()
-    if (!brokerageId || !userId) {
-      return sendError(res, 'BrokerageId or UserId not found')
+    if (!req.user?.brokerageId) {
+      return sendSuccess(res, [])
     }
+    const brokerageId = req.user.brokerageId.toString()
+    const userId = req.user._id ? req.user._id.toString() : (req.user as any).id
     const lists = await smartListService.getSmartLists(brokerageId, userId)
     sendSuccess(res, lists)
   } catch (error: any) {
@@ -18,26 +18,25 @@ export const getSmartLists = async (req: Request, res: Response) => {
 
 export const createSmartList = async (req: Request, res: Response) => {
   try {
-    const brokerageId = req.user!.brokerageId.toString()
-    const userId = req.user!._id.toString()
-    if (!brokerageId || !userId) {
-      return sendError(res, 'BrokerageId or UserId not found')
+    if (!req.user?.brokerageId) {
+      return sendError(res, 'An assigned brokerage is required to create smart lists', 403)
     }
+    const brokerageId = req.user.brokerageId.toString()
+    const userId = req.user._id ? req.user._id.toString() : (req.user as any).id
     const list = await smartListService.createSmartList(brokerageId, userId, req.body)
     sendSuccess(res, list, 'Smart list created', 201)
   } catch (error: any) {
     sendError(res, error.message)
   }
-
 }
 
 export const updateSmartList = async (req: Request, res: Response) => {
   try {
-    const brokerageId = req.user!.brokerageId.toString()
-    const userId = req.user!._id.toString()
-    if (!brokerageId || !userId) {
-      return sendError(res, 'BrokerageId or UserId not found')
+    if (!req.user?.brokerageId) {
+      return sendError(res, 'An assigned brokerage is required to update smart lists', 403)
     }
+    const brokerageId = req.user.brokerageId.toString()
+    const userId = req.user._id ? req.user._id.toString() : (req.user as any).id
     const list = await smartListService.updateSmartList(req.params.id as string, brokerageId, userId, req.body)
     sendSuccess(res, list, 'Smart list updated')
   } catch (error: any) {
@@ -47,11 +46,11 @@ export const updateSmartList = async (req: Request, res: Response) => {
 
 export const deleteSmartList = async (req: Request, res: Response) => {
   try {
-    const brokerageId = req.user!.brokerageId.toString()
-    const userId = req.user!._id.toString()
-    if (!brokerageId || !userId) {
-      return sendError(res, 'BrokerageId or UserId not found')
+    if (!req.user?.brokerageId) {
+      return sendError(res, 'An assigned brokerage is required to delete smart lists', 403)
     }
+    const brokerageId = req.user.brokerageId.toString()
+    const userId = req.user._id ? req.user._id.toString() : (req.user as any).id
     await smartListService.deleteSmartList(req.params.id as string, brokerageId, userId)
     sendSuccess(res, null, 'Smart list deleted')
   } catch (error: any) {

@@ -5,6 +5,14 @@ import { IUser } from '../../models/User.js'
 import { formatAsCSV } from '../../utils/exportHelper.js'
 
 export const getExportContactsData = async (user: IUser) => {
+  if (!user.brokerageId) {
+    return {
+      csvContent: '',
+      pdfHeaders: ['Name', 'Email', 'Phone', 'Status', 'Lead Source', 'City'],
+      pdfRows: [],
+    }
+  }
+
   const contacts = await Contact.find({
     brokerageId: user.brokerageId,
     isDeleted: false,

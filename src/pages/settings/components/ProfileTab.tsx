@@ -46,7 +46,7 @@ export function ProfileTab() {
         </div>
       </CardHeader>
       <CardContent className="pt-6">
-        <form onSubmit={handleSave} className="space-y-5 max-w-xl">
+        <form onSubmit={handleSave} className="space-y-5 w-full max-w-none">
           {/* Avatar row */}
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 border border-[#D8E2D6] dark:border-[#618764]">
@@ -68,7 +68,7 @@ export function ProfileTab() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="prof-fn" className="text-xs font-semibold text-[#4A5D54] dark:text-[#E2ECE4]">First name</Label>
               <Input
@@ -103,7 +103,7 @@ export function ProfileTab() {
             <p className="text-xs text-[#75887E] dark:text-[#A0B2A6]">Managed by organization admin.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="prof-phone" className="text-xs font-semibold text-[#4A5D54] dark:text-[#E2ECE4]">Phone number</Label>
               <Input
@@ -137,7 +137,7 @@ export function ProfileTab() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs h-9 px-4 rounded-lg cursor-pointer"
+            className="w-auto bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs h-9 px-6 rounded-lg cursor-pointer transition-all active:scale-[0.98]"
           >
             {isLoading ? 'Saving...' : 'Save Profile'}
           </Button>

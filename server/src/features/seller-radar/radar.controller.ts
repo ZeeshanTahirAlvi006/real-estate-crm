@@ -14,8 +14,13 @@ export class RadarController {
   async getProspects(req: Request, res: Response, next: NextFunction): Promise<void> {
     const t0 = process.hrtime.bigint()
     try {
-      if (!req.user || !req.user.brokerageId) {
+      if (!req.user) {
         sendError(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED)
+        return
+      }
+
+      if (!req.user.brokerageId) {
+        sendPaginated(res, [], 0, 1, 50, 'Seller prospects retrieved successfully')
         return
       }
 
@@ -48,8 +53,23 @@ export class RadarController {
   async getDashboard(req: Request, res: Response, next: NextFunction): Promise<void> {
     const t0 = process.hrtime.bigint()
     try {
-      if (!req.user || !req.user.brokerageId) {
+      if (!req.user) {
         sendError(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED)
+        return
+      }
+
+      if (!req.user.brokerageId) {
+        sendSuccess(res, {
+          totalProspects: 0,
+          totalEquity: 0,
+          avgEquity: 0,
+          avgSellProbability: 0,
+          hotProspectsCount: 0,
+          warmProspectsCount: 0,
+          anniversariesThisMonth: 0,
+          equityDistribution: { under200k: 0, between200kAnd500k: 0, above500k: 0 },
+          topProspects: [],
+        }, 'Seller Radar dashboard metrics retrieved')
         return
       }
 
@@ -75,8 +95,13 @@ export class RadarController {
   async analyze(req: Request, res: Response, next: NextFunction): Promise<void> {
     const t0 = process.hrtime.bigint()
     try {
-      if (!req.user || !req.user.brokerageId) {
+      if (!req.user) {
         sendError(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED)
+        return
+      }
+
+      if (!req.user.brokerageId) {
+        sendError(res, 'An assigned brokerage is required to analyze properties', HTTP_STATUS.FORBIDDEN)
         return
       }
 
@@ -102,8 +127,13 @@ export class RadarController {
   async generateCma(req: Request, res: Response, next: NextFunction): Promise<void> {
     const t0 = process.hrtime.bigint()
     try {
-      if (!req.user || !req.user.brokerageId) {
+      if (!req.user) {
         sendError(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED)
+        return
+      }
+
+      if (!req.user.brokerageId) {
+        sendError(res, 'An assigned brokerage is required to generate Micro-CMAs', HTTP_STATUS.FORBIDDEN)
         return
       }
 
@@ -166,8 +196,13 @@ export class RadarController {
   async triggerAnniversary(req: Request, res: Response, next: NextFunction): Promise<void> {
     const t0 = process.hrtime.bigint()
     try {
-      if (!req.user || !req.user.brokerageId) {
+      if (!req.user) {
         sendError(res, 'Unauthorized access', HTTP_STATUS.UNAUTHORIZED)
+        return
+      }
+
+      if (!req.user.brokerageId) {
+        sendError(res, 'An assigned brokerage is required to trigger anniversary scans', HTTP_STATUS.FORBIDDEN)
         return
       }
 

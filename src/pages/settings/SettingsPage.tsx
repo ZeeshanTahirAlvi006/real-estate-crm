@@ -12,9 +12,12 @@ import { ObjectionPlaybookTab } from './components/ObjectionPlaybookTab'
 import { WhatsAppIntegrationSettings } from '../ai-isa/components/WhatsAppIntegrationSettings'
 import { useAppSelector } from '@/store/hooks'
 import { UserRole } from '@/types/auth'
+import { useParallax } from '@/hooks/useParallax'
 
 export function SettingsPage() {
   const user = useAppSelector((state) => state.auth.user)
+  const headerOffset = useParallax(0.2)
+  const bgOffset = useParallax(0.1)
 
   const isClient = user?.role === UserRole.LEAD
   const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN
@@ -54,8 +57,14 @@ export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string>('profile')
 
   return (
-    <div className="space-y-6 pb-12">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+    <div 
+      className="space-y-6 pb-12 relative overflow-hidden min-h-screen"
+    >
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-5 dark:opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] transition-transform duration-75"
+        style={{ transform: `translateY(${bgOffset}px)` }}
+      />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 relative z-10">
         {/* Unified Responsive Navigation: identical sliding pill for mobile & tablet (< lg), horizontal track on desktop (lg+) */}
         <ResponsivePageNav
           tabs={tabs}
@@ -65,66 +74,69 @@ export function SettingsPage() {
         />
 
         {/* Page Title & Concise Subtitle (2-3 words naming) */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 max-w-7xl mx-auto">
+        <div 
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 w-full max-w-none px-3 sm:px-6 lg:px-8 transition-transform duration-75"
+          style={{ transform: `translateY(${headerOffset}px)` }}
+        >
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#273338] dark:text-white">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-[#273338] dark:text-white drop-shadow-sm">
               System Settings
             </h1>
-            <p className="text-xs sm:text-sm text-[#4A5D54] dark:text-[#A0B2A6] mt-0.5">
+            <p className="text-xs sm:text-sm md:text-base text-[#4A5D54] dark:text-[#A0B2A6] mt-0.5 font-medium">
               {isClient ? 'Account and preferences' : 'Platform governance and team settings'}
             </p>
           </div>
         </div>
 
         {/* Tab Contents */}
-        <div className="max-w-7xl mx-auto">
-          <TabsContent value="profile" className="mt-0 focus-visible:outline-none">
+        <div className="w-full max-w-none px-3 sm:px-6 lg:px-8">
+          <TabsContent value="profile" className="mt-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
             <ProfileTab />
           </TabsContent>
 
           {canManageTeam && (
-            <TabsContent value="team" className="mt-0 focus-visible:outline-none">
+            <TabsContent value="team" className="mt-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
               <TeamManagementTab />
             </TabsContent>
           )}
 
           {canManageTeam && (
-            <TabsContent value="whatsapp" className="mt-0 focus-visible:outline-none">
+            <TabsContent value="whatsapp" className="mt-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
               <WhatsAppIntegrationSettings />
             </TabsContent>
           )}
 
           {(isSuperAdmin || isBrokerageOwner) && (
-            <TabsContent value="audit" className="mt-0 focus-visible:outline-none">
+            <TabsContent value="audit" className="mt-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
               <AuditLogsTab />
             </TabsContent>
           )}
 
           {!isClient && (
-            <TabsContent value="compliance" className="mt-0 focus-visible:outline-none">
+            <TabsContent value="compliance" className="mt-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
               <ComplianceTab />
             </TabsContent>
           )}
 
           {!isClient && (
-            <TabsContent value="playbook" className="mt-0 focus-visible:outline-none">
+            <TabsContent value="playbook" className="mt-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
               <ObjectionPlaybookTab />
             </TabsContent>
           )}
 
           {isSuperAdmin && (
-            <TabsContent value="feature-flags" className="mt-0 focus-visible:outline-none">
+            <TabsContent value="feature-flags" className="mt-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
               <FeatureFlagsTab />
             </TabsContent>
           )}
 
           {isSuperAdmin && (
-            <TabsContent value="brokerages" className="mt-0 focus-visible:outline-none">
+            <TabsContent value="brokerages" className="mt-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
               <BrokeragesTab />
             </TabsContent>
           )}
 
-          <TabsContent value="security" className="mt-0 focus-visible:outline-none">
+          <TabsContent value="security" className="mt-0 focus-visible:outline-none animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
             <SecurityTab />
           </TabsContent>
         </div>

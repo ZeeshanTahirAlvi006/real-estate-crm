@@ -36,12 +36,12 @@ import { KpiCard } from '@/components/shared/KpiCard'
 import { useCountUp } from '@/hooks/useCountUp'
 import { TableGridToggle, TableGridToggleButton, type TableColumn, type TableGridViewMode } from '@/components/shared/TableGridToggle'
 
-const formatCurrency = (val: number) =>
-  new Intl.NumberFormat('en-US', {
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-PK', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'PKR',
     maximumFractionDigits: 0,
-  }).format(val)
+  }).format(amount)
 
 export function PipelinePage() {
   const { data: pipelines = [], isLoading: loadingPipelines } = useGetPipelinesQuery()
@@ -152,7 +152,7 @@ export function PipelinePage() {
       header: 'Deal Value',
       cell: (deal) => (
         <span className="font-bold font-mono text-xs text-[#273338] dark:text-white">
-          ${deal.dealValue.toLocaleString()}
+          ${formatCurrency(deal.dealValue)}
         </span>
       ),
     },
@@ -220,7 +220,7 @@ export function PipelinePage() {
           {deal.stageName || deal.stageId}
         </Badge>
         <span className="font-bold font-mono text-sm text-[#273338] dark:text-white">
-          ${deal.dealValue.toLocaleString()}
+          ${formatCurrency(deal.dealValue)}
         </span>
       </div>
 

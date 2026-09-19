@@ -16,6 +16,7 @@ export interface ILeadSource extends Document {
   captureKey: string
   isActive: boolean
   leadCount: number
+  allowedDomains: string[]
   config: ILeadSourceConfig
   brokerageId: mongoose.Types.ObjectId
   createdBy: mongoose.Types.ObjectId
@@ -55,6 +56,10 @@ const leadSourceSchema = new Schema<ILeadSource>(
       type: Number,
       default: 0,
       min: 0,
+    },
+    allowedDomains: {
+      type: [String],
+      default: [],
     },
     config: {
       fieldMapping: {

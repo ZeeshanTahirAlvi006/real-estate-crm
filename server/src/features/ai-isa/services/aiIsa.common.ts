@@ -30,7 +30,7 @@ export const DEFAULT_CRITERIA_SEEDS = [
     label: 'Target Purchase Budget',
     isRequired: true,
     promptDirective: 'Determine their comfortable price ceiling and financing range.',
-    options: ['Under $500k', '$500k - $750k', '$750k - $1M', '$1M - $1.5M', '$1.5M+'],
+    options: ['Under PKR 500k', 'PKR 500k - 750k', 'PKR 750k - 1M', 'PKR 1M - 1.5M', 'PKR 1.5M+'],
     order: 0,
   },
   {
@@ -73,7 +73,7 @@ export const DEFAULT_CAMPAIGN_SEEDS = [
     name: '30-Day Cold Lead Reactivation',
     status: 'active' as const,
     targetSegment: 'Uncontacted Inquiries (30+ Days)',
-    channel: 'sms' as const,
+    channel: 'whatsapp' as const,
     messageTemplate:
       'Hi {{firstName}}, are you still looking for homes in your search area, or have your plans shifted? We just had new off-market listings hit our desk this morning!',
     dormantDaysThreshold: 30,
@@ -88,9 +88,9 @@ export const DEFAULT_CAMPAIGN_SEEDS = [
     name: 'Price Drop Broadcast',
     status: 'active' as const,
     targetSegment: 'Engaged Price Watchers',
-    channel: 'sms' as const,
+    channel: 'whatsapp' as const,
     messageTemplate:
-      'Exciting update {{firstName}}! A 4-bedroom home matching your criteria just had a $25,000 price adjustment. Would you like me to send you the updated walkthrough link?',
+      'Exciting update {{firstName}}! A 4-bedroom home matching your criteria just had a PKR 25,000 price adjustment. Would you like me to send you the updated walkthrough link?',
     dormantDaysThreshold: 60,
     totalLeads: 36,
     contactedCount: 36,

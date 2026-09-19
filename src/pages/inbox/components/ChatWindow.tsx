@@ -15,7 +15,6 @@ interface ChatWindowProps {
   quickTemplates: QuickReplyTemplate[]
   onSendMessage: (text: string, channel: ChannelType, fairHousingFlags?: string[]) => void
   onOpenCopilot: () => void
-  onOpenDialer?: () => void
   onBackToList?: () => void
   onToggleContactInfo?: () => void
   isSending?: boolean

@@ -26,7 +26,7 @@ export const errorHandler = (
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction
 ): Response => {
-  logger.error(`[${req.method}] ${req.originalUrl} - Error: ${err.message}`, {
+  logger.error(`[server/src/middleware/errorHandler.ts: Line 29] [${req.method}] ${req.originalUrl} - Error: ${err.message}`, {
     stack: err.stack,
   })
 

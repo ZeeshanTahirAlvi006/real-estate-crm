@@ -36,7 +36,7 @@ export const updateAiIsaConfigSchema = z.object({
     })
     .optional(),
   officeHoursOnly: z.boolean().optional(),
-  autoReplyChannels: z.array(z.enum(['sms', 'whatsapp', 'email'])).optional(),
+  autoReplyChannels: z.array(z.enum(['whatsapp', 'email'])).optional(),
   autoPilotEnabled: z.boolean().optional(),
   humanHandoffDelaySeconds: z.number().int().min(0).max(300).optional(),
   qualificationThresholdScore: z.number().int().min(0).max(100).optional(),
@@ -62,7 +62,7 @@ export const updateCriteriaSchema = z.object({
 export const createCampaignSchema = z.object({
   name: z.string().trim().min(1).max(100),
   targetSegment: z.string().trim().min(1).max(100),
-  channel: z.enum(['sms', 'whatsapp', 'email']).default('sms'),
+  channel: z.enum(['whatsapp', 'email']).default('whatsapp'),
   messageTemplate: z.string().trim().min(1).max(2000),
   dormantDaysThreshold: z.number().int().min(1).max(365).default(90),
   totalLeads: z.number().int().min(0).default(0),
@@ -71,7 +71,7 @@ export const createCampaignSchema = z.object({
 export const updateCampaignSchema = z.object({
   name: z.string().trim().min(1).max(100).optional(),
   targetSegment: z.string().trim().min(1).max(100).optional(),
-  channel: z.enum(['sms', 'whatsapp', 'email']).optional(),
+  channel: z.enum(['whatsapp', 'email']).optional(),
   messageTemplate: z.string().trim().min(1).max(2000).optional(),
   dormantDaysThreshold: z.number().int().min(1).max(365).optional(),
 })

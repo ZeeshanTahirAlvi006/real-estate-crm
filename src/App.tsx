@@ -19,7 +19,6 @@ const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage').
 // Main Pages (Code Split)
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage').then(m => ({ default: m.DashboardPage })))
 const InboxPage = lazy(() => import('@/pages/inbox/InboxPage').then(m => ({ default: m.InboxPage })))
-const DialerPage = lazy(() => import('@/pages/dialer/DialerPage').then(m => ({ default: m.DialerPage })))
 const AiIsaPage = lazy(() => import('@/pages/ai-isa/AiIsaPage').then(m => ({ default: m.AiIsaPage })))
 const ContactsPage = lazy(() => import('@/pages/contacts/ContactsPage').then(m => ({ default: m.ContactsPage })))
 const ContactDetailPage = lazy(() => import('@/pages/contacts/ContactDetailPage').then(m => ({ default: m.ContactDetailPage })))
@@ -100,7 +99,6 @@ function App() {
                 >
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/inbox" element={<InboxPage />} />
-                  <Route path="/dialer" element={<DialerPage />} />
                   <Route path="/ai-isa" element={<AiIsaPage />} />
                   <Route path="/contacts" element={<ContactsPage />} />
                   <Route path="/contacts/:id" element={<ContactDetailPage />} />

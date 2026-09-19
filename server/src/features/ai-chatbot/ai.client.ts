@@ -301,7 +301,7 @@ const runLocalRealEstateNLP = (messages: ChatMessage[], jsonMode: boolean): stri
       const locationMatch = lastUserMessage.match(/(austin|dallas|houston|round rock|westlake|cedar park|downtown|suburbs)/i)
       const homeToSell = lastUserMessage.includes('sell') ? 'selling_first' : lastUserMessage.includes('no home') ? 'no' : 'not_specified'
 
-      const budget = budgetMatch ? budgetMatch[0].replace('k', ',000') : '$650,000'
+      const budget = budgetMatch ? budgetMatch[0].replace('k', ',000') : 'PKR 650,000'
       const timeline = timelineMatch ? timelineMatch[0] : 'Within 60 days'
       const location = locationMatch ? locationMatch[0] : 'Austin Metro Area'
       const preApproval = isPreApproved ? 'approved' : 'needs_lender'
@@ -355,7 +355,7 @@ const runLocalRealEstateNLP = (messages: ChatMessage[], jsonMode: boolean): stri
       return JSON.stringify({
         summary: 'High-intent buyer lead actively searching for a 4-bedroom home in Austin. Pre-approved with local lender and eager to schedule weekend property walkthroughs.',
         keyTakeaways: [
-          'Budget range: $600,000 - $750,000',
+          'Budget range: PKR 600,000 - 750,000',
           'Target location: Austin Metro & Round Rock',
           'Pre-approval verified',
           'Timeline: Moving within 60 days',

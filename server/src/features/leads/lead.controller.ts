@@ -31,7 +31,7 @@ import { decrypt } from '../../utils/cryptoHelper.js'
 
 // Helper to extract IP and user-agent
 const getClientMeta = (req: Request) => ({
-  clientIp: req.ip || req.socket.remoteAddress || '127.0.0.1',
+  clientIp: req.ip || req.socket?.remoteAddress || '127.0.0.1',
   userAgent: req.headers['user-agent'] || 'browser',
 })
 
@@ -350,8 +350,9 @@ export const webhookIngestHandler = async (req: Request, res: Response, next: Ne
 export const captureWidgetHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const t0 = process.hrtime.bigint()
-    const clientIp = req.ip || req.socket.remoteAddress || '127.0.0.1'
-    const result = await ingestCaptureWidgetLead(req.body, clientIp)
+    const clientIp = req.ip || req.socket?.remoteAddress || '127.0.0.1'
+    const origin = (req.headers.origin as string) || (req.headers.referer as string) || ''
+    const result = await ingestCaptureWidgetLead(req.body, clientIp, origin)
     const elapsed = measureExecutionMs(t0)
     console.log(`[LEADS-PERF][controller:captureWidget] ${elapsed.toFixed(3)}ms`)
     res.setHeader('X-Response-Time', `${elapsed.toFixed(3)}ms`)

@@ -9,6 +9,8 @@ import {
   useGenerateCmaNarrativeMutation,
   type CmaNarrativeResult,
 } from '@/store/api/sellerRadarApi'
+import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
 
 interface MicroCmaModalProps {
   open: boolean
@@ -22,13 +24,15 @@ interface MicroCmaModalProps {
     estimatedValue: number
     equityAmount: number
     yearsOwned: number
+    isCrossBrokerage?: boolean
+    brokerageId?: string
   } | null
 }
 
 const mockComps = [
-  { address: '1208 Pine Crest Dr', price: '$685,000', soldPrice: 685000, beds: 4, baths: 3, sqft: 2450, pricePerSqft: 280, dom: 6 },
-  { address: '1314 Oak Ridge Trail', price: '$720,000', soldPrice: 720000, beds: 4, baths: 3.5, sqft: 2680, pricePerSqft: 269, dom: 9 },
-  { address: '1102 Highland Meadow', price: '$699,000', soldPrice: 699000, beds: 3, baths: 2.5, sqft: 2320, pricePerSqft: 301, dom: 12 },
+  { address: '1208 Pine Crest Dr', price: 'PKR 685,000', soldPrice: 685000, beds: 4, baths: 3, sqft: 2450, pricePerSqft: 280, dom: 6 },
+  { address: '1314 Oak Ridge Trail', price: 'PKR 720,000', soldPrice: 720000, beds: 4, baths: 3.5, sqft: 2680, pricePerSqft: 269, dom: 9 },
+  { address: '1102 Highland Meadow', price: 'PKR 699,000', soldPrice: 699000, beds: 3, baths: 2.5, sqft: 2320, pricePerSqft: 301, dom: 12 },
 ]
 
 export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
@@ -39,6 +43,14 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
   const [generateCma, { isLoading: isGenerating }] = useGenerateCmaMutation()
   const [generateNarrative, { isLoading: isSynthesizing }] = useGenerateCmaNarrativeMutation()
   
+  const currentUser = useAppSelector((state) => state.auth.user)
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN
+  const hasNoBrokerage = isSuperAdmin && !currentUser?.brokerageId
+  const isCrossBrokerage =
+    Boolean(leadData?.isCrossBrokerage) ||
+    Boolean(isSuperAdmin && leadData?.brokerageId && currentUser?.brokerageId && leadData.brokerageId !== currentUser.brokerageId)
+  const isBlocked = hasNoBrokerage || isCrossBrokerage
+
   const [activeTab, setActiveTab] = useState<'overview' | 'story'>('overview')
   const [storyMode, setStoryMode] = useState<'seller' | 'buyer'>('seller')
   const [narrativeResult, setNarrativeResult] = useState<CmaNarrativeResult | null>(null)
@@ -51,6 +63,10 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
   const highRange = Math.round(targetValue * 1.05)
 
   const handleGenerateStory = async () => {
+    if (isBlocked) {
+      toast.error('AI narrative synthesis is restricted for cross-brokerage contacts')
+      return
+    }
     try {
       const result = await generateNarrative({
         mode: storyMode,
@@ -93,6 +109,10 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
   }
 
   const handleGenerateAndShare = async (openTab: boolean = false) => {
+    if (isBlocked) {
+      toast.error('Micro-CMA generation is restricted for cross-brokerage contacts')
+      return
+    }
     try {
       const isValidMongoId = (id?: string) => Boolean(id && /^[0-9a-fA-F]{24}$/.test(id))
       const result = await generateCma({
@@ -111,14 +131,8 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
       if (openTab) {
         window.open(shareLink, '_blank')
       }
-    } catch {
-      const fallbackUrl = `http://localhost:5000/api/seller-radar/cma/cma_demo1420highland`
-      setGeneratedShareUrl(fallbackUrl)
-      await navigator.clipboard?.writeText(fallbackUrl)
-      toast.success('Micro-CMA link copied to clipboard!')
-      if (openTab) {
-        window.open(fallbackUrl, '_blank')
-      }
+    } catch (err: any) {
+      toast.error(err?.data?.message || err?.message || 'Failed to generate Micro-CMA')
     }
   }
 
@@ -139,6 +153,18 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
               </div>
             </div>
           </div>
+        </DialogHeader>
+
+        {hasNoBrokerage && (
+          <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-700 dark:text-amber-400">
+            Super Admin has no assigned brokerage. Micro-CMA reports cannot be generated without an assigned brokerage.
+          </div>
+        )}
+        {isCrossBrokerage && (
+          <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive">
+            This contact or property belongs to another brokerage. Micro-CMA generation is prohibited.
+          </div>
+        )}
 
           {/* Tab Navigation */}
           <div className="flex items-center gap-2 pt-3 border-b border-[#D8E2D6] dark:border-[#618764]/40">
@@ -167,7 +193,6 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
               )}
             </button>
           </div>
-        </DialogHeader>
 
         {activeTab === 'overview' ? (
           <div className="space-y-5 pt-2 text-xs">
@@ -193,9 +218,9 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
               {/* Valuation Range Meter */}
               <div className="space-y-1.5 pt-2 border-t border-[#D8E2D6] dark:border-[#618764]/40">
                 <div className="flex justify-between text-[11px] font-mono text-[#75887E] dark:text-[#A0B2A6]">
-                  <span>Low: ${lowRange.toLocaleString()}</span>
-                  <span className="text-[#2B5748] dark:text-[#9CB080] font-bold">Target: ${targetValue.toLocaleString()}</span>
-                  <span>High: ${highRange.toLocaleString()}</span>
+                  <span>Low: PKR ${lowRange.toLocaleString()}</span>
+                  <span className="text-[#2B5748] dark:text-[#9CB080] font-bold">Target: PKR ${targetValue.toLocaleString()}</span>
+                  <span>High: PKR ${highRange.toLocaleString()}</span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-[#D8E2D6] dark:bg-[#273338] overflow-hidden flex">
                   <div className="h-full bg-sky-500 w-1/3" />
@@ -246,7 +271,7 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
                     <div>
                       <span className="font-bold text-xs text-[#273338] dark:text-white block">{comp.address}</span>
                       <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
-                        {comp.beds} bd • {comp.sqft} sqft • ${comp.pricePerSqft}/sqft
+                        {comp.beds} bd • {comp.sqft} sqft • PKR ${comp.pricePerSqft}/sqft
                       </span>
                     </div>
                     <div className="text-right">
@@ -306,7 +331,7 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
                 </p>
                 <Button
                   onClick={handleGenerateStory}
-                  disabled={isSynthesizing}
+                  disabled={isSynthesizing || isBlocked}
                   size="sm"
                   className="bg-[#2B5748] hover:bg-[#24463a] text-white font-bold shadow-xs cursor-pointer"
                 >
@@ -436,7 +461,7 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
               variant="outline"
               size="sm"
               onClick={() => handleGenerateAndShare(true)}
-              disabled={isGenerating}
+              disabled={isGenerating || isBlocked}
               className="text-xs border-[#D8E2D6] dark:border-[#618764]/40 cursor-pointer"
             >
               <MaterialIcon name="open_in_new" size={14} className="mr-1" />
@@ -445,7 +470,7 @@ export const MicroCmaModal: React.FC<MicroCmaModalProps> = ({
             <Button
               size="sm"
               onClick={() => handleGenerateAndShare(false)}
-              disabled={isGenerating}
+              disabled={isGenerating || isBlocked}
               className="bg-[#2B5748] hover:bg-[#24463a] text-white font-semibold cursor-pointer"
             >
               <MaterialIcon name="share" size={14} className="mr-1.5" />

@@ -48,12 +48,12 @@ export function TransactionDetailPage() {
     }
   }
 
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat('en-US', {
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-PK', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'PKR',
       maximumFractionDigits: 0,
-    }).format(val)
+    }).format(amount)
 
   // Dynamic progress bar color calculation based on completion percentage
   const getProgressVisuals = (pct: number) => {

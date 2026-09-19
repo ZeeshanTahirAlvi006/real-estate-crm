@@ -15,13 +15,14 @@ import {
   useCreateSmartListMutation,
   useDeleteSmartListMutation,
 } from '@/store/api/smartListsApi'
-import { useAppDispatch } from '@/store/hooks'
-import { openDialer, startDialingSession } from '@/store/slices/dialerSlice'
+import { useGetFeatureFlagsQuery } from '@/store/api/featureFlagsApi'
 import { FilterBuilder } from './components/FilterBuilder'
 import { SellerRadarTab } from './components/SellerRadarTab'
 import { MicroCmaModal } from './components/MicroCmaModal'
 import { ResponsivePageNav, type NavTabItem } from '@/components/navigation/ResponsivePageNav'
 import type { Contact, SmartListFilter, SavedSmartList } from '@/types'
+import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { TableGridToggle, TableGridToggleButton, type TableColumn, type TableGridViewMode } from '@/components/shared/TableGridToggle'
@@ -74,7 +75,6 @@ const INITIAL_PRESETS: SavedSmartList[] = [
 
 export function SmartListsPage() {
   const navigate = useNavigate()
-  const dispatch = useAppDispatch()
 
   const [activeTab, setActiveTab] = useState<'filters' | 'radar'>('filters')
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>('preset-1')
@@ -113,9 +113,26 @@ export function SmartListsPage() {
     yearsOwned: number
   } | null>(null)
 
-  // Live Contacts API Query
+  // Live Contacts API Query with Multi-Tenant Brokerage Scoping
+  const currentUser = useAppSelector((state) => state.auth.user)
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN
+  const hasNoBrokerage = isSuperAdmin && !currentUser?.brokerageId
+
   const { data: contactsData, isLoading: loadingContacts } = useGetContactsQuery({ limit: 100 })
-  const allContacts = contactsData?.contacts || []
+  const allContacts = useMemo(() => {
+    if (hasNoBrokerage) return []
+    const contacts = contactsData?.contacts || []
+    if (isSuperAdmin) {
+      return contacts.filter((c: Contact) => !c.isCrossBrokerage)
+    }
+    return contacts
+  }, [contactsData?.contacts, isSuperAdmin, hasNoBrokerage])
+
+  // Feature Flags: check if export is enabled
+  const { data: featureFlags } = useGetFeatureFlagsQuery(undefined, { pollingInterval: 8000 })
+  const isExportEnabled = useMemo(() => {
+    return featureFlags ? featureFlags.find((f) => f.key === 'export')?.isEnabled !== false : true
+  }, [featureFlags])
 
   // Multi-condition filtering engine
   const filteredContacts = useMemo(() => {
@@ -229,6 +246,10 @@ export function SmartListsPage() {
   // Save New Preset to MongoDB
   const handleSavePreset = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (hasNoBrokerage) {
+      toast.error('Super Admin must have an assigned brokerage to save smart lists')
+      return
+    }
     if (!newPresetName.trim()) {
       toast.error('Please enter a name for the preset')
       return
@@ -249,28 +270,13 @@ export function SmartListsPage() {
     }
   }
 
-  // Batch Action: Enqueue Segment to Dialer
-  const handleEnqueueToDialer = () => {
-    if (filteredContacts.length === 0) {
-      toast.error('No contacts matching filter segment')
+  // Batch Action: Export CSV
+  const handleExportCsv = () => {
+    if (!isExportEnabled) {
+      toast.error('Data Export is currently paused by system administrator for maintenance.')
       return
     }
 
-    dispatch(openDialer({ lineCount: 3 }))
-    dispatch(
-      startDialingSession({
-        targets: filteredContacts.slice(0, 50).map((c) => ({
-          id: c.id,
-          name: `${c.firstName} ${c.lastName}`,
-          phone: c.phone,
-        })),
-      })
-    )
-    toast.success(`Enqueued ${filteredContacts.length} contacts to Parallel Dialer!`)
-  }
-
-  // Batch Action: Export CSV
-  const handleExportCsv = () => {
     if (filteredContacts.length === 0) {
       toast.error('No contacts to export')
       return
@@ -301,6 +307,10 @@ export function SmartListsPage() {
 
   // Open CMA Modal for a contact
   const handleOpenCma = (c: Contact) => {
+    if (isSuperAdmin && c.isCrossBrokerage) {
+      toast.error('Micro-CMA generation is restricted for cross-brokerage contacts')
+      return
+    }
     setCmaContact({
       name: `${c.firstName} ${c.lastName}`,
       address: c.address ? `${c.address}, ${c.city || 'Austin TX'}` : `${c.city || 'Austin TX'}, Prime Residential`,
@@ -532,6 +542,11 @@ export function SmartListsPage() {
       ) : (
         /* ── Dynamic Segment Builder View (Full Width) ── */
         <div className="space-y-5">
+          {hasNoBrokerage && (
+            <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 text-xs text-amber-700 dark:text-amber-400">
+              Super Admin has no assigned brokerage. Smart Lists and contacts are restricted to your assigned brokerage.
+            </div>
+          )}
           {/* Filter Condition Builder Card */}
           <Card className="border-[#D8E2D6] dark:border-[#618764]/40 bg-white dark:bg-[#202B2F] shadow-xs">
             <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3">
@@ -683,21 +698,22 @@ export function SmartListsPage() {
                 size="sm"
                 variant="outline"
                 onClick={handleExportCsv}
-                disabled={filteredContacts.length === 0}
-                className="h-9 text-xs font-semibold gap-1.5 border-[#D8E2D6] dark:border-[#618764]/40 cursor-pointer"
+                disabled={!isExportEnabled || filteredContacts.length === 0}
+                className={cn(
+                  "h-9 text-xs font-semibold gap-1.5 border-[#D8E2D6] dark:border-[#618764]/40",
+                  !isExportEnabled
+                    ? "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-300 dark:border-gray-700"
+                    : "cursor-pointer"
+                )}
+                title={!isExportEnabled ? "Export paused by system administrator" : "Export contacts as CSV"}
               >
                 <MaterialIcon name="download" size={15} />
-                Export CSV
-              </Button>
-
-              <Button
-                size="sm"
-                onClick={handleEnqueueToDialer}
-                disabled={filteredContacts.length === 0}
-                className="h-9 text-xs font-bold gap-1.5 bg-[#2B5748] hover:bg-[#24463a] text-white shadow-xs cursor-pointer"
-              >
-                <MaterialIcon name="call" size={15} />
-                Dialer Queue ({filteredContacts.length})
+                <span>Export CSV</span>
+                {!isExportEnabled && (
+                  <span className="ml-1 text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                    Paused
+                  </span>
+                )}
               </Button>
             </div>
           </div>

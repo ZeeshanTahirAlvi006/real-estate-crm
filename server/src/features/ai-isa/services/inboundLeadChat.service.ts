@@ -45,7 +45,7 @@ const deliverAiResponse = async (
   result: any,
   contact: any,
   conversation: any,
-  channel: 'sms' | 'whatsapp' | 'email',
+  channel: 'whatsapp' | 'email',
   config: IAiIsaConfig | null
 ) => {
   const brokerageId = contact.brokerageId
@@ -144,7 +144,7 @@ export const handleInboundLeadChat = async (input: {
   conversationId: string
   contactId: string
   inboundText: string
-  channel: 'sms' | 'whatsapp' | 'email'
+  channel: 'whatsapp' | 'email'
 }): Promise<void> => {
   const stopTimer = startTimer('handleInboundLeadChat')
   try {

@@ -13,7 +13,7 @@ export interface AiIsaConfigDto {
     customInstructions?: string
   }
   officeHoursOnly: boolean
-  autoReplyChannels: Array<'sms' | 'whatsapp' | 'email'>
+  autoReplyChannels: Array<'whatsapp' | 'email'>
   autoPilotEnabled: boolean
   humanHandoffDelaySeconds: number
   qualificationThresholdScore: number
@@ -29,7 +29,7 @@ export interface UpdateAiIsaConfigInput {
     customInstructions?: string
   }
   officeHoursOnly?: boolean
-  autoReplyChannels?: Array<'sms' | 'whatsapp' | 'email'>
+  autoReplyChannels?: Array<'whatsapp' | 'email'>
   autoPilotEnabled?: boolean
   humanHandoffDelaySeconds?: number
   qualificationThresholdScore?: number

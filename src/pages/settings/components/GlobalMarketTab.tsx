@@ -8,7 +8,7 @@ import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { toast } from 'sonner'
 
 export const GlobalMarketTab: React.FC = () => {
-  const [currency, setCurrency] = useState('USD')
+  const [currency, setCurrency] = useState('PKR')
   const [marketType, setMarketType] = useState('north_america')
   const [transferTaxRate, setTransferTaxRate] = useState('4.0')
   const [whatsappPhone, setWhatsappPhone] = useState('+1 (555) 019-2831')

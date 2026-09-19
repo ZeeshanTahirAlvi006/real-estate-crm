@@ -4,6 +4,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
 import type { Contact } from '@/types'
 
 interface ContactsTableViewProps {
@@ -48,6 +50,8 @@ export function ContactsTableView({
   onDeleteContact,
 }: ContactsTableViewProps) {
   const navigate = useNavigate()
+  const currentUser = useAppSelector((state) => state.auth.user)
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN
   const totalPages = Math.ceil(total / limit)
 
   if (isLoading) {
@@ -113,26 +117,47 @@ export function ContactsTableView({
                           {c.firstName?.[0] || ''}{c.lastName?.[0] || ''}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="font-semibold text-[#273338] dark:text-white">
-                        {c.firstName} {c.lastName}
-                      </span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-semibold text-[#273338] dark:text-white truncate">
+                          {c.firstName} {c.lastName}
+                        </span>
+                        {isSuperAdmin && c.brokerageName && (
+                          <span
+                            className="text-[11px] text-[#75887E] dark:text-[#A0B2A6] inline-flex items-center gap-1 mt-0.5 truncate"
+                            title={`Brokerage: ${c.brokerageName}`}
+                          >
+                            <MaterialIcon name="business" size={12} className="opacity-75 shrink-0" />
+                            <span className="truncate">{c.brokerageName}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="py-3.5 px-4">
                     {c.phone ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const clean = c.phone.replace(/\D/g, '')
-                          window.open(`https://web.whatsapp.com/send?phone=${clean}`, '_blank')
-                        }}
-                        className="inline-flex items-center gap-1.5 text-[#4A5D54] dark:text-[#E2ECE4] hover:text-[#008069] dark:hover:text-[#00a884] transition-colors cursor-pointer group"
-                        title="Call on WhatsApp Web"
-                      >
-                        <MaterialIcon name="call" size={15} className="text-emerald-600 group-hover:scale-110 transition-transform" />
-                        <span className="group-hover:underline">{c.phone}</span>
-                      </button>
+                      c.isCrossBrokerage ? (
+                        <div
+                          className="inline-flex items-center gap-1.5 text-[#75887E] dark:text-[#A0B2A6] opacity-80 cursor-not-allowed"
+                          title="Cross-brokerage contact: Calling restricted"
+                        >
+                          <MaterialIcon name="phone_locked" size={15} className="text-amber-600/70 dark:text-amber-400/70" />
+                          <span className="font-mono text-xs">{c.phone}</span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const clean = c.phone.replace(/\D/g, '')
+                            window.open(`https://web.whatsapp.com/send?phone=${clean}`, '_blank')
+                          }}
+                          className="inline-flex items-center gap-1.5 text-[#4A5D54] dark:text-[#E2ECE4] hover:text-[#008069] dark:hover:text-[#00a884] transition-colors cursor-pointer group"
+                          title="Call on WhatsApp Web"
+                        >
+                          <MaterialIcon name="call" size={15} className="text-emerald-600 group-hover:scale-110 transition-transform" />
+                          <span className="group-hover:underline">{c.phone}</span>
+                        </button>
+                      )
                     ) : (
                       <div className="flex items-center gap-1.5 text-[#75887E] dark:text-[#A0B2A6]">
                         <MaterialIcon name="call" size={15} className="text-[#75887E] dark:text-[#A0B2A6]" />
@@ -177,73 +202,85 @@ export function ContactsTableView({
                     </div>
                   </td>
                   <td className="py-3.5 px-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-[#273338] dark:text-[#E2ECE4] bg-transparent hover:bg-[#EDF2EB] dark:bg-[#1A2E26]/50 dark:hover:bg-[#1A2E26] border border-transparent dark:border-[#618764]/40 transition-colors cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onEditContact(c)
-                        }}
-                        title="Edit contact"
-                      >
-                        <MaterialIcon name="edit" size={15} />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold text-[#2B5748] dark:text-[#9CB080] hover:bg-[#9CB080]/15 dark:bg-[#9CB080]/10 dark:hover:bg-[#9CB080]/25 border border-[#9CB080]/30 transition-colors cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onCredsContact(c)
-                        }}
-                        title="Generate portal credentials"
-                      >
-                        <MaterialIcon name="key" size={15} />
-                        <span>Creds</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold text-[#008069] dark:text-[#00a884] hover:bg-[#008069]/10 border border-[#008069]/30 transition-colors cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const clean = (c.phone || '').replace(/\D/g, '')
-                          if (clean) {
-                            window.open(`https://web.whatsapp.com/send?phone=${clean}`, '_blank')
-                          } else {
-                            toast.error('No phone number available for this contact')
-                          }
-                        }}
-                        title="Call on WhatsApp Web"
-                      >
-                        <MaterialIcon name="call" size={15} />
-                        <span>Call</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-[#618764] dark:text-[#A8D5AE] hover:bg-[#618764]/15 dark:bg-[#618764]/15 dark:hover:bg-[#618764]/30 border border-[#618764]/40 transition-colors cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          navigate('/inbox')
-                        }}
-                        title="Message contact"
-                      >
-                        <MaterialIcon name="chat" size={15} />
-                        <span>Message</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-red-600 dark:text-red-300 hover:bg-red-500/15 dark:bg-red-500/10 dark:hover:bg-red-500/25 border border-red-500/30 transition-colors cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onDeleteContact(c.id)
-                        }}
-                        title="Delete contact"
-                      >
-                        <MaterialIcon name="delete" size={15} />
-                        <span>Delete</span>
-                      </button>
-                    </div>
+                    {c.isCrossBrokerage ? (
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 cursor-default"
+                          title="Contact belongs to another brokerage: Contacting and mutations are restricted."
+                        >
+                          <MaterialIcon name="lock" size={13} className="opacity-75" />
+                          <span>Protected</span>
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-[#273338] dark:text-[#E2ECE4] bg-transparent hover:bg-[#EDF2EB] dark:bg-[#1A2E26]/50 dark:hover:bg-[#1A2E26] border border-transparent dark:border-[#618764]/40 transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onEditContact(c)
+                          }}
+                          title="Edit contact"
+                        >
+                          <MaterialIcon name="edit" size={15} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold text-[#2B5748] dark:text-[#9CB080] hover:bg-[#9CB080]/15 dark:bg-[#9CB080]/10 dark:hover:bg-[#9CB080]/25 border border-[#9CB080]/30 transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onCredsContact(c)
+                          }}
+                          title="Generate portal credentials"
+                        >
+                          <MaterialIcon name="key" size={15} />
+                          <span>Creds</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold text-[#008069] dark:text-[#00a884] hover:bg-[#008069]/10 border border-[#008069]/30 transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const clean = (c.phone || '').replace(/\D/g, '')
+                            if (clean) {
+                              window.open(`https://web.whatsapp.com/send?phone=${clean}`, '_blank')
+                            } else {
+                              toast.error('No phone number available for this contact')
+                            }
+                          }}
+                          title="Call on WhatsApp Web"
+                        >
+                          <MaterialIcon name="call" size={15} />
+                          <span>Call</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-[#618764] dark:text-[#A8D5AE] hover:bg-[#618764]/15 dark:bg-[#618764]/15 dark:hover:bg-[#618764]/30 border border-[#618764]/40 transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate('/inbox')
+                          }}
+                          title="Message contact"
+                        >
+                          <MaterialIcon name="chat" size={15} />
+                          <span>Message</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-red-600 dark:text-red-300 hover:bg-red-500/15 dark:bg-red-500/10 dark:hover:bg-red-500/25 border border-red-500/30 transition-colors cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDeleteContact(c.id)
+                          }}
+                          title="Delete contact"
+                        >
+                          <MaterialIcon name="delete" size={15} />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))

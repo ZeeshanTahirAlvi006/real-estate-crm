@@ -24,7 +24,7 @@ export const getS3Client = (): S3Client | null => {
 
   if (!s3ClientInstance) {
     if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY || !env.AWS_S3_BUCKET) {
-      logger.warn('⚠️ AWS S3 credentials missing in environment. S3 uploads will fail.')
+      logger.warn('AWS S3 credentials missing in environment. S3 uploads will fail.')
       return null
     }
 
@@ -35,7 +35,7 @@ export const getS3Client = (): S3Client | null => {
         secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
       },
     })
-    logger.info('☁️ AWS S3 client initialized')
+    logger.info('AWS S3 client initialized')
   }
 
   return s3ClientInstance

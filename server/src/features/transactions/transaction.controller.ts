@@ -25,7 +25,8 @@ export class TransactionController {
       })
     } catch (err: any) {
       logger.error(`[TransactionController.convertDeal] Error: ${err.message}`)
-      res.status(err.message.includes('not found') ? 404 : 400).json({
+      const status = err.statusCode || (err.message?.includes('not found') ? 404 : 400)
+      res.status(status).json({
         success: false,
         message: err.message,
       })
@@ -48,7 +49,8 @@ export class TransactionController {
       })
     } catch (err: any) {
       logger.error(`[TransactionController.create] Error: ${err.message}`)
-      res.status(400).json({
+      const status = err.statusCode || 400
+      res.status(status).json({
         success: false,
         message: err.message,
       })
@@ -96,7 +98,8 @@ export class TransactionController {
         data: transaction,
       })
     } catch (err: any) {
-      res.status(404).json({
+      const status = err.statusCode || 404
+      res.status(status).json({
         success: false,
         message: err.message || 'Transaction not found',
       })
@@ -127,7 +130,8 @@ export class TransactionController {
       })
     } catch (err: any) {
       logger.error(`[TransactionController.updateMilestone] Error: ${err.message}`)
-      res.status(400).json({
+      const status = err.statusCode || 400
+      res.status(status).json({
         success: false,
         message: err.message,
       })
@@ -152,7 +156,8 @@ export class TransactionController {
       })
     } catch (err: any) {
       logger.error(`[TransactionController.uploadDocument] Error: ${err.message}`)
-      res.status(400).json({
+      const status = err.statusCode || 400
+      res.status(status).json({
         success: false,
         message: err.message,
       })
@@ -176,7 +181,8 @@ export class TransactionController {
         message: 'Document removed successfully',
       })
     } catch (err: any) {
-      res.status(400).json({
+      const status = err.statusCode || 400
+      res.status(status).json({
         success: false,
         message: err.message,
       })

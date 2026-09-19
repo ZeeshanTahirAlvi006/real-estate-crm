@@ -20,7 +20,7 @@ export function PipelineSummaryBar({ stages }: PipelineSummaryBarProps) {
               <div className="flex items-center gap-2">
                 <span className="font-bold text-xs text-[#273338] dark:text-white">{stage.dealCount}</span>
                 <span className="text-xs text-[#75887E] dark:text-[#A0B2A6]">
-                  ${(stage.totalValue / 1000).toFixed(0)}K
+                  PKR ${(stage.totalValue / 1000).toFixed(0)}k
                 </span>
               </div>
             </div>

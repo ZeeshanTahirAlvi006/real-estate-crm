@@ -86,3 +86,52 @@ export const verifyCommunicationBrokerageAccess = (
   }
   return user.brokerageId.toString() === resourceBrokerageId.toString()
 }
+
+/**
+ * Strict operational scoping middleware for Deals, Pipelines, Transactions, Smart Lists, Commissions, and Radar:
+ * Binds even Super Admin to their assigned brokerageId.
+ * If unassigned, injects a non-matching ObjectId so queries return empty datasets safely.
+ */
+export const strictOperationalScope = (req: Request, res: Response, next: NextFunction): void | Response => {
+  if (!req.user) {
+    return sendError(res, GENERIC_AUTH_MESSAGES.UNAUTHORIZED, HTTP_STATUS.UNAUTHORIZED)
+  }
+
+  if (req.user.role === USER_ROLES.SUPER_ADMIN) {
+    if (req.user.brokerageId) {
+      req.tenantFilter = {
+        brokerageId: new mongoose.Types.ObjectId(req.user.brokerageId.toString()),
+      }
+      req.effectiveBrokerageId = req.user.brokerageId.toString()
+    } else {
+      // Unassigned Super Admin: non-matching ObjectId returns empty results cleanly
+      req.tenantFilter = {
+        brokerageId: new mongoose.Types.ObjectId(),
+      }
+      req.effectiveBrokerageId = undefined
+    }
+    return next()
+  }
+
+  req.tenantFilter = {
+    brokerageId: req.user.brokerageId ? new mongoose.Types.ObjectId(req.user.brokerageId.toString()) : undefined,
+  }
+  req.effectiveBrokerageId = req.user.brokerageId ? req.user.brokerageId.toString() : undefined
+
+  next()
+}
+
+/**
+ * Strict operational resource verification for Deals, Pipelines, Transactions, Commissions, and Radar:
+ * Requires user to have an assigned brokerage, and requires resource to belong to that exact brokerage.
+ */
+export const verifyDealAndOperationalAccess = (
+  user: IUser,
+  resourceBrokerageId: mongoose.Types.ObjectId | string
+): boolean => {
+  if (!user?.brokerageId || !resourceBrokerageId) {
+    return false
+  }
+  return user.brokerageId.toString() === resourceBrokerageId.toString()
+}
+

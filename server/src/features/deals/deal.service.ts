@@ -6,7 +6,7 @@ import { User, IUser } from '../../models/User.js'
 import { Activity } from '../../models/Activity.js'
 import { AppError } from '../../middleware/errorHandler.js'
 import { HTTP_STATUS, USER_ROLES } from '../../utils/constants.js'
-import { verifyBrokerageAccess } from '../../middleware/tenantScope.js'
+import { verifyBrokerageAccess, verifyDealAndOperationalAccess } from '../../middleware/tenantScope.js'
 import { logAuditEvent } from '../../utils/auditLogger.js'
 import { escapeRegExp } from '../../utils/sanitizer.js'
 import { emitDealStageChange } from '../../config/socket.js'
@@ -85,12 +85,16 @@ export const createDeal = async (
   const pipeline = await Pipeline.findById(data.pipelineId)
   if (!pipeline) throw new AppError('Pipeline not found', HTTP_STATUS.NOT_FOUND)
 
+  if (!caller.brokerageId) {
+    throw new AppError('An assigned brokerage is required to create deals', HTTP_STATUS.FORBIDDEN)
+  }
+
   // Enforce brokerage restriction: Users (including Super Admins) cannot create deals in someone else's brokerage
-  if (caller.brokerageId && caller.brokerageId.toString() !== pipeline.brokerageId.toString()) {
+  if (caller.brokerageId.toString() !== pipeline.brokerageId.toString()) {
     throw new AppError('You cannot create deals in someone else\'s brokerage. The selected pipeline belongs to another brokerage.', HTTP_STATUS.FORBIDDEN)
   }
 
-  const targetBrokerageId = caller.brokerageId || pipeline.brokerageId
+  const targetBrokerageId = caller.brokerageId
 
   // Validate stage exists in the pipeline
   const stage = pipeline.stages.find((s) => s._id.toString() === data.stageId)
@@ -99,8 +103,8 @@ export const createDeal = async (
   // Validate contact exists and belongs to caller's brokerage
   const contact = await Contact.findById(data.contactId)
   if (!contact) throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
-  if (caller.brokerageId && contact.brokerageId.toString() !== caller.brokerageId.toString()) {
-    throw new AppError('The selected contact does not belong to your brokerage', HTTP_STATUS.BAD_REQUEST)
+  if (contact.brokerageId.toString() !== caller.brokerageId.toString()) {
+    throw new AppError('The selected contact belongs to another brokerage and cannot be added to a deal', HTTP_STATUS.FORBIDDEN)
   }
 
   // Validate assigned agent exists, is active, and belongs to caller's brokerage
@@ -108,8 +112,8 @@ export const createDeal = async (
   if (!agent || !agent.isActive) {
     throw new AppError('Assigned agent not found or inactive', HTTP_STATUS.BAD_REQUEST)
   }
-  if (caller.brokerageId && agent.brokerageId.toString() !== caller.brokerageId.toString()) {
-    throw new AppError('Assigned agent does not belong to your brokerage', HTTP_STATUS.BAD_REQUEST)
+  if (agent.brokerageId.toString() !== caller.brokerageId.toString()) {
+    throw new AppError('Assigned agent does not belong to your brokerage', HTTP_STATUS.FORBIDDEN)
   }
 
   const deal = await Deal.create({
@@ -203,7 +207,7 @@ export const getDealById = async (
 
   const deal = await Deal.findOne({ _id: id, isDeleted: false })
   if (!deal) throw new AppError('Deal not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyBrokerageAccess(caller, deal.brokerageId)) {
+  if (!verifyDealAndOperationalAccess(caller, deal.brokerageId)) {
     throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
   }
 
@@ -227,8 +231,19 @@ export const updateDeal = async (
 ): Promise<DealResponseDto> => {
   const deal = await Deal.findOne({ _id: id, isDeleted: false })
   if (!deal) throw new AppError('Deal not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyBrokerageAccess(caller, deal.brokerageId)) {
+  if (!verifyDealAndOperationalAccess(caller, deal.brokerageId)) {
     throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
+  }
+
+  // Validate contact if being updated
+  if (data.contactId) {
+    const contact = await Contact.findById(data.contactId)
+    if (!contact) throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
+    if (contact.brokerageId.toString() !== deal.brokerageId.toString()) {
+      throw new AppError('The selected contact belongs to another brokerage and cannot be added to this deal', HTTP_STATUS.FORBIDDEN)
+    }
+    deal.contactId = contact._id
+    deal.contactName = `${contact.firstName} ${contact.lastName}`
   }
 
   if (data.propertyAddress !== undefined) deal.propertyAddress = data.propertyAddress
@@ -308,13 +323,10 @@ export const updateDeal = async (
     if (!agent || !agent.isActive) {
       throw new AppError('Assigned agent not found or inactive', HTTP_STATUS.BAD_REQUEST)
     }
-    const isBrokerageMatch =
-      agent.brokerageId.toString() === deal.brokerageId.toString() ||
-      agent.role === USER_ROLES.SUPER_ADMIN ||
-      caller.role === USER_ROLES.SUPER_ADMIN
+    const isBrokerageMatch = agent.brokerageId.toString() === deal.brokerageId.toString()
 
     if (!isBrokerageMatch) {
-      throw new AppError('Assigned agent does not belong to the deal brokerage', HTTP_STATUS.BAD_REQUEST)
+      throw new AppError('Assigned agent does not belong to the deal brokerage', HTTP_STATUS.FORBIDDEN)
     }
     deal.assignedAgentId = agent._id as mongoose.Types.ObjectId
     deal.assignedAgentName = `${agent.firstName} ${agent.lastName}`
@@ -363,7 +375,7 @@ export const deleteDeal = async (
 ): Promise<void> => {
   const deal = await Deal.findOne({ _id: id, isDeleted: false })
   if (!deal) throw new AppError('Deal not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyBrokerageAccess(caller, deal.brokerageId)) {
+  if (!verifyDealAndOperationalAccess(caller, deal.brokerageId)) {
     throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
   }
 
@@ -395,7 +407,7 @@ export const moveDealStage = async (
 ): Promise<DealResponseDto> => {
   const deal = await Deal.findOne({ _id: dealId, isDeleted: false })
   if (!deal) throw new AppError('Deal not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyBrokerageAccess(caller, deal.brokerageId)) {
+  if (!verifyDealAndOperationalAccess(caller, deal.brokerageId)) {
     throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
   }
 
@@ -553,7 +565,7 @@ export const getKanbanData = async (
 
   const pipeline = await Pipeline.findById(pipelineId)
   if (!pipeline) throw new AppError('Pipeline not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyBrokerageAccess(caller, pipeline.brokerageId)) {
+  if (!verifyDealAndOperationalAccess(caller, pipeline.brokerageId)) {
     throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
   }
 
@@ -752,7 +764,7 @@ export const getStageDeals = async (
 
   const pipeline = await Pipeline.findById(pipelineId)
   if (!pipeline) throw new AppError('Pipeline not found', HTTP_STATUS.NOT_FOUND)
-  if (!verifyBrokerageAccess(caller, pipeline.brokerageId)) {
+  if (!verifyDealAndOperationalAccess(caller, pipeline.brokerageId)) {
     throw new AppError('Access denied', HTTP_STATUS.FORBIDDEN)
   }
 

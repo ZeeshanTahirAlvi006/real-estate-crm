@@ -5,16 +5,11 @@ import type {
   QuickReplyTemplate,
   WhatsAppTemplate,
   WhatsAppBroadcast,
-  LocalPresenceInfo,
-  VoicemailAudioDrop,
-  DialerQueueContact,
-  CallLog,
   AiIsaConfig,
   QualificationCriteria,
   ReactivationCampaign,
   CampaignMetrics,
   SpeedToLeadMetric,
-  CallDisposition,
   WhatsAppTenantConfig,
   UnifiedSendPayload,
   DncCheckResponse,
@@ -24,14 +19,6 @@ interface ApiResponse<T> {
   success: boolean
   message?: string
   data: T
-}
-
-export interface DialerStats {
-  totalCallsToday: number
-  connectRatePercent: number
-  totalTalkTimeSeconds: number
-  avgDurationSeconds: number
-  dispositionsBreakdown: Record<string, number>
 }
 
 export interface AiChatSimulatePayload {
@@ -348,136 +335,6 @@ export const communicationApi = baseApi.injectEndpoints({
       invalidatesTags: ['Contacts', 'ContactDetail', 'Conversations'],
     }),
 
-    // ── Dialer & Telephony ──
-    getDialerQueue: builder.query<DialerQueueContact[], void>({
-      query: () => '/dialer/queue',
-      transformResponse: (res: ApiResponse<DialerQueueContact[]>) => res.data || [],
-      providesTags: ['DialerQueue'],
-    }),
-
-    getCallLogs: builder.query<
-      { logs: CallLog[]; total: number } | CallLog[],
-      { page?: number; limit?: number; disposition?: string; search?: string } | void
-    >({
-      query: (params) => ({
-        url: '/dialer/call-logs',
-        params: params || undefined,
-      }),
-      transformResponse: (res: ApiResponse<{ logs: CallLog[]; total: number }>) =>
-        res.data?.logs || res.data || [],
-      providesTags: ['CallLogs'],
-    }),
-
-    getDialerStats: builder.query<DialerStats, void>({
-      query: () => '/dialer/stats',
-      transformResponse: (res: ApiResponse<DialerStats>) => res.data,
-      providesTags: ['CallLogs'],
-    }),
-
-    saveCallDisposition: builder.mutation<
-      CallLog,
-      {
-        contactId: string
-        contactName: string
-        contactPhone: string
-        durationSeconds: number
-        disposition: CallDisposition
-        notes?: string
-        linesUsed?: number
-        lineIndex?: number
-        recordingUrl?: string
-        liveTranscript?: string
-        aiSummary?: string
-        sentiment?: 'positive' | 'neutral' | 'negative'
-      }
-    >({
-      query: (data) => ({
-        url: '/dialer/call-logs',
-        method: 'POST',
-        body: data,
-      }),
-      transformResponse: (res: ApiResponse<CallLog>) => res.data,
-      invalidatesTags: ['CallLogs', 'DialerQueue', 'Contacts', 'ContactDetail'],
-    }),
-
-    getVoicemailDrops: builder.query<VoicemailAudioDrop[], void>({
-      query: () => '/dialer/voicemail-drops',
-      transformResponse: (res: ApiResponse<VoicemailAudioDrop[]>) => res.data || [],
-      providesTags: ['VoicemailDrops'],
-    }),
-
-    createVoicemailDrop: builder.mutation<
-      VoicemailAudioDrop,
-      { name: string; title: string; audioUrl: string; durationSeconds?: number; category?: string; isDefault?: boolean }
-    >({
-      query: (data) => ({
-        url: '/dialer/voicemail-drops',
-        method: 'POST',
-        body: data,
-      }),
-      transformResponse: (res: ApiResponse<VoicemailAudioDrop>) => res.data,
-      invalidatesTags: ['VoicemailDrops'],
-    }),
-
-    enqueueDialerContacts: builder.mutation<{ enqueuedCount: number }, { contactIds: string[]; priority?: number }>({
-      query: (data) => ({
-        url: '/dialer/queue/enqueue',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: ['DialerQueue'],
-    }),
-
-    clearDialerQueue: builder.mutation<{ success: boolean }, void>({
-      query: () => ({
-        url: '/dialer/queue/clear',
-        method: 'POST',
-      }),
-      invalidatesTags: ['DialerQueue'],
-    }),
-
-    matchLocalPresence: builder.mutation<LocalPresenceInfo, { phone: string }>({
-      query: (body) => ({
-        url: '/dialer/local-presence/match',
-        method: 'POST',
-        body,
-      }),
-      transformResponse: (res: ApiResponse<LocalPresenceInfo>) => res.data,
-    }),
-
-    startParallelSession: builder.mutation<
-      { sessionId: string; lineCount: number; lines: any[]; startedAt: string },
-      { lineCount: 1 | 3 | 5; targets: Array<{ id: string; name: string; phone: string }>; useLocalPresence?: boolean }
-    >({
-      query: (body) => ({
-        url: '/dialer/parallel/start',
-        method: 'POST',
-        body,
-      }),
-      transformResponse: (res: ApiResponse<any>) => res.data,
-    }),
-
-    summarizeCall: builder.mutation<
-      {
-        summary: string
-        keyTakeaways: string[]
-        sentiment: string
-        detectedIntent: string
-        budgetRange?: string
-        timeline?: string
-        nextActionSuggestion: string
-        urgencyScore: number
-      },
-      { transcript: string; contactName?: string; durationSeconds?: number }
-    >({
-      query: (body) => ({
-        url: '/dialer/summarize-call',
-        method: 'POST',
-        body,
-      }),
-      transformResponse: (res: ApiResponse<any>) => res.data,
-    }),
-
     // ── AI ISA Engine ──
 
     // Config
@@ -780,17 +637,6 @@ export const {
   useCheckDncStatusMutation,
   useOptOutContactMutation,
   useOptBackInContactMutation,
-  useGetDialerQueueQuery,
-  useGetCallLogsQuery,
-  useGetDialerStatsQuery,
-  useSaveCallDispositionMutation,
-  useGetVoicemailDropsQuery,
-  useCreateVoicemailDropMutation,
-  useEnqueueDialerContactsMutation,
-  useClearDialerQueueMutation,
-  useMatchLocalPresenceMutation,
-  useStartParallelSessionMutation,
-  useSummarizeCallMutation,
   useGetAiIsaConfigQuery,
   useUpdateAiIsaConfigMutation,
   useGetQualificationCriteriaQuery,

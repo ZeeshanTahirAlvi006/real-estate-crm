@@ -201,7 +201,7 @@ export const ManualLeadModal: React.FC<ManualLeadModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Budget / Price ($)</Label>
+              <Label className="text-xs font-semibold text-[#273338] dark:text-white">Budget / Price (PKR)</Label>
               <Input
                 type="number"
                 value={price}

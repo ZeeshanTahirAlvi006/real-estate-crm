@@ -183,7 +183,7 @@ export function LeadPortalPage() {
                         </Badge>
                       </div>
                       <p className="text-base font-black font-mono text-primary">
-                        ${deal.value.toLocaleString()}
+                        PKR {deal.value.toLocaleString()}
                       </p>
                     </div>
 

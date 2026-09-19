@@ -125,8 +125,8 @@ export const StartConversationModal: React.FC<StartConversationModalProps> = ({
       return
     }
 
-    if ((selectedChannel === 'sms' || selectedChannel === 'whatsapp') && !selectedContact.phone) {
-      toast.error(`Selected contact does not have a phone number for ${selectedChannel.toUpperCase()}`)
+    if (selectedChannel === 'whatsapp' && !selectedContact.phone) {
+      toast.error('Selected contact does not have a phone number for WhatsApp')
       return
     }
 
@@ -163,7 +163,7 @@ export const StartConversationModal: React.FC<StartConversationModalProps> = ({
             <div>
               <DialogTitle className="text-lg font-bold text-foreground">Start New Conversation</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Reach out to any contact in your directory via SMS, WhatsApp, or Email.
+                Reach out to any contact in your directory via WhatsApp or Email.
               </DialogDescription>
             </div>
           </div>

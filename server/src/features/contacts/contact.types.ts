@@ -28,6 +28,9 @@ export interface ContactResponseDto {
   status: ContactStatus
   assignedAgentId?: string
   assignedAgentName?: string
+  brokerageId?: string
+  brokerageName?: string
+  isCrossBrokerage?: boolean
   notes?: string
   propertyInterests: string[]
   socialLinks?: ISocialLinks

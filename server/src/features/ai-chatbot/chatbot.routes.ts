@@ -11,6 +11,7 @@ import {
 import { authenticate } from '../../middleware/authenticate.js'
 import { tenantScope } from '../../middleware/tenantScope.js'
 import { validate } from '../../middleware/validate.js'
+import { requireFeature } from '../../middleware/featureFlag.js'
 import {
   qualifyLeadSchema,
   draftResponseSchema,
@@ -24,7 +25,7 @@ import { objectionRoutes } from './objections/objection.routes.js'
 const chatbotRouter = Router()
 const complianceRouter = Router()
 
-chatbotRouter.use(authenticate, tenantScope)
+chatbotRouter.use(authenticate, tenantScope, requireFeature('ai_chatbot'))
 complianceRouter.use(authenticate, tenantScope)
 
 // Objection Handling Copilot Engine (Sprint 23)

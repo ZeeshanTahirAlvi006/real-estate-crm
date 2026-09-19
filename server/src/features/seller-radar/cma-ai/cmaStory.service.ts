@@ -132,7 +132,7 @@ export class CmaStoryService {
     compsAnalysis: string
     recommendedStrategy: string
   } {
-    const formatCurrency = (n: number) => `$${Math.round(n).toLocaleString()}`
+    const formatCurrency = (n: number) => `PKR ${Math.round(n).toLocaleString()}`
     const target = subject.estimatedValue || valuationRange?.target || 0
     const low = valuationRange?.low || Math.round(target * 0.96)
     const high = valuationRange?.high || Math.round(target * 1.05)

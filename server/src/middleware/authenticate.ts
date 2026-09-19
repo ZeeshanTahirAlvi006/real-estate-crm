@@ -29,7 +29,7 @@ export const invalidateUserAuthCache = async (userId: string): Promise<void> => 
   try {
     await cacheDelete(`auth:user:${userId}`)
   } catch {
-    // Graceful Redis fallback isolation (DI-003)
+    // Graceful Redis fallback isolation 
   }
 }
 
@@ -40,7 +40,7 @@ export const warmUserAuthCache = async (userId: string, user: any): Promise<void
   try {
     await cacheSet(`auth:user:${userId}`, JSON.stringify(user), 300)
   } catch {
-    // Non-blocking cache isolation (DI-003)
+    // Non-blocking cache isolation 
   }
 }
 
@@ -92,7 +92,7 @@ export const authenticate = async (
             }
           }
         } catch {
-          // Redis read failure isolation (DI-003)
+          // Redis read failure isolation
         }
 
         // 3. Database Fallback (Uncached Covered Query < 10ms target)
@@ -106,7 +106,7 @@ export const authenticate = async (
 
           if (user && user.isActive && (user.tokenVersion ?? 0) === expectedVersion) {
             // Backfill L1 and L2 caches asynchronously
-            warmUserAuthCache(rawUserId, user).catch(() => {})
+            warmUserAuthCache(rawUserId, user).catch(() => { })
             req.user = user as any
             req.tokenPayload = decoded
             return next()
@@ -160,7 +160,7 @@ export const authenticate = async (
           setAuthCookies(res, newAccessToken, rToken)
           res.setHeader('X-Access-Token', newAccessToken)
 
-          warmUserAuthCache(rawUserId, user).catch(() => {})
+          warmUserAuthCache(rawUserId, user).catch(() => { })
           req.user = user as any
           req.tokenPayload = newPayload
           return next()

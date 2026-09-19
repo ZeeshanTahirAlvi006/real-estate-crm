@@ -9,7 +9,10 @@ import { streamPdfReport } from '../../utils/exportHelper.js'
 // GET /api/export/contacts?format=csv|pdf
 export const exportContacts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    if (!req.user) return
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
     const format = ((req.query.format as string) || 'csv').toLowerCase()
     const { csvContent, pdfHeaders, pdfRows } = await getExportContactsData(req.user)
 
@@ -31,7 +34,10 @@ export const exportContacts = async (req: Request, res: Response, next: NextFunc
 // GET /api/export/deals?format=csv|pdf
 export const exportDeals = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    if (!req.user) return
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
     const format = ((req.query.format as string) || 'csv').toLowerCase()
     const { csvContent, pdfHeaders, pdfRows } = await getExportDealsData(req.user)
 
@@ -53,7 +59,10 @@ export const exportDeals = async (req: Request, res: Response, next: NextFunctio
 // GET /api/export/commissions?format=csv|pdf
 export const exportCommissions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    if (!req.user) return
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
     const format = ((req.query.format as string) || 'csv').toLowerCase()
     const { csvContent, pdfHeaders, pdfRows } = await getExportCommissionsData(req.user)
 

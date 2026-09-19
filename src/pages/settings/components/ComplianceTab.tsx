@@ -99,7 +99,7 @@ export function ComplianceTab() {
   return (
     <div className="space-y-6">
       {/* Top Banner & Quick Refresh */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-white dark:bg-[#2B5748] border border-[#D8E2D6] dark:border-[#618764] shadow-xs">
+      <div className="flex flex-row items-center justify-between gap-4 p-4 rounded-xl bg-white dark:bg-[#2B5748] border border-[#D8E2D6] dark:border-[#618764] shadow-xs">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-[#9CB080]/20 text-[#273338] dark:text-[#9CB080] flex items-center justify-center">
             <MaterialIcon name="verified_user" size={20} />
@@ -114,12 +114,12 @@ export function ComplianceTab() {
 
         <div className="flex items-center gap-2">
           {dashboard?.safeCallingWindowActive ? (
-            <Badge className="bg-[#9CB080]/20 text-[#273338] dark:text-[#9CB080] border-[#9CB080]/40 gap-1.5 py-1 px-3">
+            <Badge className="bg-[#9CB080]/20 text-[#273338] dark:text-[#9CB080] border-[#9CB080]/40 gap-1.5 py-1 px-3 whitespace-nowrap">
               <span className="w-2 h-2 rounded-full bg-[#9CB080]" />
               <span>Safe Hours (8 AM – 9 PM)</span>
             </Badge>
           ) : (
-            <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1.5 py-1 px-3">
+            <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1.5 py-1 px-3 whitespace-nowrap">
               <MaterialIcon name="schedule" size={14} />
               <span>Quiet Hours</span>
             </Badge>
@@ -138,40 +138,42 @@ export function ComplianceTab() {
         </div>
       </div>
 
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 gap-y-6 pt-3">
-        <KpiCard
-          title="Monitored Records"
-          value={dashboard?.totalContacts?.toLocaleString() ?? '—'}
-          icon="contact_page"
-          subtitle="Active records"
-        />
+      {/* KPI Stats Cards - 4 Columns matching desktop */}
+      <div className="overflow-x-auto pb-1 no-scrollbar">
+        <div className="grid grid-cols-4 gap-4 min-w-[600px] sm:min-w-0 pt-3">
+          <KpiCard
+            title="Monitored Records"
+            value={dashboard?.totalContacts?.toLocaleString() ?? '—'}
+            icon="contact_page"
+            subtitle="Active records"
+          />
 
-        <KpiCard
-          title="Opt-In Rate"
-          value={dashboard ? `${dashboard.optInRate}%` : '—'}
-          icon="verified"
-          subtitle={`${dashboard?.cleanCount ?? 0} verified clean`}
-          trend={{ value: dashboard?.optInRate ?? 0, isPositive: true }}
-        />
+          <KpiCard
+            title="Opt-In Rate"
+            value={dashboard ? `${dashboard.optInRate}%` : '—'}
+            icon="verified"
+            subtitle={`${dashboard?.cleanCount ?? 0} verified clean`}
+            trend={{ value: dashboard?.optInRate ?? 0, isPositive: true }}
+          />
 
-        <KpiCard
-          title="Opt-Out Records"
-          value={dashboard?.optedOutCount ?? 0}
-          icon="do_not_disturb_on"
-          subtitle="STOP requests"
-        />
+          <KpiCard
+            title="Opt-Out Records"
+            value={dashboard?.optedOutCount ?? 0}
+            icon="do_not_disturb_on"
+            subtitle="STOP requests"
+          />
 
-        <KpiCard
-          title="DNC Flags"
-          value={dashboard?.federalDncCount ?? 0}
-          icon="phonelink_erase"
-          subtitle="Outreach blocked"
-        />
+          <KpiCard
+            title="DNC Flags"
+            value={dashboard?.federalDncCount ?? 0}
+            icon="phonelink_erase"
+            subtitle="Outreach blocked"
+          />
+        </div>
       </div>
 
-      {/* Main 2-Column Working Tools */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Main 2-Column Working Tools - 2 Columns matching desktop */}
+      <div className="grid grid-cols-2 gap-6">
         {/* Fair Housing Scanner */}
         <Card className="bg-white dark:bg-[#2B5748] border-[#D8E2D6] dark:border-[#618764] shadow-xs">
           <CardHeader className="pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/60">

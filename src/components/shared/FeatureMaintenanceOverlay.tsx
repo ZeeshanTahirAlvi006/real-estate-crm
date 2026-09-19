@@ -25,11 +25,6 @@ export const ROUTE_FEATURE_MAP: Record<string, { key: string; name: string; desc
     name: 'Lead Ingestion & Routing Engines',
     description: 'Third-party portal webhooks, universal parsers, and intelligent lead distribution algorithms.',
   },
-  '/dialer': {
-    key: 'dialer',
-    name: 'Parallel Dialer & Telephony',
-    description: 'Multi-line WebRTC telephony dialer, call queues, and automated voicemail drops.',
-  },
   '/ai-isa': {
     key: 'ai_isa',
     name: 'Autonomous AI ISA Engine',
@@ -40,10 +35,20 @@ export const ROUTE_FEATURE_MAP: Record<string, { key: string; name: string; desc
     name: 'Data Health & Deduplication Scanner',
     description: 'Fuzzy contact deduplication, MX record verification, and database health scoring.',
   },
-  '/inbox': {
-    key: 'ai_chatbot',
-    name: 'AI Chatbot & Communications Copilot',
-    description: 'Omnichannel inbox, AI suggested responses, and unified conversation hub.',
+  '/cma': {
+    key: 'seller_radar',
+    name: 'Seller Radar & Micro-CMA',
+    description: 'Predictive seller equity scanner, comparative market analysis, and property narrative reports.',
+  },
+  '/micro-cma': {
+    key: 'seller_radar',
+    name: 'Seller Radar & Micro-CMA',
+    description: 'Predictive seller equity scanner, comparative market analysis, and property narrative reports.',
+  },
+  '/sign': {
+    key: 'esign',
+    name: 'eSignature & PDF Documents',
+    description: 'Legally binding digital signature workflows, document envelope tracking, and audit trails.',
   },
 }
 
@@ -60,9 +65,12 @@ export function FeatureMaintenanceOverlay() {
 
   const [toggleFlag, { isLoading: isToggling }] = useToggleFeatureFlagMutation()
 
-  // Match current pathname with feature mapping
+  // Match current pathname with feature mapping (supports exact and prefix routes like /cma/123)
   const currentPath = location.pathname
-  const mappedFeature = ROUTE_FEATURE_MAP[currentPath]
+  const matchedRouteKey = Object.keys(ROUTE_FEATURE_MAP).find(
+    (route) => currentPath === route || currentPath.startsWith(`${route}/`)
+  )
+  const mappedFeature = matchedRouteKey ? ROUTE_FEATURE_MAP[matchedRouteKey] : null
 
   if (!mappedFeature || isLoading || !flags) {
     return null

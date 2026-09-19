@@ -21,7 +21,7 @@ export const corsOptions: cors.CorsOptions = {
 
     const cleanOrigin = origin.replace(/\/$/, '')
 
-    // 2. Allow any Vercel production or preview deployment
+    // 2. Allow Vercel production or preview deployment
     const isVercelOrigin = /^https:\/\/[a-z0-9-.]+\.vercel\.app$/.test(cleanOrigin)
 
     if (

@@ -39,7 +39,7 @@ export function SecurityTab() {
   }
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-6 w-full max-w-none">
       <Card className="bg-white dark:bg-[#2B5748] border-[#D8E2D6] dark:border-[#618764] shadow-xs">
         <CardHeader className="pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/60">
           <div className="flex items-center gap-2">
@@ -95,7 +95,7 @@ export function SecurityTab() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs h-9 rounded-lg mt-2 cursor-pointer"
+              className="w-full sm:w-auto bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs h-9 px-6 rounded-lg mt-2 cursor-pointer transition-all active:scale-[0.98]"
             >
               {isLoading ? 'Updating...' : 'Update Password'}
             </Button>

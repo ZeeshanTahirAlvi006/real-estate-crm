@@ -4,6 +4,7 @@ import {
   useDraftAgentResponseMutation,
   useGetMessagesQuery,
 } from '@/store/api/communicationApi'
+import { useGetFeatureFlagsQuery } from '@/store/api/featureFlagsApi'
 import {
   SparklesIcon,
   XMarkIcon,
@@ -30,6 +31,10 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
 }) => {
   const { data: messages = [] } = useGetMessagesQuery(conversation.id, { skip: !isOpen })
   const [draftMutation, { isLoading: isGeneratingDrafts }] = useDraftAgentResponseMutation()
+
+  const { data: flags } = useGetFeatureFlagsQuery(undefined, { pollingInterval: 8000 })
+  const aiChatbotFlag = flags?.find(f => f.key === 'ai_chatbot')
+  const isAiAutonomousModeEnabled = aiChatbotFlag ? aiChatbotFlag.isEnabled : true
 
   const [drafts, setDrafts] = useState<
     Array<{ title: string; confidence: number; intent: string; text: string }>
@@ -111,20 +116,23 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
             <span className="font-semibold text-foreground">Sub-30s Autonomous AI Mode</span>
             <button
               type="button"
+              disabled={!isAiAutonomousModeEnabled}
               onClick={() => onToggleAiIsa(!conversation.aiIsaEnabled)}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${conversation.aiIsaEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${!isAiAutonomousModeEnabled ? 'bg-muted opacity-50 cursor-not-allowed' : conversation.aiIsaEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
                 }`}
             >
               <span
-                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${conversation.aiIsaEnabled ? 'translate-x-4' : 'translate-x-0'
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${conversation.aiIsaEnabled && isAiAutonomousModeEnabled ? 'translate-x-4' : 'translate-x-0'
                   }`}
               />
             </button>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            {conversation.aiIsaEnabled
-              ? 'AI ISA responds to inbound inquiries in <30 seconds automatically.'
-              : 'AI responses are drafted as suggestions for manual agent approval.'}
+            {!isAiAutonomousModeEnabled 
+              ? 'Autonomous AI mode is currently disabled by system administrator.' 
+              : conversation.aiIsaEnabled
+                ? 'AI ISA responds to inbound inquiries in <30 seconds automatically.'
+                : 'AI responses are drafted as suggestions for manual agent approval.'}
           </p>
         </div>
 
@@ -152,7 +160,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
             <span className="text-[10px] text-muted-foreground block">Qualification Checklist:</span>
             <div className="mt-1 space-y-1 text-[11px]">
               <div className="flex items-center justify-between">
-                <span>• Budget ($650k - $800k):</span>
+                <span>• Budget (PKR 650k - 800k):</span>
                 <span className="text-emerald-500 font-semibold">Verified</span>
               </div>
               <div className="flex items-center justify-between">

@@ -1,8 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   useGetConversationsQuery,
   useGetMessagesQuery,
-  useSimulateWhatsAppInboundMutation,
   useToggleAiIsaMutation,
 } from '@/store/api/communicationApi'
 import { MaterialIcon } from '@/components/ui/MaterialIcon'
@@ -12,16 +11,15 @@ import { toast } from 'sonner'
 export const LiveAiConversations: React.FC = () => {
   const navigate = useNavigate()
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
-  const [simulateInbound, { isLoading: isSimulatingInbound }] = useSimulateWhatsAppInboundMutation()
   const [toggleAiIsa] = useToggleAiIsaMutation()
-  const [inboundReplyText, setInboundReplyText] = useState('')
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Fetch real live conversations
-  const { data: conversations = [], isLoading: loadingConversations, refetch } = useGetConversationsQuery()
+  const { data: conversations = [], isLoading: loadingConversations } = useGetConversationsQuery()
 
   // Filter conversations where AI ISA is active or has messages
   const aiConversations = conversations.filter(
-    (c) => c.lastChannel === 'whatsapp' || c.lastChannel === 'sms' || c.aiIsaEnabled
+    (c) => c.lastChannel === 'whatsapp' || (c.lastChannel as unknown as string) === 'sms' || Boolean(c.aiIsaEnabled)
   )
 
   const activeConvId = selectedConversationId || (aiConversations[0]?.id ?? null)
@@ -32,24 +30,10 @@ export const LiveAiConversations: React.FC = () => {
     skip: !activeConvId,
   })
 
-  const handleSimulateInbound = async (customText?: string) => {
-    const textToSend = customText || inboundReplyText
-    if (!textToSend.trim() || !activeConversation) return
-
-    try {
-      const phone = activeConversation.contactPhone || '13105550199'
-      await simulateInbound({
-        fromPhone: phone,
-        text: textToSend.trim(),
-      }).unwrap()
-
-      toast.success('Inbound message processed by AI ISA')
-      setInboundReplyText('')
-      refetch()
-    } catch (err: any) {
-      toast.error(err?.data?.message || err?.message || 'Failed to simulate inbound message')
-    }
-  }
+  // Automatically scroll transcript container down as new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   const handleToggleAutopilot = async (conversationId: string, currentStatus?: boolean) => {
     try {
@@ -102,6 +86,12 @@ export const LiveAiConversations: React.FC = () => {
                 const isSelected = c.id === activeConvId
                 const isWhatsApp = c.lastChannel === 'whatsapp'
 
+                // Dynamically sync preview with live transcript messages if selected
+                const latestActiveMsg = isSelected && messages.length > 0 ? messages[messages.length - 1] : null
+                const previewBody = latestActiveMsg?.body || c.lastMessage?.body || 'Conversation active'
+                const previewTime = latestActiveMsg?.createdAt || c.lastMessage?.createdAt
+                const previewChannel = latestActiveMsg?.channel || c.lastChannel
+
                 return (
                   <div
                     key={c.id}
@@ -119,24 +109,24 @@ export const LiveAiConversations: React.FC = () => {
                         </span>
                         <span
                           className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                            isWhatsApp
+                            previewChannel === 'whatsapp' || isWhatsApp
                               ? 'bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/40'
                               : 'bg-[#EDF2EB] dark:bg-[#2B5748] text-[#4A5D54] dark:text-[#E2ECE4] border border-[#D8E2D6] dark:border-[#618764]'
                           }`}
                         >
-                          {c.lastChannel}
+                          {previewChannel}
                         </span>
                       </div>
 
                       <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] font-mono">
-                        {c.lastMessage?.createdAt
-                          ? new Date(c.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        {previewTime
+                          ? new Date(previewTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                           : ''}
                       </span>
                     </div>
 
                     <p className="text-[#4A5D54] dark:text-[#A0B2A6] line-clamp-1 text-[11px]">
-                      {c.lastMessage?.body || 'Conversation active'}
+                      {previewBody}
                     </p>
 
                     <div className="flex items-center justify-between pt-1 text-[10px]">
@@ -197,7 +187,7 @@ export const LiveAiConversations: React.FC = () => {
               </div>
 
               {/* Message Bubbles Container */}
-              <div className="space-y-3 overflow-y-auto max-h-[380px] p-2">
+              <div className="space-y-3 overflow-y-auto max-h-[500px] p-2 pr-3 flex-1">
                 {loadingMessages ? (
                   <div className="text-center text-xs text-[#75887E] dark:text-[#A0B2A6] py-8">Loading messages...</div>
                 ) : messages.length === 0 ? (
@@ -205,74 +195,51 @@ export const LiveAiConversations: React.FC = () => {
                     No messages in thread yet.
                   </div>
                 ) : (
-                  messages.map((m) => {
-                    const isLead = m.senderType === 'lead'
-                    return (
-                      <div
-                        key={m.id}
-                        className={`flex flex-col ${isLead ? 'items-start' : 'items-end'}`}
-                      >
-                        <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] px-1 mb-0.5 font-medium">
-                          {isLead ? `${activeConversation.contactName || 'Lead'}` : 'AI ISA'}
-                        </span>
+                  <>
+                    {messages.map((m) => {
+                      const isLead = m.senderType === 'lead'
+                      return (
                         <div
-                          className={`max-w-[85%] rounded-xl p-3 text-xs shadow-xs ${
-                            isLead
-                              ? 'bg-[#EDF2EB] dark:bg-[#202B2F] text-[#273338] dark:text-white border border-[#D8E2D6] dark:border-[#618764]/60 rounded-tl-xs'
-                              : 'bg-[#2B5748] text-white border border-[#618764] rounded-tr-xs'
-                          }`}
+                          key={m.id}
+                          className={`flex flex-col ${isLead ? 'items-start' : 'items-end'}`}
                         >
-                          <p className="leading-relaxed whitespace-pre-wrap">{m.body}</p>
-                          <span className="text-[9px] block text-right mt-1 opacity-75 font-mono">
-                            {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] px-1 mb-0.5 font-medium">
+                            {isLead ? `${activeConversation.contactName || 'Lead'}` : 'AI ISA'}
                           </span>
+                          <div
+                            className={`max-w-[85%] rounded-xl p-3 text-xs shadow-xs ${
+                              isLead
+                                ? 'bg-[#EDF2EB] dark:bg-[#202B2F] text-[#273338] dark:text-white border border-[#D8E2D6] dark:border-[#618764]/60 rounded-tl-xs'
+                                : 'bg-[#2B5748] text-white border border-[#618764] rounded-tr-xs'
+                            }`}
+                          >
+                            <p className="leading-relaxed whitespace-pre-wrap">{m.body}</p>
+                            <span className="text-[9px] block text-right mt-1 opacity-75 font-mono">
+                              {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })
+                      )
+                    })}
+                    <div ref={messagesEndRef} />
+                  </>
                 )}
               </div>
 
-              {/* Inbound Simulator Bar */}
-              <div className="pt-3 border-t border-[#D8E2D6] dark:border-[#618764]/40 space-y-2">
-                <div className="flex flex-wrap gap-1.5 items-center">
-                  <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] font-semibold uppercase tracking-wider">
-                    Quick Inquiry:
+              {/* Autonomous AI Lead Qualification Status Footer */}
+              <div className="pt-3 border-t border-[#D8E2D6] dark:border-[#618764]/40 flex items-center justify-between text-xs text-[#75887E] dark:text-[#A0B2A6]">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2B5748] dark:bg-[#9CB080] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2B5748] dark:bg-[#9CB080]"></span>
                   </span>
-                  {[
-                    'My budget is $750k in downtown, moving in 60 days.',
-                    'Yes, I have pre-approval ready with Chase.',
-                    'I need to sell my existing home first.',
-                  ].map((quickText, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSimulateInbound(quickText)}
-                      disabled={isSimulatingInbound}
-                      className="text-[10px] px-2.5 py-1 rounded-md bg-[#EDF2EB] dark:bg-[#202B2F] hover:bg-[#D8E2D6] dark:hover:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/50 text-[#273338] dark:text-white transition-all truncate max-w-[200px] cursor-pointer"
-                    >
-                      {quickText}
-                    </button>
-                  ))}
+                  <span className="text-[11px] font-medium text-[#273338] dark:text-[#E2ECE4]">
+                    Autonomous AI Qualification Active
+                  </span>
                 </div>
-
-                <form onSubmit={(e) => { e.preventDefault(); handleSimulateInbound(); }} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={inboundReplyText}
-                    onChange={(e) => setInboundReplyText(e.target.value)}
-                    placeholder="Type a lead reply to test AI qualification..."
-                    className="flex-1 text-xs p-2.5 rounded-lg bg-[#F5F7F4] dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white placeholder-[#75887E] dark:placeholder-[#A0B2A6] focus:outline-none focus:border-[#9CB080]"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isSimulatingInbound || !inboundReplyText.trim()}
-                    className="px-4 py-2.5 rounded-lg bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold text-xs shadow-xs transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <MaterialIcon name="send" size={16} />
-                    <span>{isSimulatingInbound ? 'Sending...' : 'Send'}</span>
-                  </button>
-                </form>
+                <span className="text-[10px] text-[#75887E] dark:text-[#A0B2A6]">
+                  Live read-only transcript
+                </span>
               </div>
             </>
           ) : (

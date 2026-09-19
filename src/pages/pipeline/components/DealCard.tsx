@@ -92,7 +92,7 @@ export function DealCard({ deal, onClick }: DealCardProps) {
         {/* Footer: Price, Days in Stage & Agent */}
         <div className="mt-1 pt-2.5 border-t border-[#D8E2D6] dark:border-[#618764]/40 flex items-center justify-between">
           <span className="text-sm font-bold text-[#273338] dark:text-white font-mono">
-            ${(deal.dealValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}K
+            PKR ${(deal.dealValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k
           </span>
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">

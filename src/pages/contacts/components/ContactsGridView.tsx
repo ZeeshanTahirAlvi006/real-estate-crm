@@ -4,6 +4,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
 import type { Contact } from '@/types'
 
 interface ContactsGridViewProps {
@@ -63,6 +65,8 @@ export function ContactsGridView({
   onDeleteContact,
 }: ContactsGridViewProps) {
   const navigate = useNavigate()
+  const currentUser = useAppSelector((state) => state.auth.user)
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN
   const totalPages = Math.ceil(total / limit)
 
   if (isLoading) {
@@ -110,6 +114,15 @@ export function ContactsGridView({
                     <h3 className="text-base font-bold text-[#273338] dark:text-white truncate group-hover:text-[#2B5748] dark:group-hover:text-[#9CB080] transition-colors">
                       {contact.firstName} {contact.lastName}
                     </h3>
+                    {isSuperAdmin && contact.brokerageName && (
+                      <span
+                        className="text-[11px] text-[#75887E] dark:text-[#A0B2A6] inline-flex items-center gap-1 mt-0.5 truncate"
+                        title={`Brokerage: ${contact.brokerageName}`}
+                      >
+                        <MaterialIcon name="business" size={12} className="opacity-75 shrink-0" />
+                        <span className="truncate">{contact.brokerageName}</span>
+                      </span>
+                    )}
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="text-xs font-medium text-[#4A5D54] dark:text-[#A0B2A6]">
                         {contact.leadSource || 'Direct'}
@@ -148,26 +161,40 @@ export function ContactsGridView({
               <div className="mt-3.5 space-y-1.5 text-xs">
                 {/* WhatsApp Web Phone Link */}
                 {contact.phone ? (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      const clean = contact.phone.replace(/\D/g, '')
-                      window.open(`https://web.whatsapp.com/send?phone=${clean}`, '_blank')
-                    }}
-                    className="flex items-center gap-2 text-[#4A5D54] dark:text-[#C2D6C7] hover:text-[#008069] dark:hover:text-[#00a884] transition-colors cursor-pointer group/call w-full text-left truncate"
-                    title="Call on WhatsApp Web"
-                  >
-                    <MaterialIcon
-                      name="call"
-                      size={15}
-                      className="text-emerald-600 dark:text-emerald-400 group-hover/call:scale-110 transition-transform shrink-0"
-                    />
-                    <span className="font-medium group-hover/call:underline truncate">{contact.phone}</span>
-                    <span className="text-[10px] text-[#008069] dark:text-[#00a884] opacity-0 group-hover/call:opacity-100 transition-opacity">
-                      (WhatsApp)
-                    </span>
-                  </button>
+                  contact.isCrossBrokerage ? (
+                    <div
+                      className="flex items-center gap-2 text-[#75887E] dark:text-[#A0B2A6] opacity-80 cursor-not-allowed w-full text-left truncate"
+                      title="Cross-brokerage contact: Calling restricted"
+                    >
+                      <MaterialIcon
+                        name="phone_locked"
+                        size={15}
+                        className="text-amber-600/70 dark:text-amber-400/70 shrink-0"
+                      />
+                      <span className="font-mono text-xs truncate">{contact.phone}</span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const clean = contact.phone.replace(/\D/g, '')
+                        window.open(`https://web.whatsapp.com/send?phone=${clean}`, '_blank')
+                      }}
+                      className="flex items-center gap-2 text-[#4A5D54] dark:text-[#C2D6C7] hover:text-[#008069] dark:hover:text-[#00a884] transition-colors cursor-pointer group/call w-full text-left truncate"
+                      title="Call on WhatsApp Web"
+                    >
+                      <MaterialIcon
+                        name="call"
+                        size={15}
+                        className="text-emerald-600 dark:text-emerald-400 group-hover/call:scale-110 transition-transform shrink-0"
+                      />
+                      <span className="font-medium group-hover/call:underline truncate">{contact.phone}</span>
+                      <span className="text-[10px] text-[#008069] dark:text-[#00a884] opacity-0 group-hover/call:opacity-100 transition-opacity">
+                        (WhatsApp)
+                      </span>
+                    </button>
+                  )
                 ) : (
                   <div className="flex items-center gap-2 text-[#75887E] dark:text-[#A0B2A6]">
                     <MaterialIcon name="call" size={15} className="opacity-50 shrink-0" />
@@ -225,75 +252,87 @@ export function ContactsGridView({
                   : 'Not contacted yet'}
               </span>
 
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onEditContact(contact)
-                  }}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-[#273338] dark:text-[#E2ECE4] hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/40 transition-colors cursor-pointer"
-                  title="Edit contact"
-                >
-                  <MaterialIcon name="edit" size={14} />
-                  <span>Edit</span>
-                </button>
+              {contact.isCrossBrokerage ? (
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 cursor-default"
+                    title="Contact belongs to another brokerage: Restricted read-only."
+                  >
+                    <MaterialIcon name="lock" size={13} className="opacity-75" />
+                    <span>Protected</span>
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEditContact(contact)
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-[#273338] dark:text-[#E2ECE4] hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] border border-[#D8E2D6] dark:border-[#618764]/40 transition-colors cursor-pointer"
+                    title="Edit contact"
+                  >
+                    <MaterialIcon name="edit" size={14} />
+                    <span>Edit</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onCredsContact(contact)
-                  }}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold text-[#2B5748] dark:text-[#9CB080] hover:bg-[#9CB080]/15 border border-[#9CB080]/40 transition-colors cursor-pointer"
-                  title="Generate portal credentials"
-                >
-                  <MaterialIcon name="key" size={14} />
-                  <span>Creds</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onCredsContact(contact)
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold text-[#2B5748] dark:text-[#9CB080] hover:bg-[#9CB080]/15 border border-[#9CB080]/40 transition-colors cursor-pointer"
+                    title="Generate portal credentials"
+                  >
+                    <MaterialIcon name="key" size={14} />
+                    <span>Creds</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    const clean = (contact.phone || '').replace(/\D/g, '')
-                    if (clean) {
-                      window.open(`https://web.whatsapp.com/send?phone=${clean}`, '_blank')
-                    } else {
-                      toast.error('No phone number available for this contact')
-                    }
-                  }}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold text-[#008069] dark:text-[#00a884] hover:bg-[#008069]/10 border border-[#008069]/40 transition-colors cursor-pointer"
-                  title="Call on WhatsApp Web"
-                >
-                  <MaterialIcon name="call" size={14} />
-                  <span>Call</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const clean = (contact.phone || '').replace(/\D/g, '')
+                      if (clean) {
+                        window.open(`https://web.whatsapp.com/send?phone=${clean}`, '_blank')
+                      } else {
+                        toast.error('No phone number available for this contact')
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold text-[#008069] dark:text-[#00a884] hover:bg-[#008069]/10 border border-[#008069]/40 transition-colors cursor-pointer"
+                    title="Call on WhatsApp Web"
+                  >
+                    <MaterialIcon name="call" size={14} />
+                    <span>Call</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    navigate('/inbox')
-                  }}
-                  className="p-1 rounded text-[#618764] dark:text-[#A8D5AE] hover:bg-[#618764]/15 border border-[#618764]/40 transition-colors cursor-pointer"
-                  title="Message contact"
-                >
-                  <MaterialIcon name="chat" size={14} />
-                </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      navigate('/inbox')
+                    }}
+                    className="p-1 rounded text-[#618764] dark:text-[#A8D5AE] hover:bg-[#618764]/15 border border-[#618764]/40 transition-colors cursor-pointer"
+                    title="Message contact"
+                  >
+                    <MaterialIcon name="chat" size={14} />
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDeleteContact(contact.id)
-                  }}
-                  className="p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-500/15 border border-red-500/30 transition-colors cursor-pointer"
-                  title="Delete contact"
-                >
-                  <MaterialIcon name="delete" size={14} />
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDeleteContact(contact.id)
+                    }}
+                    className="p-1 rounded text-red-600 dark:text-red-400 hover:bg-red-500/15 border border-red-500/30 transition-colors cursor-pointer"
+                    title="Delete contact"
+                  >
+                    <MaterialIcon name="delete" size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}

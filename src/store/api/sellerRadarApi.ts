@@ -19,6 +19,9 @@ export interface SellerRadarLead {
   allSignals: string[]
   assignedAgentName?: string
   lastContactedAt?: string
+  isCrossBrokerage?: boolean
+  brokerageId?: string
+  brokerageName?: string
 }
 
 export interface SellerRadarDashboardMetrics {

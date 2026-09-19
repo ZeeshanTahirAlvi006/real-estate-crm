@@ -413,7 +413,7 @@ export function TeamManagementTab() {
             {role === UserRole.AGENT && (
               <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-[#EDF2EB]/50 dark:bg-[#202B2F]/40 border border-[#D8E2D6] dark:border-[#618764]/40">
                 <div className="space-y-1">
-                  <Label htmlFor="invite-cap" className="text-xs font-semibold text-[#4A5D54] dark:text-[#E2ECE4]">Annual Cap ($)</Label>
+                  <Label htmlFor="invite-cap" className="text-xs font-semibold text-[#4A5D54] dark:text-[#E2ECE4]">Annual Cap (PKR)</Label>
                   <Input
                     id="invite-cap"
                     type="number"

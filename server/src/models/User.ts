@@ -16,9 +16,6 @@ export interface IUser extends Document {
   isActive: boolean
   mustChangePassword: boolean
   lastActiveAt?: Date
-  commissionCap?: number
-  commissionSplitPercent?: number
-  commissionModel?: 'fixed' | 'tiered' | 'capped'
   passwordResetToken?: string
   passwordResetExpires?: Date
   tokenVersion: number
@@ -109,27 +106,13 @@ const userSchema = new Schema<IUser>(
       type: Number,
       default: 0,
     },
-    commissionCap: {
-      type: Number,
-      min: 0,
-    },
-    commissionSplitPercent: {
-      type: Number,
-      min: 0,
-      max: 100,
-    },
-    commissionModel: {
-      type: String,
-      enum: ['fixed', 'tiered', 'capped'],
-      default: 'capped',
-    },
   },
   {
     timestamps: true,
   }
 )
 
-// Covering indexes for high-throughput authentication & tenant queries (PERF-M-001)
+// Covering indexes for high-throughput authentication & tenant queries
 userSchema.index({ email: 1, isActive: 1 })
 userSchema.index({ _id: 1, tokenVersion: 1, isActive: 1 })
 userSchema.index({ brokerageId: 1, isActive: 1 })

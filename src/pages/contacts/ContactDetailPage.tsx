@@ -25,11 +25,15 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
 import type { DuplicatePair } from '@/types'
 
 export function ContactDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const currentUser = useAppSelector((state) => state.auth.user)
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN
 
   // Modal dialog states
   const [isEditOpen, setIsEditOpen] = useState(false)
@@ -69,9 +73,21 @@ export function ContactDetailPage() {
     )
   }, [contact?.id, duplicates])
 
+  // Cross-brokerage check for Super Admin
+  const isCrossBrokerage = useMemo(() => {
+    if (!isSuperAdmin || !contact) return false
+    if (contact.isCrossBrokerage !== undefined) return Boolean(contact.isCrossBrokerage)
+    if (!currentUser?.brokerageId) return true
+    if (!contact.brokerageId) return false
+    return String(contact.brokerageId) !== String(currentUser.brokerageId)
+  }, [isSuperAdmin, contact, currentUser?.brokerageId])
+
   // Handler to update contact
   const handleUpdate = async (formData: Record<string, unknown>) => {
-    if (!contact) return
+    if (!contact || isCrossBrokerage) {
+      toast.error('Contact is cross-brokerage protected (Read-Only)')
+      return
+    }
     try {
       await updateContact({ id: contact.id, data: formData }).unwrap()
       toast.success('Contact details updated')
@@ -83,7 +99,10 @@ export function ContactDetailPage() {
 
   // Handler to log activity/note from composer
   const handleComposerSubmit = async () => {
-    if (!contact?.id || !composerNote.trim()) return
+    if (!contact?.id || !composerNote.trim() || isCrossBrokerage) {
+      toast.error('Notes cannot be added to cross-brokerage contacts')
+      return
+    }
     const noteText = composerNote.trim()
 
     try {
@@ -106,6 +125,10 @@ export function ContactDetailPage() {
     secondaryContactId: string
     fieldOverrides?: Record<string, any>
   }) => {
+    if (isCrossBrokerage) {
+      toast.error('Cannot merge cross-brokerage contacts')
+      return
+    }
     try {
       await mergeDuplicate(payload).unwrap()
       toast.success('Contacts merged successfully')
@@ -217,6 +240,14 @@ export function ContactDetailPage() {
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/40 text-xs font-bold shrink-0">
                     <span>Lead Score: {contact.leadScore}</span>
                   </span>
+
+                  {/* Brokerage Attribution Pill for Super Admin */}
+                  {isSuperAdmin && contact.brokerageName && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#EDF2EB] dark:bg-[#1A2E26] text-[#2B5748] dark:text-[#9CB080] border border-[#D8E2D6] dark:border-[#618764]/40 text-xs font-semibold shrink-0">
+                      <MaterialIcon name="business" size={13} className="text-[#618764]" />
+                      <span>{contact.brokerageName}</span>
+                    </span>
+                  )}
                 </div>
 
                 <p className="text-xs sm:text-sm text-[#4A5D54] dark:text-[#E2ECE4] truncate">
@@ -232,6 +263,13 @@ export function ContactDetailPage() {
                     {contact.status}
                   </Badge>
 
+                  {isCrossBrokerage && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                      <MaterialIcon name="lock" size={12} />
+                      <span>Protected Record (Read-Only)</span>
+                    </span>
+                  )}
+
                   {contact.portalEnabled && (
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#9CB080]/20 text-[#2B5748] dark:text-[#9CB080] border border-[#9CB080]/30">
                       <span>Portal Active</span>
@@ -240,9 +278,12 @@ export function ContactDetailPage() {
 
                   {contactDuplicates.length > 0 && (
                     <span
-                      onClick={() => setSelectedDuplicatePair(contactDuplicates[0])}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 cursor-pointer hover:bg-amber-500/30 transition-all"
-                      title="Click to review duplicate pair"
+                      onClick={() => !isCrossBrokerage && setSelectedDuplicatePair(contactDuplicates[0])}
+                      className={cn(
+                        "inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-all",
+                        isCrossBrokerage ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-amber-500/30"
+                      )}
+                      title={isCrossBrokerage ? "Cross-brokerage duplicate merging is restricted" : "Click to review duplicate pair"}
                     >
                       <MaterialIcon name="warning" size={13} />
                       <span>{contactDuplicates.length} Duplicate Match</span>
@@ -254,26 +295,35 @@ export function ContactDetailPage() {
 
             {/* Quick Actions Cluster */}
             <div className="flex flex-wrap items-center gap-2 self-start lg:self-center">
-              {/* Share VIP Portal */}
-              <Button
-                size="sm"
-                onClick={() => setIsPortalOpen(true)}
-                className="gap-1.5 bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-black shadow-md cursor-pointer"
-              >
-                <MaterialIcon name="share" size={16} />
-                <span>Portal</span>
-              </Button>
+              {isCrossBrokerage ? (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold">
+                  <MaterialIcon name="shield" size={16} />
+                  <span>Protected (Cross-Brokerage)</span>
+                </div>
+              ) : (
+                <>
+                  {/* Share VIP Portal */}
+                  <Button
+                    size="sm"
+                    onClick={() => setIsPortalOpen(true)}
+                    className="gap-1.5 bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-black shadow-md cursor-pointer"
+                  >
+                    <MaterialIcon name="share" size={16} />
+                    <span>Portal</span>
+                  </Button>
 
-              {/* Edit Contact */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditOpen(true)}
-                className="gap-1.5 bg-white dark:bg-[#202B2F] hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] text-[#273338] dark:text-white border-[#D8E2D6] dark:border-[#618764] font-semibold cursor-pointer"
-              >
-                <MaterialIcon name="edit" size={16} />
-                <span>Edit</span>
-              </Button>
+                  {/* Edit Contact */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditOpen(true)}
+                    className="gap-1.5 bg-white dark:bg-[#202B2F] hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] text-[#273338] dark:text-white border-[#D8E2D6] dark:border-[#618764] font-semibold cursor-pointer"
+                  >
+                    <MaterialIcon name="edit" size={16} />
+                    <span>Edit</span>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </section>
@@ -285,11 +335,11 @@ export function ContactDetailPage() {
           {/* Panel 1: VIP Client Portal */}
           <KpiCard
             title="Client Portal"
-            value={contact.portalEnabled ? 'Active' : 'Standby'}
+            value={isCrossBrokerage ? 'Protected' : contact.portalEnabled ? 'Active' : 'Standby'}
             icon="vpn_key"
-            subtitle="Click to share portal credentials"
-            onClick={() => setIsPortalOpen(true)}
-            className="border-[#9CB080]/50"
+            subtitle={isCrossBrokerage ? 'Cross-brokerage credentials restricted' : 'Click to share portal credentials'}
+            onClick={isCrossBrokerage ? undefined : () => setIsPortalOpen(true)}
+            className={cn('border-[#9CB080]/50', isCrossBrokerage && 'opacity-60 cursor-not-allowed')}
           />
 
           {/* Panel 2: Contact Information */}
@@ -304,20 +354,20 @@ export function ContactDetailPage() {
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[#75887E] dark:text-[#A0B2A6] flex items-center gap-1.5">
-                  <MaterialIcon name="call" size={14} className="text-[#618764]" />
+                  <MaterialIcon name={isCrossBrokerage ? 'lock' : 'call'} size={14} className={isCrossBrokerage ? 'text-amber-500' : 'text-[#618764]'} />
                   Phone:
                 </span>
-                <span className="font-semibold text-[#273338] dark:text-white tabular-nums">
+                <span className={cn('font-semibold tabular-nums', isCrossBrokerage ? 'text-amber-800 dark:text-amber-300 font-mono tracking-wider' : 'text-[#273338] dark:text-white')}>
                   {contact.phone || 'None'}
                 </span>
               </div>
 
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[#75887E] dark:text-[#A0B2A6] flex items-center gap-1.5">
-                  <MaterialIcon name="mail" size={14} className="text-[#618764]" />
+                  <MaterialIcon name={isCrossBrokerage ? 'lock' : 'mail'} size={14} className={isCrossBrokerage ? 'text-amber-500' : 'text-[#618764]'} />
                   Email:
                 </span>
-                <span className="font-semibold text-[#273338] dark:text-white truncate max-w-[180px]">
+                <span className={cn('font-semibold truncate max-w-[180px]', isCrossBrokerage ? 'text-amber-800 dark:text-amber-300 font-mono' : 'text-[#273338] dark:text-white')}>
                   {contact.email || 'None'}
                 </span>
               </div>
@@ -426,30 +476,37 @@ export function ContactDetailPage() {
             </div>
 
             {/* Composer Input Area */}
-            <div className="space-y-3">
-              <Textarea
-                value={composerNote}
-                onChange={(e) => setComposerNote(e.target.value)}
-                placeholder="Type confidential client note, update, or reminder..."
-                className="min-h-[96px] bg-[#F5F7F4] dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white placeholder-[#75887E] dark:placeholder-[#A0B2A6] focus:border-[#9CB080] focus:ring-1 focus:ring-[#9CB080] rounded-xl text-sm leading-relaxed"
-              />
-
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                <p className="text-xs text-[#75887E] dark:text-[#A0B2A6]">
-                  Add <span className="font-bold  text-xs">immutable</span> notes to clients activty timeline
-                </p>
-
-                <Button
-                  size="sm"
-                  disabled={submittingNote || !composerNote.trim()}
-                  onClick={handleComposerSubmit}
-                  className="gap-1.5 bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold shadow-xs cursor-pointer"
-                >
-                  <MaterialIcon name="send" size={14} />
-                  <span>Save Note</span>
-                </Button>
+            {isCrossBrokerage ? (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2.5">
+                <MaterialIcon name="lock" size={18} className="text-amber-600 shrink-0" />
+                <span>Private notes, call logs, and outbound messages are disabled for cross-brokerage records.</span>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                <Textarea
+                  value={composerNote}
+                  onChange={(e) => setComposerNote(e.target.value)}
+                  placeholder="Type confidential client note, update, or reminder..."
+                  className="min-h-[96px] bg-[#F5F7F4] dark:bg-[#1A2E26] border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white placeholder-[#75887E] dark:placeholder-[#A0B2A6] focus:border-[#9CB080] focus:ring-1 focus:ring-[#9CB080] rounded-xl text-sm leading-relaxed"
+                />
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <p className="text-xs text-[#75887E] dark:text-[#A0B2A6]">
+                    Add <span className="font-bold text-xs">immutable</span> notes to clients activity timeline
+                  </p>
+
+                  <Button
+                    size="sm"
+                    disabled={submittingNote || !composerNote.trim()}
+                    onClick={handleComposerSubmit}
+                    className="gap-1.5 bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] font-bold shadow-xs cursor-pointer"
+                  >
+                    <MaterialIcon name="send" size={14} />
+                    <span>Save Note</span>
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </ScrollReveal>
 

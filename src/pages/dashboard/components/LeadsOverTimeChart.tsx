@@ -102,7 +102,7 @@ export function LeadsOverTimeChart() {
                 : 'text-[#4A5D54] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white'
             )}
           >
-            Pipeline Value ($k)
+            Pipeline Value (PKR k)
           </button>
         </div>
 

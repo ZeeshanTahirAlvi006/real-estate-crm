@@ -9,7 +9,7 @@ export interface ConversationDto {
   assignedAgentName?: string
   lastMessageText: string
   lastMessageAt: string
-  lastChannel: 'sms' | 'whatsapp' | 'email'
+  lastChannel: 'whatsapp' | 'email'
   unreadCount: number
   aiIsaEnabled: boolean
   status: 'active' | 'archived' | 'snoozed'
@@ -27,7 +27,7 @@ export interface MessageDto {
   sender: 'lead' | 'agent' | 'ai_isa' | 'system'
   senderName: string
   senderId?: string
-  channel: 'sms' | 'whatsapp' | 'email'
+  channel: 'whatsapp' | 'email'
   body: string
   direction: 'inbound' | 'outbound'
   deliveryStatus: 'sent' | 'delivered' | 'read' | 'failed'
@@ -38,14 +38,14 @@ export interface MessageDto {
 
 export interface SendMessageInput {
   body: string
-  channel?: 'sms' | 'whatsapp' | 'email'
+  channel?: 'whatsapp' | 'email'
   fairHousingFlags?: string[]
 }
 
 export interface StartConversationInput {
   contactId: string
   initialMessage?: string
-  channel?: 'sms' | 'whatsapp' | 'email'
+  channel?: 'whatsapp' | 'email'
 }
 
 export interface ListConversationsQuery {

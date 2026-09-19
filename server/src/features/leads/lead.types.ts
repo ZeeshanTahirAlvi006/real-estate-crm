@@ -9,6 +9,7 @@ export interface LeadSourceResponseDto {
   captureKey: string
   isActive: boolean
   leadCount: number
+  allowedDomains?: string[]
   config: {
     fieldMapping?: Record<string, string>
   }
@@ -23,6 +24,7 @@ export interface CreateLeadSourceInput {
   name: string
   type: LeadSourceType
   isActive?: boolean
+  allowedDomains?: string[]
   config?: {
     fieldMapping?: Record<string, string>
   }
@@ -32,6 +34,7 @@ export interface UpdateLeadSourceInput {
   name?: string
   type?: LeadSourceType
   isActive?: boolean
+  allowedDomains?: string[]
   config?: {
     fieldMapping?: Record<string, string>
   }
@@ -163,6 +166,7 @@ export interface LeadCapturePayload {
   propertyAddress?: string
   propertyPrice?: number
   zipCode?: string
+  recaptchaToken?: string
 }
 
 export interface ManualLeadEntryInput {

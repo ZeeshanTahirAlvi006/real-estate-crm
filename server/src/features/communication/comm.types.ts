@@ -17,7 +17,7 @@ export interface UnifiedSendInput {
 export interface QuickTemplateDto {
   id: string
   title: string
-  channel: 'all' | 'email' | 'sms' | 'whatsapp'
+  channel: 'all' | 'email' | 'whatsapp'
   category: string
   subject?: string
   body: string

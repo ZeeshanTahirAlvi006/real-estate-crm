@@ -14,6 +14,7 @@ import { escapeRegExp } from '../../utils/sanitizer.js'
 import { logAuditEvent } from '../../utils/auditLogger.js'
 import { logger } from '../../utils/logger.js'
 import { AppError } from '../../middleware/errorHandler.js'
+import { env } from '../../config/env.js'
 import { HTTP_STATUS, USER_ROLES, DEFAULT_ESCALATION_TIMEOUT } from '../../utils/constants.js'
 import { BoundedLruCache } from '../../utils/lruCache.js'
 import { buildCacheKey, safeJsonParse, measureExecutionMs } from '../../utils/cacheHelper.js'
@@ -50,7 +51,12 @@ export const routingRulesL1Cache = new BoundedLruCache<{ routingRules: RoutingRu
 export const routingRuleDetailL1Cache = new BoundedLruCache<RoutingRuleResponseDto>(500, 60)
 export const scoringConfigL1Cache = new BoundedLruCache<ScoringConfigResponseDto>(500, 300)
 export const activeRoutingRulesL1Cache = new BoundedLruCache<any[]>(500, 60)
-export const captureKeyL1Cache = new BoundedLruCache<{ id: string; brokerageId: string; type: string }>(1000, 300)
+export const captureKeyL1Cache = new BoundedLruCache<{
+  id: string
+  brokerageId: string
+  type: string
+  allowedDomains: string[]
+}>(1000, 300)
 
 // ═══════════════════════════════════════════
 //  Coordinated Cache Invalidation (DI-003)
@@ -119,6 +125,7 @@ const formatLeadSourceDto = (source: any, includeSecret: boolean = false): LeadS
     captureKey: source.captureKey,
     isActive: source.isActive,
     leadCount: source.leadCount || 0,
+    allowedDomains: source.allowedDomains || [],
     config: {
       fieldMapping: source.config?.fieldMapping instanceof Map
         ? Object.fromEntries(source.config.fieldMapping)
@@ -255,7 +262,7 @@ export const listLeadSources = async (
 
   const [sources, total] = await Promise.all([
     LeadSource.find(filter)
-      .select('_id name type captureKey isActive leadCount config brokerageId createdBy createdAt updatedAt')
+      .select('_id name type captureKey isActive leadCount allowedDomains config brokerageId createdBy createdAt updatedAt')
       .sort({ [sortField]: sortDirection })
       .skip(skip)
       .limit(limit)
@@ -1930,9 +1937,118 @@ export const ingestWebhookLead = async (
 //  CAPTURE WIDGET (Public, with L1 Caching)
 // ═══════════════════════════════════════════
 
+export const isDomainAllowed = (originOrReferer: string | undefined, allowedDomains?: string[]): boolean => {
+  if (!allowedDomains || allowedDomains.length === 0) return true
+  if (!originOrReferer) return false
+
+  try {
+    const raw = originOrReferer.trim().toLowerCase()
+    let hostname = ''
+    let hostWithPort = ''
+
+    if (raw.includes('://')) {
+      const url = new URL(raw)
+      hostname = url.hostname
+      hostWithPort = url.host
+    } else {
+      const parts = raw.split('/')[0]
+      hostWithPort = parts
+      hostname = parts.split(':')[0]
+    }
+
+    return allowedDomains.some((domain) => {
+      const d = domain.trim().toLowerCase()
+      let dHostWithPort = ''
+      let dHostname = ''
+      const hasPortSpecified = (d.includes(':') && !d.includes('://')) || (d.includes('://') && Boolean(new URL(d).port))
+
+      if (d.includes('://')) {
+        try {
+          const u = new URL(d)
+          dHostname = u.hostname
+          dHostWithPort = u.host
+        } catch {
+          dHostname = d.split('/')[0]
+          dHostWithPort = dHostname
+        }
+      } else {
+        const p = d.split('/')[0]
+        dHostWithPort = p
+        dHostname = p.split(':')[0]
+      }
+
+      if (d === '*' || dHostname === '*' || dHostWithPort === '*') return true
+
+      // If allowed domain specified a port (e.g. 'localhost:3000'), require exact host+port match
+      if (hasPortSpecified) {
+        return hostWithPort === dHostWithPort
+      }
+
+      // Wildcard subdomain matching
+      if (dHostname.startsWith('*.')) {
+        const root = dHostname.slice(2)
+        return hostname === root || hostname.endsWith(`.${root}`)
+      }
+
+      return hostname === dHostname || hostname.endsWith(`.${dHostname}`)
+    })
+  } catch {
+    return false
+  }
+}
+
+export const verifyRecaptchaV3Token = async (
+  token?: string
+): Promise<{ success: boolean; score?: number; error?: string }> => {
+  const secret = env.RECAPTCHA_SECRET_KEY || process.env.RECAPTCHA_SECRET_KEY
+  if (!secret) {
+    // reCAPTCHA is not configured on this environment; allow through
+    return { success: true, score: 1.0 }
+  }
+
+  if (!token) {
+    return { success: false, error: 'reCAPTCHA token is required' }
+  }
+
+  try {
+    const params = new URLSearchParams({
+      secret,
+      response: token,
+    })
+    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    })
+
+    const data = (await response.json()) as {
+      success: boolean
+      score?: number
+      action?: string
+      'error-codes'?: string[]
+    }
+
+    if (!data.success) {
+      const errorMsg = data['error-codes']?.join(', ') || 'reCAPTCHA verification failed'
+      return { success: false, error: errorMsg }
+    }
+
+    if (typeof data.score === 'number' && data.score < 0.5) {
+      return { success: false, score: data.score, error: 'reCAPTCHA score below threshold (spam detected)' }
+    }
+
+    return { success: true, score: data.score }
+  } catch (err: any) {
+    // DI-003: External service failure must not bring down the endpoint
+    logger.warn(`[reCAPTCHA] Verification service error: ${err.message}. Gracefully falling through per DI-003.`)
+    return { success: true, score: 1.0, error: 'fallback' }
+  }
+}
+
 export const ingestCaptureWidgetLead = async (
   payload: LeadCapturePayload,
-  clientIp: string = '127.0.0.1'
+  clientIp: string = '127.0.0.1',
+  originOrReferer?: string
 ): Promise<{ contact: ContactResponseDto; isNew: boolean; routingResult: RoutingResult }> => {
   const t0 = process.hrtime.bigint()
   const cacheKey = `capture:${payload.captureKey}`
@@ -1940,7 +2056,7 @@ export const ingestCaptureWidgetLead = async (
 
   if (!sourceInfo) {
     const source = await LeadSource.findOne({ captureKey: payload.captureKey, isActive: true })
-      .select('_id brokerageId type')
+      .select('_id brokerageId type allowedDomains')
       .lean()
 
     if (!source) {
@@ -1951,8 +2067,20 @@ export const ingestCaptureWidgetLead = async (
       id: source._id.toString(),
       brokerageId: source.brokerageId.toString(),
       type: source.type,
+      allowedDomains: source.allowedDomains || [],
     }
     captureKeyL1Cache.set(cacheKey, sourceInfo)
+  }
+
+  // 1. Validate domain allowlist
+  if (!isDomainAllowed(originOrReferer, sourceInfo.allowedDomains)) {
+    throw new AppError('Domain not authorized for this lead capture widget', HTTP_STATUS.FORBIDDEN)
+  }
+
+  // 2. Validate reCAPTCHA v3
+  const recaptchaResult = await verifyRecaptchaV3Token(payload.recaptchaToken)
+  if (!recaptchaResult.success) {
+    throw new AppError(`Spam detected: ${recaptchaResult.error || 'reCAPTCHA failed'}`, HTTP_STATUS.FORBIDDEN)
   }
 
   const ingestPayload: LeadIngestPayload = {

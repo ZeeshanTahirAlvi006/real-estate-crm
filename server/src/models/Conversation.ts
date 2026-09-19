@@ -11,7 +11,7 @@ export interface IConversation extends Document {
   assignedAgentName?: string
   lastMessageText: string
   lastMessageAt: Date
-  lastChannel: 'sms' | 'whatsapp' | 'email'
+  lastChannel: 'whatsapp' | 'email'
   unreadCount: number
   aiIsaEnabled: boolean
   status: 'active' | 'archived' | 'snoozed'
@@ -73,8 +73,8 @@ const conversationSchema = new Schema<IConversation>(
     },
     lastChannel: {
       type: String,
-      enum: ['sms', 'whatsapp', 'email'],
-      default: 'sms',
+      enum: ['whatsapp', 'email', 'sms'],
+      default: 'whatsapp',
     },
     unreadCount: {
       type: Number,

@@ -45,6 +45,9 @@ export const formatUserResponse = (user: any, brokerageName?: string): UserRespo
     timezone: user.timezone,
     isActive: user.isActive ?? true,
     mustChangePassword: user.mustChangePassword ?? false,
+    commissionCap: user.commissionCap,
+    commissionSplitPercent: user.commissionSplitPercent,
+    commissionModel: user.commissionModel,
     createdAt: toIsoString(user.createdAt) || new Date().toISOString(),
     lastActiveAt: toIsoString(user.lastActiveAt),
   }

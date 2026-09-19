@@ -72,6 +72,9 @@ const envSchema = z.object({
   // Circuit Breakers
   CIRCUIT_BREAKER_FAILURE_THRESHOLD: z.coerce.number(),
   CIRCUIT_BREAKER_COOLDOWN_MS: z.coerce.number(),
+  // Google reCAPTCHA v3
+  RECAPTCHA_SITE_KEY: z.string().optional().default(''),
+  RECAPTCHA_SECRET_KEY: z.string().optional().default(''),
 })
 
 // Parse and validate process.env

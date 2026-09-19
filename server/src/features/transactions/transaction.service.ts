@@ -15,6 +15,8 @@ import {
 } from './transaction.types.js'
 import { logger } from '../../utils/logger.js'
 import { Pipeline } from '../../models/Pipeline.js'
+import { AppError } from '../../middleware/errorHandler.js'
+import { HTTP_STATUS } from '../../utils/constants.js'
 import {
   emitDealStageChange,
   emitTransactionCreated,
@@ -91,23 +93,27 @@ export class TransactionService {
     input: ConvertDealInput,
     user: { id: string; name: string; role?: string; brokerageId: string }
   ): Promise<TransactionDto> {
-    const dealQuery: any = { _id: dealId, isDeleted: false }
-    if (user.role !== 'super_admin' && user.brokerageId) {
-      dealQuery.brokerageId = user.brokerageId
+    if (!user.brokerageId) {
+      throw new AppError('An assigned brokerage is required to convert deals to transactions', HTTP_STATUS.FORBIDDEN)
     }
 
-    const deal = await Deal.findOne(dealQuery)
+    const userBrokerageId = new mongoose.Types.ObjectId(user.brokerageId)
+    const deal = await Deal.findOne({ _id: dealId, brokerageId: userBrokerageId, isDeleted: false })
 
     if (!deal) {
-      throw new Error('Deal not found or does not belong to this brokerage')
+      throw new AppError('Deal not found or does not belong to this brokerage', HTTP_STATUS.FORBIDDEN)
     }
 
-    const contact = await Contact.findById(deal.contactId)
+    const contact = await Contact.findOne({ _id: deal.contactId, brokerageId: userBrokerageId, isDeleted: false })
+    if (!contact) {
+      throw new AppError('The deal contact belongs to another brokerage and cannot be converted to a transaction', HTTP_STATUS.FORBIDDEN)
+    }
+
     const transactionType = input.type || 'buyer'
     const initialMilestones = getMilestonesForType(transactionType)
     const initialProgress = computeProgress(initialMilestones as ITransactionMilestone[])
 
-    const effectiveBrokerageId = deal.brokerageId || user.brokerageId
+    const effectiveBrokerageId = userBrokerageId
 
     const transaction = await Transaction.create({
       brokerageId: effectiveBrokerageId,
@@ -203,14 +209,23 @@ export class TransactionService {
     input: CreateTransactionInput,
     user: { id: string; name: string; role?: string; brokerageId: string }
   ): Promise<TransactionDto> {
-    const contactQuery: any = { _id: input.contactId, isDeleted: false }
-    if (user.role !== 'super_admin' && user.brokerageId) {
-      contactQuery.brokerageId = user.brokerageId
+    if (!user.brokerageId) {
+      throw new AppError('An assigned brokerage is required to create transactions', HTTP_STATUS.FORBIDDEN)
     }
-    const contact = await Contact.findOne(contactQuery)
+
+    const userBrokerageId = new mongoose.Types.ObjectId(user.brokerageId)
+    const contact = await Contact.findOne({
+      _id: new mongoose.Types.ObjectId(input.contactId),
+      brokerageId: userBrokerageId,
+      isDeleted: false,
+    })
 
     if (!contact) {
-      throw new Error('Contact not found')
+      const existsAnywhere = await Contact.findById(input.contactId)
+      if (existsAnywhere) {
+        throw new AppError('The selected contact belongs to another brokerage and cannot be added to a transaction', HTTP_STATUS.FORBIDDEN)
+      }
+      throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
     }
 
     let agentId = input.assignedAgentId || user.id
@@ -270,8 +285,10 @@ export class TransactionService {
       isDeleted: false,
     }
 
-    if (user.role !== 'super_admin' && user.brokerageId) {
+    if (user.brokerageId) {
       filter.brokerageId = new mongoose.Types.ObjectId(user.brokerageId)
+    } else {
+      filter.brokerageId = new mongoose.Types.ObjectId()
     }
 
     // Role-based filtering: agent only sees their own transactions unless admin/broker
@@ -299,8 +316,10 @@ export class TransactionService {
     const skip = (page - 1) * limit
 
     const aggMatch: any = { isDeleted: false }
-    if (user.role !== 'super_admin' && user.brokerageId) {
+    if (user.brokerageId) {
       aggMatch.brokerageId = new mongoose.Types.ObjectId(user.brokerageId)
+    } else {
+      aggMatch.brokerageId = new mongoose.Types.ObjectId()
     }
 
     const [docs, total, activeSummary] = await Promise.all([
@@ -352,8 +371,10 @@ export class TransactionService {
       isDeleted: false,
     }
 
-    if (user.role !== 'super_admin' && user.brokerageId) {
-      filter.brokerageId = user.brokerageId
+    if (user.brokerageId) {
+      filter.brokerageId = new mongoose.Types.ObjectId(user.brokerageId)
+    } else {
+      filter.brokerageId = new mongoose.Types.ObjectId()
     }
 
     if (['agent', 'isa'].includes(user.role)) {
@@ -362,7 +383,7 @@ export class TransactionService {
 
     const transaction = await Transaction.findOne(filter)
     if (!transaction) {
-      throw new Error('Transaction not found')
+      throw new AppError('Transaction not found', HTTP_STATUS.NOT_FOUND)
     }
 
     return formatTransactionDto(transaction)
@@ -377,20 +398,29 @@ export class TransactionService {
     input: UpdateMilestoneInput,
     user: { id: string; name: string; role?: string; brokerageId: string }
   ): Promise<TransactionDto> {
-    const query: any = { _id: transactionId, isDeleted: false }
-    if (user.role !== 'super_admin' && user.brokerageId) {
-      query.brokerageId = user.brokerageId
+    if (!user.brokerageId) {
+      throw new AppError('An assigned brokerage is required to update transactions', HTTP_STATUS.FORBIDDEN)
+    }
+
+    const query = {
+      _id: transactionId,
+      brokerageId: new mongoose.Types.ObjectId(user.brokerageId),
+      isDeleted: false,
     }
 
     const transaction = await Transaction.findOne(query)
 
     if (!transaction) {
-      throw new Error('Transaction not found')
+      const existsAnywhere = await Transaction.findById(transactionId)
+      if (existsAnywhere) {
+        throw new AppError('This transaction belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+      }
+      throw new AppError('Transaction not found', HTTP_STATUS.NOT_FOUND)
     }
 
     const milestoneIndex = transaction.milestones.findIndex((m) => m.id === milestoneId)
     if (milestoneIndex === -1) {
-      throw new Error('Milestone not found')
+      throw new AppError('Milestone not found', HTTP_STATUS.NOT_FOUND)
     }
 
     const milestone = transaction.milestones[milestoneIndex]
@@ -438,15 +468,24 @@ export class TransactionService {
     },
     user: { id: string; name: string; role?: string; brokerageId: string }
   ): Promise<TransactionDto> {
-    const query: any = { _id: transactionId, isDeleted: false }
-    if (user.role !== 'super_admin' && user.brokerageId) {
-      query.brokerageId = user.brokerageId
+    if (!user.brokerageId) {
+      throw new AppError('An assigned brokerage is required to attach transaction documents', HTTP_STATUS.FORBIDDEN)
+    }
+
+    const query = {
+      _id: transactionId,
+      brokerageId: new mongoose.Types.ObjectId(user.brokerageId),
+      isDeleted: false,
     }
 
     const transaction = await Transaction.findOne(query)
 
     if (!transaction) {
-      throw new Error('Transaction not found')
+      const existsAnywhere = await Transaction.findById(transactionId)
+      if (existsAnywhere) {
+        throw new AppError('This transaction belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+      }
+      throw new AppError('Transaction not found', HTTP_STATUS.NOT_FOUND)
     }
 
     const docId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`
@@ -496,9 +535,14 @@ export class TransactionService {
     docId: string,
     user: { id: string; role?: string; brokerageId: string }
   ): Promise<TransactionDto> {
-    const query: any = { _id: transactionId, isDeleted: false }
-    if (user.role !== 'super_admin' && user.brokerageId) {
-      query.brokerageId = user.brokerageId
+    if (!user.brokerageId) {
+      throw new AppError('An assigned brokerage is required to remove transaction documents', HTTP_STATUS.FORBIDDEN)
+    }
+
+    const query = {
+      _id: transactionId,
+      brokerageId: new mongoose.Types.ObjectId(user.brokerageId),
+      isDeleted: false,
     }
 
     const transaction = await Transaction.findOneAndUpdate(
@@ -508,7 +552,11 @@ export class TransactionService {
     )
 
     if (!transaction) {
-      throw new Error('Transaction not found')
+      const existsAnywhere = await Transaction.findById(transactionId)
+      if (existsAnywhere) {
+        throw new AppError('This transaction belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+      }
+      throw new AppError('Transaction not found', HTTP_STATUS.NOT_FOUND)
     }
 
     await DocumentRecord.findOneAndUpdate(

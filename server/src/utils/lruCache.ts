@@ -1,7 +1,7 @@
-/**
- * Production-grade Bounded LRU Cache.
- * Guarantees zero memory leaks by enforcing a strict maximum size and automatic TTL eviction.
- */
+
+//Bounded LRU Cache.
+//Guarantees zero memory leaks by enforcing a strict maximum size and automatic TTL eviction.
+
 export class BoundedLruCache<T> {
   private cache = new Map<string, { value: T; expiry: number }>()
   private readonly maxSize: number

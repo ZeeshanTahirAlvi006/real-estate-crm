@@ -14,6 +14,7 @@ export interface CreateDealInput {
 }
 
 export interface UpdateDealInput {
+  contactId?: string
   pipelineId?: string
   stageId?: string
   propertyAddress?: string

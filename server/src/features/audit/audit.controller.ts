@@ -15,7 +15,7 @@ export const getAuditLogs = async (req: Request, res: Response, next: NextFuncti
     }
 
     const tenantFilter = req.tenantFilter || {}
-    const { logs, total, source } = await listAuditLogs(req.query, tenantFilter)
+    const { logs, total, source } = await listAuditLogs(req.query, tenantFilter, req.user)
     const page = Number(req.query.page) || 1
     const limit = Number(req.query.limit) || 25
 
@@ -43,7 +43,7 @@ export const getAuditLogById = async (req: Request, res: Response, next: NextFun
 
     const logId = Array.isArray(req.params.id) ? req.params.id[0] : (req.params.id as string)
     const tenantFilter = req.tenantFilter || {}
-    const log = await fetchAuditLogById(logId, tenantFilter)
+    const log = await fetchAuditLogById(logId, tenantFilter, req.user)
     if (!log) {
       sendError(res, 'Audit log not found', HTTP_STATUS.NOT_FOUND)
       return

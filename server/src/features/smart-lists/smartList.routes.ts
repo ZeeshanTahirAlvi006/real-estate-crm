@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate.js'
-import { tenantScope } from '../../middleware/tenantScope.js'
+import { strictOperationalScope } from '../../middleware/tenantScope.js'
 import { validate } from '../../middleware/validate.js'
 import * as smartListController from './smartList.controller.js'
 import {
@@ -11,7 +11,7 @@ import {
 
 const router = Router()
 
-router.use(authenticate, tenantScope)
+router.use(authenticate, strictOperationalScope)
 
 router.get('/', smartListController.getSmartLists)
 

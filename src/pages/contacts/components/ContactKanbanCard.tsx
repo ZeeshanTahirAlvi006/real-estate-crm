@@ -5,6 +5,8 @@ import { MaterialIcon } from '@/components/ui/MaterialIcon'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
 import type { Contact, ContactStatus } from '@/types'
 
 interface ContactKanbanCardProps {
@@ -46,9 +48,11 @@ export function ContactKanbanCard({
   const [isDragging, setIsDragging] = useState(false)
   const [showMoveMenu, setShowMoveMenu] = useState(false)
   const navigate = useNavigate()
+  const currentUser = useAppSelector((state) => state.auth.user)
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN
 
   useEffect(() => {
-    if (!ref.current) return
+    if (!ref.current || contact.isCrossBrokerage) return
     return draggable({
       element: ref.current,
       getInitialData: () => ({ contactId: contact.id, contact }),
@@ -59,6 +63,10 @@ export function ContactKanbanCard({
 
   const handleWhatsAppCall = (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (contact.isCrossBrokerage) {
+      toast.error('Calling restricted for cross-brokerage contacts.')
+      return
+    }
     const clean = (contact.phone || '').replace(/\D/g, '')
     if (clean) {
       window.open(`https://web.whatsapp.com/send?phone=${clean}`, '_blank')
@@ -96,6 +104,15 @@ export function ContactKanbanCard({
             <h4 className="text-sm font-bold text-[#273338] dark:text-white truncate group-hover:text-[#2B5748] dark:group-hover:text-[#9CB080] transition-colors">
               {contact.firstName} {contact.lastName}
             </h4>
+            {isSuperAdmin && contact.brokerageName && (
+              <span
+                className="text-[10px] text-[#75887E] dark:text-[#A0B2A6] inline-flex items-center gap-1 truncate block"
+                title={`Brokerage: ${contact.brokerageName}`}
+              >
+                <MaterialIcon name="business" size={11} className="opacity-75 shrink-0" />
+                <span className="truncate">{contact.brokerageName}</span>
+              </span>
+            )}
             <span className="text-[11px] font-medium text-[#75887E] dark:text-[#A0B2A6] truncate block">
               {contact.leadSource || 'Direct'}
             </span>
@@ -118,15 +135,25 @@ export function ContactKanbanCard({
       <div className="mt-2.5 space-y-1 text-xs">
         {/* Phone / WhatsApp Call */}
         {contact.phone ? (
-          <button
-            type="button"
-            onClick={handleWhatsAppCall}
-            className="flex items-center gap-1.5 text-[#4A5D54] dark:text-[#C2D6C7] hover:text-[#008069] dark:hover:text-[#00a884] transition-colors cursor-pointer w-full text-left truncate group/call"
-            title="Call on WhatsApp Web"
-          >
-            <MaterialIcon name="call" size={14} className="text-emerald-600 dark:text-emerald-400 group-hover/call:scale-110 transition-transform shrink-0" />
-            <span className="truncate group-hover/call:underline font-medium">{contact.phone}</span>
-          </button>
+          contact.isCrossBrokerage ? (
+            <div
+              className="flex items-center gap-1.5 text-[#75887E] dark:text-[#A0B2A6] opacity-80 cursor-not-allowed w-full text-left truncate"
+              title="Cross-brokerage contact: Calling restricted"
+            >
+              <MaterialIcon name="phone_locked" size={14} className="text-amber-600/70 dark:text-amber-400/70 shrink-0" />
+              <span className="truncate font-mono text-xs">{contact.phone}</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleWhatsAppCall}
+              className="flex items-center gap-1.5 text-[#4A5D54] dark:text-[#C2D6C7] hover:text-[#008069] dark:hover:text-[#00a884] transition-colors cursor-pointer w-full text-left truncate group/call"
+              title="Call on WhatsApp Web"
+            >
+              <MaterialIcon name="call" size={14} className="text-emerald-600 dark:text-emerald-400 group-hover/call:scale-110 transition-transform shrink-0" />
+              <span className="truncate group-hover/call:underline font-medium">{contact.phone}</span>
+            </button>
+          )
         ) : (
           <div className="flex items-center gap-1.5 text-[#75887E] dark:text-[#A0B2A6]">
             <MaterialIcon name="call" size={14} className="opacity-50 shrink-0" />
@@ -167,101 +194,118 @@ export function ContactKanbanCard({
 
       {/* Card Actions Footer */}
       <div className="mt-3 pt-2 border-t border-[#D8E2D6]/80 dark:border-[#618764]/30 flex items-center justify-between gap-1">
-        {/* Move Status Menu for Mobile / Click */}
-        {onMoveStatus && (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowMoveMenu(!showMoveMenu)
-              }}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-[#4A5D54] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white bg-[#EDF2EB]/70 dark:bg-[#1A2E26] hover:bg-[#D8E2D6] dark:hover:bg-[#254238] transition-colors cursor-pointer"
-              title="Move contact status"
+        {contact.isCrossBrokerage ? (
+          <div className="w-full flex items-center justify-between">
+            <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">
+              {contact.status ? contact.status.replace('_', ' ') : 'Protected'}
+            </span>
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20"
+              title="Contact belongs to another brokerage: Restricted read-only."
             >
-              <MaterialIcon name="drive_file_move" size={13} />
-              <span>Move</span>
-            </button>
+              <MaterialIcon name="lock" size={12} className="opacity-75" />
+              <span>Protected</span>
+            </span>
+          </div>
+        ) : (
+          <>
+            {/* Move Status Menu for Mobile / Click */}
+            {onMoveStatus && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowMoveMenu(!showMoveMenu)
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-[#4A5D54] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white bg-[#EDF2EB]/70 dark:bg-[#1A2E26] hover:bg-[#D8E2D6] dark:hover:bg-[#254238] transition-colors cursor-pointer"
+                  title="Move contact status"
+                >
+                  <MaterialIcon name="drive_file_move" size={13} />
+                  <span>Move</span>
+                </button>
 
-            {showMoveMenu && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute left-0 bottom-full mb-1 w-36 rounded-lg bg-white dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764] shadow-lg py-1 z-30 text-xs"
-              >
-                <div className="px-2.5 py-1 text-[10px] font-bold text-[#75887E] dark:text-[#A0B2A6] uppercase tracking-wider border-b border-[#D8E2D6] dark:border-[#618764]/40">
-                  Move To
-                </div>
-                {statuses.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    disabled={s.id === contact.status || s.id === currentStatusGroup}
-                    onClick={() => {
-                      onMoveStatus(contact.id, s.id)
-                      setShowMoveMenu(false)
-                    }}
-                    className={cn(
-                      'w-full text-left px-2.5 py-1.5 hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] transition-colors flex items-center justify-between',
-                      (s.id === contact.status || s.id === currentStatusGroup)
-                        ? 'opacity-40 cursor-not-allowed'
-                        : 'cursor-pointer text-[#273338] dark:text-white'
-                    )}
+                {showMoveMenu && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute left-0 bottom-full mb-1 w-36 rounded-lg bg-white dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764] shadow-lg py-1 z-30 text-xs"
                   >
-                    <span>{s.label}</span>
-                    {s.id === contact.status && (
-                      <MaterialIcon name="check" size={13} className="text-[#9CB080]" />
-                    )}
-                  </button>
-                ))}
+                    <div className="px-2.5 py-1 text-[10px] font-bold text-[#75887E] dark:text-[#A0B2A6] uppercase tracking-wider border-b border-[#D8E2D6] dark:border-[#618764]/40">
+                      Move To
+                    </div>
+                    {statuses.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        disabled={s.id === contact.status || s.id === currentStatusGroup}
+                        onClick={() => {
+                          onMoveStatus(contact.id, s.id)
+                          setShowMoveMenu(false)
+                        }}
+                        className={cn(
+                          'w-full text-left px-2.5 py-1.5 hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] transition-colors flex items-center justify-between',
+                          (s.id === contact.status || s.id === currentStatusGroup)
+                            ? 'opacity-40 cursor-not-allowed'
+                            : 'cursor-pointer text-[#273338] dark:text-white'
+                        )}
+                      >
+                        <span>{s.label}</span>
+                        {s.id === contact.status && (
+                          <MaterialIcon name="check" size={13} className="text-[#9CB080]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {/* Action Buttons: Edit, Creds, Call, Delete */}
-        <div className="flex items-center gap-1 ml-auto">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onEdit(contact)
-            }}
-            className="p-1.5 rounded text-[#4A5D54] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] transition-colors cursor-pointer"
-            title="Edit contact"
-          >
-            <MaterialIcon name="edit" size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onCreds(contact)
-            }}
-            className="p-1.5 rounded text-[#2B5748] dark:text-[#9CB080] hover:bg-[#9CB080]/15 transition-colors cursor-pointer"
-            title="Generate portal credentials"
-          >
-            <MaterialIcon name="key" size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={handleWhatsAppCall}
-            className="p-1.5 rounded text-[#008069] dark:text-[#00a884] hover:bg-[#008069]/10 transition-colors cursor-pointer"
-            title="Call on WhatsApp Web"
-          >
-            <MaterialIcon name="call" size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete(contact.id)
-            }}
-            className="p-1.5 rounded text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-            title="Delete contact"
-          >
-            <MaterialIcon name="delete" size={14} />
-          </button>
-        </div>
+            {/* Action Buttons: Edit, Creds, Call, Delete */}
+            <div className="flex items-center gap-1 ml-auto">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit(contact)
+                }}
+                className="p-1.5 rounded text-[#4A5D54] dark:text-[#A0B2A6] hover:text-[#273338] dark:hover:text-white hover:bg-[#EDF2EB] dark:hover:bg-[#1A2E26] transition-colors cursor-pointer"
+                title="Edit contact"
+              >
+                <MaterialIcon name="edit" size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onCreds(contact)
+                }}
+                className="p-1.5 rounded text-[#2B5748] dark:text-[#9CB080] hover:bg-[#9CB080]/15 transition-colors cursor-pointer"
+                title="Generate portal credentials"
+              >
+                <MaterialIcon name="key" size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={handleWhatsAppCall}
+                className="p-1.5 rounded text-[#008069] dark:text-[#00a884] hover:bg-[#008069]/10 transition-colors cursor-pointer"
+                title="Call on WhatsApp Web"
+              >
+                <MaterialIcon name="call" size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(contact.id)
+                }}
+                className="p-1.5 rounded text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                title="Delete contact"
+              >
+                <MaterialIcon name="delete" size={14} />
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

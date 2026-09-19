@@ -20,8 +20,6 @@ export interface IBrokerage extends Document {
   timezone: string
   isActive: boolean
   whatsappConfig?: IWhatsAppConfig
-  defaultCommissionCap: number
-  defaultCommissionSplitAgent: number
   createdBy?: mongoose.Types.ObjectId
   createdAt: Date
   updatedAt: Date
@@ -40,7 +38,6 @@ const brokerageSchema = new Schema<IBrokerage>(
       type: String,
       trim: true,
       lowercase: true,
-      unique: true,
       sparse: true,
       index: true,
     },
@@ -85,17 +82,6 @@ const brokerageSchema = new Schema<IBrokerage>(
       verifiedName: { type: String, trim: true },
       lastTestedAt: { type: Date },
     },
-    defaultCommissionCap: {
-      type: Number,
-      default: 18000,
-      min: 0,
-    },
-    defaultCommissionSplitAgent: {
-      type: Number,
-      default: 80,
-      min: 0,
-      max: 100,
-    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -109,15 +95,11 @@ const brokerageSchema = new Schema<IBrokerage>(
 // Index for rapid multi-tenant inbound webhook resolution
 brokerageSchema.index({ 'whatsappConfig.phoneNumberId': 1 }, { sparse: true })
 
-// Case-insensitive index on brokerage name to eliminate COLLSCAN during registration (PERF-M-001)
+// Case-insensitive index on brokerage name to eliminate COLLSCAN during registration
 brokerageSchema.index(
   { name: 1 },
   { collation: { locale: 'en', strength: 2 }, name: 'idx_brokerage_name_ci' }
 )
-
-// Compound & single-field indexes for high-throughput listing, pagination and sorting (PERF-M-001)
-brokerageSchema.index({ createdAt: -1 })
-brokerageSchema.index({ isActive: 1, createdAt: -1 })
 
 export const Brokerage: Model<IBrokerage> =
   mongoose.models.Brokerage || mongoose.model<IBrokerage>('Brokerage', brokerageSchema)

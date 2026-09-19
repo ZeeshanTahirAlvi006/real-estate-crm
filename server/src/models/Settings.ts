@@ -51,7 +51,7 @@ export const DEFAULT_NOTIFICATION_PREFS: INotificationPref[] = [
 
 export const DEFAULT_BROKERAGE_CONFIG: IBrokerageConfig = {
   timezone: 'America/New_York',
-  currency: 'USD',
+  currency: 'PKR',
   marketType: 'north_america',
   transferTaxRate: 0,
   offPlanEnabled: false,
@@ -72,7 +72,7 @@ const notificationPrefSchema = new Schema<INotificationPref>(
 const brokerageConfigSchema = new Schema<IBrokerageConfig>(
   {
     timezone: { type: String, default: 'America/New_York', trim: true },
-    currency: { type: String, enum: SUPPORTED_CURRENCIES, default: 'USD' },
+    currency: { type: String, enum: SUPPORTED_CURRENCIES, default: 'PKR' },
     marketType: {
       type: String,
       enum: ['north_america', 'uae_dubai', 'uk_europe', 'apac'],

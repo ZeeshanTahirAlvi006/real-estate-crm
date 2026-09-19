@@ -100,7 +100,7 @@ export function MobileTabletNavPill({
   return (
     <div
       className={cn(
-        'relative flex items-center justify-between w-full max-w-2xl mx-auto rounded-full bg-white dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/60 p-0.5 shadow-xs overflow-hidden select-none',
+        'relative flex items-center justify-between w-full max-w-none rounded-full bg-white dark:bg-[#202B2F] border border-[#D8E2D6] dark:border-[#618764]/60 p-0.5 shadow-xs overflow-hidden select-none',
         className
       )}
     >

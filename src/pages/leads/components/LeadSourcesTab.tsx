@@ -60,7 +60,7 @@ export function LeadSourcesTab() {
   // Webhook Simulator state
   const [isTesterOpen, setIsTesterOpen] = useState(false)
   const [testerSourceId, setTesterSourceId] = useState<string | undefined>(undefined)
-  const [testerPreset, setTesterPreset] = useState<PresetType | undefined>('zameen')
+  const [testerPreset, setTesterPreset] = useState<PresetType | undefined>('google_ads')
 
   const getPresetForSourceType = (type: LeadSourceType): PresetType => {
     if (type === 'zameen') return 'zameen'
@@ -70,12 +70,12 @@ export function LeadSourcesTab() {
     if (type === 'meta_ads') return 'meta'
     if (type === 'whatsapp') return 'whatsapp'
     if (type === 'website') return 'website'
-    return 'zameen'
+    return 'google_ads'
   }
 
   const handleOpenTester = (sourceId?: string, preset?: PresetType) => {
     setTesterSourceId(sourceId)
-    setTesterPreset(preset || 'zameen')
+    setTesterPreset(preset || 'google_ads')
     setIsTesterOpen(true)
   }
 
@@ -507,15 +507,15 @@ export function LeadSourcesTab() {
             className="h-9 px-3 rounded-lg border border-[#D8E2D6] dark:border-[#618764]/60 bg-white dark:bg-[#202B2F] text-xs font-medium text-[#273338] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#9CB080]"
           >
             <option value="all">All Types</option>
-            <option value="zameen">Zameen.com</option>
-            <option value="graana">Graana.com</option>
-            <option value="olx">OLX Pakistan</option>
-            <option value="meta_ads">Meta Ads</option>
             <option value="google_ads">Google Ads</option>
             <option value="whatsapp">WhatsApp</option>
-            <option value="website">Website</option>
-            <option value="webhook">Universal Webhook</option>
-            <option value="manual">Manual Intake</option>
+            <option value="zameen">Zameen.com (Coming Soon)</option>
+            <option value="graana">Graana.com (Coming Soon)</option>
+            <option value="olx">OLX Pakistan (Coming Soon)</option>
+            <option value="meta_ads">Meta Ads (Coming Soon)</option>
+            <option value="website">Website (Coming Soon)</option>
+            <option value="webhook">Universal Webhook (Coming Soon)</option>
+            <option value="manual">Manual Intake (Coming Soon)</option>
           </select>
         </div>
 
@@ -528,7 +528,7 @@ export function LeadSourcesTab() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleOpenTester(undefined, 'zameen')}
+            onClick={() => handleOpenTester(undefined, 'google_ads')}
             className="h-9 px-3.5 gap-1.5 rounded-lg border-[#618764]/60 text-[#2B5748] dark:text-[#9CB080] hover:bg-[#EDF2EB] dark:hover:bg-[#202B2F] font-bold text-xs shrink-0 cursor-pointer shadow-xs"
             title="Open Webhook & Ingestion Simulator"
           >
@@ -729,7 +729,7 @@ export function LeadSourcesTab() {
               size="sm"
               onClick={() => {
                 const sId = secretDetails?.id
-                const sType = secretDetails?.type || 'zameen'
+                const sType = secretDetails?.type || 'google_ads'
                 setViewSecretSourceId(null)
                 handleOpenTester(sId, getPresetForSourceType(sType as LeadSourceType))
               }}

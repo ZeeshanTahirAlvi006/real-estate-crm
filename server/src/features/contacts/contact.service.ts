@@ -116,7 +116,7 @@ const buildContactFilter = (query: ListContactsQuery, caller: IUser, tenantFilte
       { phone: { $regex: escaped, $options: 'i' } },
     ]
 
-    // Multi-word search (e.g. "John Doe"): match firstName + lastName combined
+    // Multi-word search (e.g. "Zeeshan Tahir"): match firstName + lastName combined
     const parts = trimmed.split(/\s+/).filter(Boolean)
     if (parts.length >= 2) {
       const first = escapeRegExp(parts[0])
@@ -577,6 +577,12 @@ export const createContact = async (
   const t0 = process.hrtime.bigint()
   logger.info('[contact.service.ts:571] [createContact] Started')
   try {
+    if (caller.role === USER_ROLES.SUPER_ADMIN && !caller.brokerageId) {
+      throw new AppError(
+        'Super Admin without assigned brokerage cannot create contacts.',
+        HTTP_STATUS.FORBIDDEN
+      )
+    }
     const brokerageId = caller.brokerageId
     await checkDuplicateContact(brokerageId, input.email, input.phone, input.firstName, input.lastName)
 
@@ -633,14 +639,13 @@ export const getOrGeneratePortalInvite = async (
     const objContactId = new mongoose.Types.ObjectId(contactId)
     const contact = await Contact.findOne({
       _id: objContactId,
-      brokerageId: caller.brokerageId,
       isDeleted: false,
     }).lean()
 
     if (!contact) {
       throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
     }
-    verifyContactAccess(contact, caller)
+    verifyContactMutationAccess(contact, caller)
 
     const forcePasswordReset = Boolean(customPassword)
     return await provisionLeadPortalUser(contact, caller, customPassword, forcePasswordReset)
@@ -650,13 +655,39 @@ export const getOrGeneratePortalInvite = async (
   }
 }
 
-// Verify caller permission to view/modify a specific contact
-const verifyContactAccess = (
+// Verify caller permission to view a specific contact (read access)
+export const verifyContactAccess = (
   contact: { brokerageId?: any; assignedAgentId?: any },
   caller: IUser
 ): void => {
   if (caller.role === USER_ROLES.SUPER_ADMIN) return
-  if (contact.brokerageId && contact.brokerageId.toString() !== caller.brokerageId.toString()) {
+  if (contact.brokerageId && contact.brokerageId.toString() !== caller.brokerageId?.toString()) {
+    throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
+  }
+  if (caller.role === USER_ROLES.AGENT && contact.assignedAgentId?.toString() !== caller._id.toString()) {
+    throw new AppError(GENERIC_AUTH_MESSAGES.FORBIDDEN, HTTP_STATUS.FORBIDDEN)
+  }
+}
+
+// Verify caller permission to mutate a specific contact (write/update/delete/note access)
+export const verifyContactMutationAccess = (
+  contact: { brokerageId?: any; assignedAgentId?: any },
+  caller: IUser
+): void => {
+  if (caller.role === USER_ROLES.SUPER_ADMIN) {
+    if (
+      !caller.brokerageId ||
+      !contact.brokerageId ||
+      contact.brokerageId.toString() !== caller.brokerageId.toString()
+    ) {
+      throw new AppError(
+        'Cross-brokerage contacts are strictly read-only for Super Admin.',
+        HTTP_STATUS.FORBIDDEN
+      )
+    }
+    return
+  }
+  if (contact.brokerageId && (!caller.brokerageId || contact.brokerageId.toString() !== caller.brokerageId.toString())) {
     throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
   }
   if (caller.role === USER_ROLES.AGENT && contact.assignedAgentId?.toString() !== caller._id.toString()) {
@@ -807,12 +838,17 @@ export const updateContact = async (
     // 1. Fetch lean document for fast permission check and audit snapshot
     const existing = await Contact.findOne({ _id: objectId, isDeleted: false }).lean()
     if (!existing) throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
-    verifyContactAccess(existing, caller)
+    verifyContactMutationAccess(existing, caller)
 
     const previousState = captureContactSnapshot(existing)
 
     // 2. Prepare atomic update payload
     const updatePayload: any = { ...input }
+    // Strip tenant-identifying & immutable keys to prevent tenant reassignment attacks
+    delete updatePayload.brokerageId
+    delete updatePayload._id
+    delete updatePayload.id
+
     if (input.assignedAgentId !== undefined) {
       updatePayload.assignedAgentId = input.assignedAgentId && mongoose.Types.ObjectId.isValid(input.assignedAgentId)
         ? new mongoose.Types.ObjectId(input.assignedAgentId)
@@ -909,9 +945,19 @@ export const deleteContact = async (
   logger.info('[contact.service.ts:604] [deleteContact] Started')
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
+    const objectId = new mongoose.Types.ObjectId(id)
+
+    // Fetch target contact's brokerageId and check mutation access
+    const target = await Contact.findOne({ _id: objectId, isDeleted: false })
+      .select('brokerageId assignedAgentId')
+      .lean()
+    if (!target) {
+      throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
+    }
+    verifyContactMutationAccess(target, caller)
 
     // Atomic find + update with role/tenant security in one single MongoDB round trip
-    const filter: Record<string, any> = { _id: id, isDeleted: false }
+    const filter: Record<string, any> = { _id: objectId, isDeleted: false }
     if (caller.role !== USER_ROLES.SUPER_ADMIN) {
       filter.brokerageId = caller.brokerageId
     }
@@ -986,7 +1032,7 @@ export const addContactNote = async (
     const objId = new mongoose.Types.ObjectId(id)
     const contact = await Contact.findOne({ _id: objId, isDeleted: false })
     if (!contact) throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
-    verifyContactAccess(contact, caller)
+    verifyContactMutationAccess(contact, caller)
 
     const activity = await Activity.create({
       contactId: contact._id,
@@ -1158,6 +1204,27 @@ export const bulkUpdateContacts = async (
     const objectIds = input.contactIds
       .filter((id) => mongoose.Types.ObjectId.isValid(id))
       .map((id) => new mongoose.Types.ObjectId(id))
+
+    if (caller.role === USER_ROLES.SUPER_ADMIN) {
+      if (!caller.brokerageId) {
+        throw new AppError(
+          'Cross-brokerage contacts are strictly read-only for Super Admin.',
+          HTTP_STATUS.FORBIDDEN
+        )
+      }
+      const crossContact = await Contact.findOne({
+        _id: { $in: objectIds },
+        brokerageId: { $ne: caller.brokerageId },
+      }).select('brokerageId').lean()
+      if (crossContact) {
+        throw new AppError(
+          'Cross-brokerage contacts are strictly read-only for Super Admin.',
+          HTTP_STATUS.FORBIDDEN
+        )
+      }
+    } else if (!caller.brokerageId) {
+      throw new AppError('User account has no associated brokerage.', HTTP_STATUS.FORBIDDEN)
+    }
 
     const filter: Record<string, any> = {
       _id: { $in: objectIds },

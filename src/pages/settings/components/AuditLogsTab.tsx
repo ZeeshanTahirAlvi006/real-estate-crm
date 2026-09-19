@@ -103,20 +103,20 @@ export function AuditLogsTab() {
 
   return (
     <Card className="bg-white dark:bg-[#2B5748] border-[#D8E2D6] dark:border-[#618764] shadow-xs">
-      <CardHeader className="pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <CardHeader className="pb-3 border-b border-[#D8E2D6] dark:border-[#618764]/60 flex flex-row items-center justify-between gap-3 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="p-2 rounded-lg bg-[#9CB080]/20 text-[#273338] dark:text-[#9CB080] flex items-center justify-center">
             <MaterialIcon name="history" size={20} />
           </div>
           <div>
-            <CardTitle className="text-base text-[#273338] dark:text-white">Audit Logs</CardTitle>
-            <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] mt-0.5">
+            <CardTitle className="text-base text-[#273338] dark:text-white whitespace-nowrap">Audit Logs</CardTitle>
+            <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] mt-0.5 whitespace-nowrap">
               Immutable security trail
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 shrink-0">
           <Select value={resourceFilter} onValueChange={(val) => val && setResourceFilter(val)}>
             <SelectTrigger className="h-8 text-xs w-32 bg-[#F5F7F4] dark:bg-[#202B2F] border-[#D8E2D6] dark:border-[#618764] text-[#273338] dark:text-white">
               <SelectValue placeholder="Resource" />

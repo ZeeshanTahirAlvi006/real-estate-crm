@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate.js'
+import { strictOperationalScope } from '../../middleware/tenantScope.js'
 import { validate } from '../../middleware/validate.js'
 import { transactionController } from './transaction.controller.js'
 import {
@@ -11,8 +12,9 @@ import {
 
 const router = Router()
 
-// All routes require authentication
+// All routes require authentication and strict operational multi-tenant scoping
 router.use(authenticate)
+router.use(strictOperationalScope)
 
 // Client VIP Portal
 router.get('/portal', transactionController.getPortalTransaction)

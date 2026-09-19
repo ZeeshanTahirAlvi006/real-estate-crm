@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PropPulse OS Lead Capture Widget - Test Harness</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+    .header {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      color: #0f172a;
+    }
+    .header p {
+      margin: 0;
+      font-size: 14px;
+      color: #64748b;
+    }
+    .container {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 24px;
+      align-items: flex-start;
+    }
+    .panel {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #334155;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+    button {
+      background: #9cb080;
+      color: #ffffff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+    }
+    button:hover {
+      background: #8ca070;
+    }
+    .preview-area {
+      min-height: 480px;
+      background: #ffffff;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .notice {
+      padding: 12px;
+      border-radius: 8px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>PropPulse OS - Embeddable Widget Test Harness</h1>
+    <p>Manual testing environment for the embeddable Lead Capture Widget (Inline & Popup modes).</p>
+  </div>
+
+  <div class="container">
+    <div class="panel">
+      <div class="notice">
+        Ensure your backend server is running on <code>http://localhost:5000</code>.
+      </div>
+
+      <div class="form-group">
+        <label for="captureKey">Capture Key (UUID)</label>
+        <input type="text" id="captureKey" placeholder="e.g. 12345678-1234-1234-1234-123456789abc" value="" />
+      </div>
+
+      <div class="form-group">
+        <label for="widgetTitle">Title</label>
+        <input type="text" id="widgetTitle" value="Schedule a Showing" />
+      </div>
+
+      <div class="form-group">
+        <label for="widgetSubtitle">Subtitle</label>
+        <input type="text" id="widgetSubtitle" value="Connect with a local property specialist." />
+      </div>
+
+      <div class="form-group">
+        <label for="buttonText">Button CTA</label>
+        <input type="text" id="buttonText" value="Request Tour" />
+      </div>
+
+      <div class="form-group">
+        <label for="accentColor">Accent Color</label>
+        <input type="color" id="accentColor" value="#9CB080" />
+      </div>
+
+      <div class="form-group">
+        <label for="renderMode">Render Mode</label>
+        <select id="renderMode">
+          <option value="inline">Inline Container</option>
+          <option value="popup">Floating Popup Button</option>
+        </select>
+      </div>
+
+      <button type="button" id="reloadWidget">Mount Widget</button>
+    </div>
+
+    <div class="preview-area" id="previewArea">
+      <div id="proppulse-lead-widget" data-capture-key=""></div>
+    </div>
+  </div>
+
+  <script>
+    function mountWidget() {
+      const key = document.getElementById('captureKey').value.trim()
+      const title = document.getElementById('widgetTitle').value.trim()
+      const subtitle = document.getElementById('widgetSubtitle').value.trim()
+      const buttonText = document.getElementById('buttonText').value.trim()
+      const accent = document.getElementById('accentColor').value
+      const mode = document.getElementById('renderMode').value
+
+      // Clean existing
+      const existingHost = document.getElementById('proppulse-widget-popup-host')
+      if (existingHost) existingHost.remove()
+
+      const previewArea = document.getElementById('previewArea')
+      previewArea.innerHTML = ''
+
+      // Reset global initialized flag for reload testing
+      window.__PROPPULSE_WIDGET_INITIALIZED__ = false
+
+      if (mode === 'inline') {
+        const widgetContainer = document.createElement('div')
+        widgetContainer.id = 'proppulse-lead-widget'
+        widgetContainer.setAttribute('data-capture-key', key)
+        widgetContainer.setAttribute('data-title', title)
+        widgetContainer.setAttribute('data-subtitle', subtitle)
+        widgetContainer.setAttribute('data-button-text', buttonText)
+        widgetContainer.setAttribute('data-accent', accent)
+        widgetContainer.setAttribute('data-mode', 'inline')
+        previewArea.appendChild(widgetContainer)
+      }
+
+      // Remove existing script if any
+      const existingScript = document.getElementById('pp-test-widget-script')
+      if (existingScript) existingScript.remove()
+
+      const script = document.createElement('script')
+      script.id = 'pp-test-widget-script'
+      script.src = 'http://localhost:5000/api/widget/lead-capture.js'
+      script.setAttribute('data-capture-key', key)
+      script.setAttribute('data-title', title)
+      script.setAttribute('data-subtitle', subtitle)
+      script.setAttribute('data-button-text', buttonText)
+      script.setAttribute('data-accent', accent)
+      script.setAttribute('data-mode', mode)
+      document.body.appendChild(script)
+    }
+
+    document.getElementById('reloadWidget').addEventListener('click', mountWidget)
+  </script>
+</body>
+</html>

@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useConvertDealToTransactionMutation } from '@/store/api/transactionsApi'
+import { useAppSelector } from '@/store/hooks'
+import { UserRole } from '@/types/auth'
 import { toast } from 'sonner'
 import type { TransactionType } from '@/types/transaction'
 
@@ -28,6 +30,8 @@ interface ConvertDealModalProps {
     contactName: string
     dealValue: number
     assignedAgentName?: string
+    isCrossBrokerage?: boolean
+    brokerageId?: string
   }
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -39,6 +43,14 @@ export const ConvertDealModal: React.FC<ConvertDealModalProps> = ({
   onOpenChange,
 }) => {
   const navigate = useNavigate()
+  const currentUser = useAppSelector((state) => state.auth.user)
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN
+  const hasNoBrokerage = isSuperAdmin && !currentUser?.brokerageId
+  const isCrossBrokerage =
+    Boolean(deal.isCrossBrokerage) ||
+    Boolean(isSuperAdmin && deal.brokerageId && currentUser?.brokerageId && deal.brokerageId !== currentUser.brokerageId)
+  const isBlocked = hasNoBrokerage || isCrossBrokerage
+
   const [convertDeal, { isLoading }] = useConvertDealToTransactionMutation()
 
   const defaultClosing = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
@@ -62,6 +74,10 @@ export const ConvertDealModal: React.FC<ConvertDealModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isBlocked) {
+      toast.error('Cannot convert deals outside your brokerage')
+      return
+    }
     if (!closingDate) {
       toast.error('Please specify a target closing date')
       return
@@ -105,6 +121,17 @@ export const ConvertDealModal: React.FC<ConvertDealModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
+        {hasNoBrokerage && (
+          <div className="rounded-md bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-700 dark:text-amber-400">
+            Super Admin has no assigned brokerage. You cannot convert deals to escrow transactions without an assigned brokerage.
+          </div>
+        )}
+        {isCrossBrokerage && (
+          <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive">
+            This deal belongs to another brokerage and cannot be converted to an escrow transaction.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -142,7 +169,7 @@ export const ConvertDealModal: React.FC<ConvertDealModalProps> = ({
             <div className="space-y-1.5">
               <Label htmlFor="tx-price" className="text-xs font-semibold flex items-center gap-1">
                 <CurrencyDollarIcon className="w-3.5 h-3.5 text-emerald-500" />
-                Final Purchase Price ($) *
+                Final Purchase Price (PKR) *
               </Label>
               <Input
                 id="tx-price"
@@ -155,7 +182,7 @@ export const ConvertDealModal: React.FC<ConvertDealModalProps> = ({
 
             <div className="space-y-1.5">
               <Label htmlFor="tx-earnest" className="text-xs font-semibold">
-                Earnest Money Deposit ($)
+                Earnest Money Deposit (PKR)
               </Label>
               <Input
                 id="tx-earnest"
@@ -233,7 +260,7 @@ export const ConvertDealModal: React.FC<ConvertDealModalProps> = ({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isBlocked}
               className="bg-primary text-primary-foreground font-semibold shadow-xs"
             >
               {isLoading ? 'Opening Escrow...' : 'Open Escrow & Generate Milestones'}

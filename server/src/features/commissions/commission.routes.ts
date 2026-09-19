@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate.js'
+import { strictOperationalScope } from '../../middleware/tenantScope.js'
 import { validate } from '../../middleware/validate.js'
 import { commissionController } from './commission.controller.js'
 import {
@@ -12,8 +13,9 @@ import {
 
 const router = Router()
 
-// All commission endpoints require authentication
+// All commission endpoints require authentication and operational tenancy isolation
 router.use(authenticate)
+router.use(strictOperationalScope)
 
 // Brokerage & Agent Cap Configuration
 router.get('/settings/cap', commissionController.getCapSettings)

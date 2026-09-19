@@ -30,7 +30,7 @@ export const extractCriteriaFromMessage = (
     }
     next.budget = bVal
   } else if (lower.includes('around 750') || lower.includes('under 800')) {
-    next.budget = '$750 - $800'
+    next.budget = 'PKR 750k - 800k'
   }
 
   // 2. Timeline extraction (15days, 30days, 1 month, ASAP, etc.)

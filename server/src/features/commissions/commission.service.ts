@@ -3,8 +3,12 @@ import { Commission, ICommission } from '../../models/Commission.js'
 import { User, IUser } from '../../models/User.js'
 import { Brokerage } from '../../models/Brokerage.js'
 import { Settings } from '../../models/Settings.js'
+import { Deal } from '../../models/Deal.js'
+import { Contact } from '../../models/Contact.js'
+import { Transaction } from '../../models/Transaction.js'
 import { logger } from '../../utils/logger.js'
 import { AppError } from '../../middleware/errorHandler.js'
+import { HTTP_STATUS } from '../../utils/constants.js'
 import {
   CalculateCommissionInput,
   CommissionCalculationResult,
@@ -219,6 +223,10 @@ export class CommissionService {
     let priorYtdContribution = 0
     let agentPriorYtdGci = 0
 
+    if (!user.brokerageId) {
+      return computeCommissionSplit(input, 0, 0)
+    }
+
     const targetAgentId = input.agentId || (user.role === 'agent' ? user.id : undefined)
     const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
 
@@ -290,6 +298,10 @@ export class CommissionService {
 
   async create(user: IUser, input: CreateCommissionInput): Promise<CommissionDto> {
     const t0 = process.hrtime.bigint()
+
+    if (!user.brokerageId) {
+      throw new AppError('An assigned brokerage is required to create commission records', HTTP_STATUS.FORBIDDEN)
+    }
     const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
 
     if (!mongoose.Types.ObjectId.isValid(input.agentId)) {
@@ -303,7 +315,56 @@ export class CommissionService {
     }).lean()
 
     if (!agent) {
+      const existsAnywhere = await User.findById(aId)
+      if (existsAnywhere) {
+        throw new AppError('The assigned agent belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+      }
       throw new AppError('Assigned agent not found in brokerage', 404)
+    }
+
+    if (input.contactId && mongoose.Types.ObjectId.isValid(input.contactId)) {
+      const contact = await Contact.findOne({
+        _id: new mongoose.Types.ObjectId(input.contactId),
+        brokerageId: bId,
+        isDeleted: false,
+      })
+      if (!contact) {
+        const existsAnywhere = await Contact.findById(input.contactId)
+        if (existsAnywhere) {
+          throw new AppError('The selected contact belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+        }
+        throw new AppError('Contact not found', 404)
+      }
+    }
+
+    if (input.dealId && mongoose.Types.ObjectId.isValid(input.dealId)) {
+      const deal = await Deal.findOne({
+        _id: new mongoose.Types.ObjectId(input.dealId),
+        brokerageId: bId,
+        isDeleted: false,
+      })
+      if (!deal) {
+        const existsAnywhere = await Deal.findById(input.dealId)
+        if (existsAnywhere) {
+          throw new AppError('The selected deal belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+        }
+        throw new AppError('Deal not found', 404)
+      }
+    }
+
+    if (input.transactionId && mongoose.Types.ObjectId.isValid(input.transactionId)) {
+      const tx = await Transaction.findOne({
+        _id: new mongoose.Types.ObjectId(input.transactionId),
+        brokerageId: bId,
+        isDeleted: false,
+      })
+      if (!tx) {
+        const existsAnywhere = await Transaction.findById(input.transactionId)
+        if (existsAnywhere) {
+          throw new AppError('The selected transaction belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+        }
+        throw new AppError('Transaction not found', 404)
+      }
     }
 
     const calcResult = await this.calculate(user, {
@@ -346,6 +407,9 @@ export class CommissionService {
 
   async list(user: IUser, params: CommissionQueryParams): Promise<{ commissions: CommissionDto[]; total: number; page: number; limit: number }> {
     const t0 = process.hrtime.bigint()
+    if (!user.brokerageId) {
+      return { commissions: [], total: 0, page: 1, limit: params.limit || 20 }
+    }
     const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
     const query: any = { brokerageId: bId }
 
@@ -399,6 +463,10 @@ export class CommissionService {
       throw new AppError('Invalid commission ID', 400)
     }
 
+    if (!user.brokerageId) {
+      throw new AppError('Commission record not found', 404)
+    }
+
     const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
     const query: any = { _id: new mongoose.Types.ObjectId(id), brokerageId: bId }
     if (user.role === 'agent') {
@@ -407,6 +475,10 @@ export class CommissionService {
 
     const item = await Commission.findOne(query).lean()
     if (!item) {
+      const existsAnywhere = await Commission.findById(id)
+      if (existsAnywhere) {
+        throw new AppError('This commission record belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+      }
       throw new AppError('Commission record not found', 404)
     }
 
@@ -419,6 +491,10 @@ export class CommissionService {
   async updateStatus(user: IUser, id: string, status: 'draft' | 'pending_approval' | 'approved' | 'paid', notes?: string): Promise<CommissionDto> {
     if (!['super_admin', 'brokerage_owner', 'team_lead'].includes(user.role)) {
       throw new AppError('Insufficient permissions to approve or disburse commissions', 403)
+    }
+
+    if (!user.brokerageId) {
+      throw new AppError('An assigned brokerage is required to update commissions', HTTP_STATUS.FORBIDDEN)
     }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -445,6 +521,10 @@ export class CommissionService {
     ).lean()
 
     if (!commission) {
+      const existsAnywhere = await Commission.findById(id)
+      if (existsAnywhere) {
+        throw new AppError('This commission record belongs to another brokerage', HTTP_STATUS.FORBIDDEN)
+      }
       throw new AppError('Commission record not found', 404)
     }
 
@@ -459,6 +539,20 @@ export class CommissionService {
     const currentYear = new Date().getFullYear()
     const start = startDate ? new Date(startDate) : new Date(currentYear, 0, 1)
     const end = endDate ? new Date(endDate) : new Date()
+
+    if (!user.brokerageId) {
+      return {
+        period: `${start.toISOString().split('T')[0]} to ${end.toISOString().split('T')[0]}`,
+        totalVolume: 0,
+        totalGrossCommission: 0,
+        totalAgentPayouts: 0,
+        totalBrokerageRetained: 0,
+        averageCommissionRate: 3.0,
+        settlementCount: 0,
+        pendingApprovalCount: 0,
+        agentReports: [],
+      }
+    }
 
     const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
 
@@ -588,6 +682,13 @@ export class CommissionService {
 
   async getCapSettings(user: IUser): Promise<BrokerageCapSettingsDto> {
     const t0 = process.hrtime.bigint()
+    if (!user.brokerageId) {
+      return {
+        brokerageId: '',
+        defaultCommissionCap: 18000,
+        defaultCommissionSplitAgent: 80,
+      }
+    }
     const bId = new mongoose.Types.ObjectId(user.brokerageId.toString())
     const brokerage = await Brokerage.findById(bId)
       .select('defaultCommissionCap defaultCommissionSplitAgent updatedAt')
@@ -611,6 +712,9 @@ export class CommissionService {
   async updateBrokerageCap(user: IUser, input: UpdateBrokerageCapInput): Promise<BrokerageCapSettingsDto> {
     if (!['super_admin', 'brokerage_owner'].includes(user.role)) {
       throw new AppError('Only brokerage owners or super admins can update commission cap rules', 403)
+    }
+    if (!user.brokerageId) {
+      throw new AppError('An assigned brokerage is required to update commission cap rules', HTTP_STATUS.FORBIDDEN)
     }
 
     const t0 = process.hrtime.bigint()
@@ -657,6 +761,9 @@ export class CommissionService {
   async updateAgentCap(user: IUser, agentId: string, input: UpdateAgentCapInput): Promise<{ success: boolean; user: any }> {
     if (!['super_admin', 'brokerage_owner'].includes(user.role)) {
       throw new AppError('Only brokerage owners or super admins can update agent commission caps', 403)
+    }
+    if (!user.brokerageId) {
+      throw new AppError('An assigned brokerage is required to update agent commission caps', HTTP_STATUS.FORBIDDEN)
     }
 
     if (!mongoose.Types.ObjectId.isValid(agentId)) {

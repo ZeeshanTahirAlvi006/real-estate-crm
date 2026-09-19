@@ -13,7 +13,7 @@ export interface IAiIsaConfig extends Document {
     customInstructions?: string
   }
   officeHoursOnly: boolean
-  autoReplyChannels: Array<'sms' | 'whatsapp' | 'email'>
+  autoReplyChannels: Array<'whatsapp' | 'email'>
   autoPilotEnabled: boolean
   humanHandoffDelaySeconds: number
   qualificationThresholdScore: number
@@ -50,8 +50,8 @@ const aiIsaConfigSchema = new Schema<IAiIsaConfig>(
       default: false,
     },
     autoReplyChannels: {
-      type: [{ type: String, enum: ['sms', 'whatsapp', 'email'] }],
-      default: ['sms', 'whatsapp', 'email'],
+      type: [{ type: String, enum: ['whatsapp', 'email', 'sms'] }],
+      default: ['whatsapp', 'email'],
     },
     autoPilotEnabled: {
       type: Boolean,

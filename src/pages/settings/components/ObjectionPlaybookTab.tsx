@@ -99,14 +99,14 @@ export const ObjectionPlaybookTab: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="p-5 rounded-xl bg-white dark:bg-[#2B5748] border border-[#D8E2D6] dark:border-[#618764] shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="p-5 rounded-xl bg-white dark:bg-[#2B5748] border border-[#D8E2D6] dark:border-[#618764] shadow-xs flex flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-lg bg-[#9CB080]/20 text-[#273338] dark:text-[#9CB080] flex items-center justify-center">
             <MaterialIcon name="menu_book" size={20} />
           </div>
           <div>
-            <h2 className="text-base font-bold text-[#273338] dark:text-white">Objection Playbooks</h2>
-            <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] mt-0.5">
+            <h2 className="text-base font-bold text-[#273338] dark:text-white whitespace-nowrap">Objection Playbooks</h2>
+            <p className="text-xs text-[#75887E] dark:text-[#A0B2A6] mt-0.5 whitespace-nowrap">
               Script objection handling
             </p>
           </div>
@@ -115,7 +115,7 @@ export const ObjectionPlaybookTab: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsAddModalOpen(true)}
-          className="px-3.5 py-2 rounded-lg bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer"
+          className="w-auto px-3.5 py-2 rounded-lg bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] text-xs font-bold flex items-center justify-center gap-1.5 transition-all shrink-0 cursor-pointer"
         >
           <MaterialIcon name="add" size={16} />
           <span>Add Playbook</span>
@@ -132,8 +132,8 @@ export const ObjectionPlaybookTab: React.FC = () => {
           <span className="text-[11px] text-[#75887E] dark:text-[#A0B2A6]">Test objection parsing</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-3">
+        <div className="grid grid-cols-4 gap-3">
+          <div className="col-span-3">
             <input
               type="text"
               value={sandboxText}
@@ -143,7 +143,7 @@ export const ObjectionPlaybookTab: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-row items-center gap-2">
             <select
               value={sandboxCategory}
               onChange={(e) => setSandboxCategory(e.target.value as ObjectionCategory)}
@@ -160,7 +160,7 @@ export const ObjectionPlaybookTab: React.FC = () => {
               type="button"
               onClick={handleRunSandbox}
               disabled={isGenerating || !sandboxText.trim()}
-              className="px-4 py-2 rounded-lg bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] text-xs font-bold transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+              className="w-auto px-4 py-2 rounded-lg bg-[#9CB080] hover:bg-[#8CA070] text-[#273338] text-xs font-bold transition-all disabled:opacity-50 shrink-0 cursor-pointer"
             >
               {isGenerating ? 'Testing...' : 'Test'}
             </button>
@@ -180,7 +180,7 @@ export const ObjectionPlaybookTab: React.FC = () => {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-3 overflow-x-auto no-scrollbar">
               <div className="p-3 rounded-lg bg-white dark:bg-[#273338] border border-[#D8E2D6] dark:border-[#618764] space-y-2">
                 <div className="flex items-center gap-1 text-[#273338] dark:text-white text-xs font-semibold">
                   <MaterialIcon name="analytics" size={16} className="text-[#9CB080]" />

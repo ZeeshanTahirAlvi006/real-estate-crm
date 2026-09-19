@@ -7,7 +7,7 @@ export interface IMessage extends Document {
   sender: 'lead' | 'agent' | 'ai_isa' | 'system'
   senderName: string
   senderId?: mongoose.Types.ObjectId
-  channel: 'sms' | 'whatsapp' | 'email'
+  channel: 'whatsapp' | 'email'
   body: string
   direction: 'inbound' | 'outbound'
   deliveryStatus: 'sent' | 'delivered' | 'read' | 'failed'
@@ -55,7 +55,7 @@ const messageSchema = new Schema<IMessage>(
     },
     channel: {
       type: String,
-      enum: ['sms', 'whatsapp', 'email'],
+      enum: ['whatsapp', 'email', 'sms'],
       required: true,
     },
     body: {

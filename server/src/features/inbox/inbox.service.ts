@@ -4,6 +4,7 @@ import { Message, IMessage } from '../../models/Message.js'
 import { Contact } from '../../models/Contact.js'
 import { Activity } from '../../models/Activity.js'
 import { IUser } from '../../models/User.js'
+import { FeatureFlag } from '../../models/FeatureFlag.js'
 import { AppError } from '../../middleware/errorHandler.js'
 import { HTTP_STATUS, USER_ROLES } from '../../utils/constants.js'
 import { emitNewMessage } from '../../config/socket.js'
@@ -181,23 +182,27 @@ export const listConversations = async (
     Conversation.countDocuments(finalFilter),
   ])
 
-  // When filtered by a specific channel, populate lastMessageText and lastMessageAt with the latest message of that channel
+  // Populate lastMessageText and lastMessageAt with the latest message
   const conversationDtos = await Promise.all(
     (conversations as unknown as IConversation[]).map(async (c: any) => {
       const dto = formatConversationDto(c)
+      const msgFilter: Record<string, any> = {
+        conversationId: new mongoose.Types.ObjectId(c._id),
+      }
       if (query.channel && query.channel !== 'all') {
+        msgFilter.channel = query.channel
         dto.lastChannel = query.channel as any
-        const lastChanMsg = await Message.findOne({
-          conversationId: c._id,
-          channel: query.channel,
-        })
-          .sort({ createdAt: -1 })
-          .lean()
-        if (lastChanMsg) {
-          dto.lastMessageText = lastChanMsg.body
-          dto.lastMessageAt = lastChanMsg.createdAt
-            ? new Date(lastChanMsg.createdAt).toISOString()
-            : dto.lastMessageAt
+      }
+      const latestMsg = await Message.findOne(msgFilter)
+        .sort({ createdAt: -1 })
+        .lean()
+      if (latestMsg) {
+        dto.lastMessageText = latestMsg.body
+        dto.lastMessageAt = latestMsg.createdAt
+          ? new Date(latestMsg.createdAt).toISOString()
+          : dto.lastMessageAt
+        if (!query.channel || query.channel === 'all') {
+          dto.lastChannel = latestMsg.channel
         }
       }
       return dto
@@ -222,11 +227,11 @@ export const getMessages = async (
     throw new AppError('Invalid conversation ID', HTTP_STATUS.BAD_REQUEST)
   }
 
-  const conv = await Conversation.findById(conversationId)
+  const conv = await Conversation.findById(new mongoose.Types.ObjectId(conversationId))
   if (!conv) throw new AppError('Conversation not found', HTTP_STATUS.NOT_FOUND)
   verifyConversationAccess(caller, conv)
 
-  const messageFilter: Record<string, any> = { conversationId: conv._id }
+  const messageFilter: Record<string, any> = { conversationId: new mongoose.Types.ObjectId(conv._id) }
   if (channel && channel !== 'all') {
     messageFilter.channel = channel
   }
@@ -234,15 +239,18 @@ export const getMessages = async (
   const skip = (page - 1) * limit
   const [messages, total] = await Promise.all([
     Message.find(messageFilter)
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean(),
     Message.countDocuments(messageFilter),
   ])
 
+  // Reverse so messages are displayed in chronological order (oldest to newest)
+  const chronological = (messages as unknown as IMessage[]).reverse()
+
   return {
-    messages: (messages as unknown as IMessage[]).map(formatMessageDto),
+    messages: chronological.map(formatMessageDto),
     total,
   }
 }
@@ -261,7 +269,7 @@ export const sendMessage = async (
   if (!conv) throw new AppError('Conversation not found', HTTP_STATUS.NOT_FOUND)
   verifyConversationAccess(caller, conv)
 
-  const channel = input.channel || conv.lastChannel || 'sms'
+  const channel = input.channel || conv.lastChannel || 'whatsapp'
   const isLeadCaller = caller.role === USER_ROLES.LEAD
 
   const message = await Message.create({
@@ -334,7 +342,12 @@ export const sendMessage = async (
 
   // AI ISA Autonomous Response Simulation
   if (conv.aiIsaEnabled && isLeadCaller) {
-    scheduleAiIsaResponse(conv)
+    const aiChatbotFlag = await FeatureFlag.findOne({ key: 'ai_chatbot' }).lean()
+    const isAiChatbotEnabled = aiChatbotFlag ? aiChatbotFlag.isEnabled : true
+    
+    if (isAiChatbotEnabled) {
+      scheduleAiIsaResponse(conv)
+    }
   }
 
   return formattedMsg
@@ -398,7 +411,14 @@ export const startConversation = async (
   if (!contact) throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
 
   // Enforce strict tenant isolation (no cross-brokerage conversation initiation)
-  if (!caller.brokerageId || contact.brokerageId.toString() !== caller.brokerageId.toString()) {
+  if (caller.role === USER_ROLES.SUPER_ADMIN) {
+    if (!caller.brokerageId || !contact.brokerageId || contact.brokerageId.toString() !== caller.brokerageId.toString()) {
+      throw new AppError(
+        'Access denied: Super Admin cannot initiate conversations with cross-brokerage contacts.',
+        HTTP_STATUS.FORBIDDEN
+      )
+    }
+  } else if (!caller.brokerageId || contact.brokerageId.toString() !== caller.brokerageId.toString()) {
     throw new AppError('Contact not found', HTTP_STATUS.NOT_FOUND)
   }
 
@@ -426,7 +446,7 @@ export const startConversation = async (
       assignedAgentName: `${caller.firstName} ${caller.lastName}`,
       lastMessageText: input.initialMessage || 'Conversation initiated',
       lastMessageAt: new Date(),
-      lastChannel: input.channel || 'sms',
+      lastChannel: input.channel || 'whatsapp',
       unreadCount: 0,
       aiIsaEnabled: true,
       status: 'active',
@@ -442,7 +462,7 @@ export const startConversation = async (
       sender: 'agent',
       senderName: `${caller.firstName} ${caller.lastName}`,
       senderId: caller._id,
-      channel: input.channel || 'sms',
+      channel: input.channel || 'whatsapp',
       body: input.initialMessage,
       direction: 'outbound',
       deliveryStatus: 'delivered',

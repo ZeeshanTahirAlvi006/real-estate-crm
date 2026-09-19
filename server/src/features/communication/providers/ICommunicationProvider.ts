@@ -1,4 +1,4 @@
-export type CommunicationChannel = 'email' | 'sms' | 'whatsapp' | 'voice'
+export type CommunicationChannel = 'email' | 'whatsapp'
 
 export type DeliveryStatus = 'queued' | 'sent' | 'delivered' | 'read' | 'failed' | 'undelivered'
 

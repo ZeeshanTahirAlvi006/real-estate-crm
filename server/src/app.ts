@@ -24,7 +24,6 @@ import { leadIngestionRoutes, leadSourceRoutes, routingRuleRoutes, scoringConfig
 import { pipelineRoutes } from './features/pipeline/pipeline.routes.js'
 import { dealRoutes } from './features/deals/deal.routes.js'
 import { dataHealthRoutes } from './features/data-health/dataHealth.routes.js'
-import { dialerRoutes } from './features/dialer/dialer.routes.js'
 import { aiIsaRoutes } from './features/ai-isa/aiIsa.routes.js'
 import { inboxRoutes } from './features/inbox/inbox.routes.js'
 import { communicationRoutes } from './features/communication/communication.routes.js'
@@ -43,7 +42,10 @@ import { apiKeyRoutes } from './features/api-keys/apiKey.routes.js'
 import { importRoutes } from './features/import/import.routes.js'
 import { exportRoutes } from './features/export/export.routes.js'
 import { fileRoutes } from './features/files/file.routes.js'
+import { whisperRoutes } from './features/transcription/whisper.routes.js'
 import { healthRoutes } from './features/health/health.routes.js'
+import { widgetRoutes } from './features/widget/widget.routes.js'
+import { requireFeature } from './middleware/featureFlag.js'
 import path from 'path'
 import { initializeDefaultFeatureFlags } from './models/FeatureFlag.js'
 import { startScheduler, stopScheduler } from './jobs/scheduler.js'
@@ -90,6 +92,9 @@ export const createApp = (): Express => {
   // 3. Static Uploads Folder (Local storage)
   app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')))
 
+  // Public Embeddable Website Widget Routes (mounted before CSRF/body-parsers)
+  app.use('/api/widget', widgetRoutes)
+
   // 4. Body Parsers with limits
   app.use(express.json({ limit: '5mb' }))
   app.use(express.urlencoded({ extended: true, limit: '5mb' }))
@@ -135,14 +140,13 @@ export const createApp = (): Express => {
   app.use('/api/contacts', contactRoutes)
   app.use('/api/audit-logs', auditRoutes)
   app.use('/api/leads', leadIngestionRoutes)
-  app.use('/api/lead-sources', leadSourceRoutes)
-  app.use('/api/routing-rules', routingRuleRoutes)
-  app.use('/api/scoring-config', scoringConfigRoutes)
-  app.use('/api/pipelines', pipelineRoutes)
-  app.use('/api/deals', dealRoutes)
-  app.use('/api/data-health', dataHealthRoutes)
-  app.use('/api/dialer', dialerRoutes)
-  app.use('/api/ai-isa', aiIsaRoutes)
+  app.use('/api/lead-sources', requireFeature('lead_ingestion'), leadSourceRoutes)
+  app.use('/api/routing-rules', requireFeature('lead_ingestion'), routingRuleRoutes)
+  app.use('/api/scoring-config', requireFeature('lead_ingestion'), scoringConfigRoutes)
+  app.use('/api/pipelines', requireFeature('deals_pipeline'), pipelineRoutes)
+  app.use('/api/deals', requireFeature('deals_pipeline'), dealRoutes)
+  app.use('/api/data-health', requireFeature('data_health'), dataHealthRoutes)
+  app.use('/api/ai-isa', requireFeature('ai_isa'), aiIsaRoutes)
   app.use('/api/inbox', inboxRoutes)
   app.use('/api/communication', communicationRoutes)
   app.use('/api/notifications', notificationRoutes)
@@ -152,13 +156,14 @@ export const createApp = (): Express => {
   app.use('/api/dashboard', dashboardRoutes)
   app.use('/api/transactions', transactionRoutes)
   app.use('/api/commissions', commissionRoutes)
-  app.use('/api/esign', esignRoutes)
-  app.use('/api/seller-radar', radarRoutes)
+  app.use('/api/esign', requireFeature('esign'), esignRoutes)
+  app.use('/api/seller-radar', requireFeature('seller_radar'), radarRoutes)
   app.use('/api/settings', settingsRoutes)
   app.use('/api/integrations', integrationRoutes)
   app.use('/api/api-keys', apiKeyRoutes)
   app.use('/api/import', importRoutes)
-  app.use('/api/export', exportRoutes)
+  app.use('/api/export', requireFeature('export'), exportRoutes)
+  app.use('/api/transcription', requireFeature('transcription'), whisperRoutes)
   app.use('/api/files', fileRoutes)
 
   // 9. 404 Catch-All Handler

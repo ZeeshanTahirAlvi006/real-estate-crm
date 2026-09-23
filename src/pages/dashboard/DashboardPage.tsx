@@ -157,7 +157,7 @@ export function DashboardPage() {
               />
               <StatCard
                 title="Est. Commission Split"
-                value={`$${(animatedEstCommission / 1000).toFixed(1)}k`}
+                value={`PKR ${(animatedEstCommission / 1000).toFixed(1)}k`}
                 icon={<MaterialIcon name="payments" size={20} />}
                 trend={{ value: 12.0, isPositive: true }}
                 subtitle="projected revenue"
@@ -189,7 +189,7 @@ export function DashboardPage() {
               />
               <StatCard
                 title="Active Team Pipeline"
-                value={`$${(animatedPipelineValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k`}
+                value={`PKR ${(animatedPipelineValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k`}
                 icon={<MaterialIcon name="work" size={20} />}
                 trend={{ value: 14.5, isPositive: true }}
                 subtitle="open transaction volume"
@@ -214,14 +214,14 @@ export function DashboardPage() {
               />
               <StatCard
                 title="Pipeline Volume"
-                value={`$${(animatedPipelineValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k`}
+                value={`PKR ${(animatedPipelineValue / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k`}
                 icon={<MaterialIcon name="payments" size={20} />}
                 trend={{ value: 16.8, isPositive: true }}
                 subtitle="under contract"
               />
               <StatCard
                 title="Forecast"
-                value={`$${(animatedForecast / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k`}
+                value={`PKR ${(animatedForecast / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k`}
                 icon={<MaterialIcon name="trending_up" size={20} />}
                 trend={{ value: 9.4, isPositive: true }}
                 subtitle="expected closing"

@@ -6,6 +6,12 @@ import { Conversation, IConversation } from '../../models/Conversation.js'
 import { Message } from '../../models/Message.js'
 import { Activity } from '../../models/Activity.js'
 import { Brokerage } from '../../models/Brokerage.js'
+import { WhatsAppIntegration } from '../../models/WhatsAppIntegration.js'
+import {
+  confirmPaymentMethod,
+  handleAccountRestricted,
+  handleAccountReinstated,
+} from '../../integrations/whatsapp/service.js'
 import { IUser } from '../../models/User.js'
 import { whatsAppProvider, ParsedInboundWhatsAppMessage } from './providers/whatsapp.provider.js'
 import { getSocketServer } from '../../config/socket.js'
@@ -406,6 +412,57 @@ export const sendWhatsAppMessage = async (
 
 // ── 4. Inbound Meta Webhook Message Processor ────────────
 export const processInboundWebhook = async (rawPayload: any): Promise<{ processedCount: number }> => {
+  // Check for Meta account_update webhook events (account restriction, reinstatement, payment updates)
+  const changes = rawPayload?.entry?.[0]?.changes || []
+  for (const change of changes) {
+    if (change.field === 'account_update') {
+      const value = change.value
+      const wabaId = rawPayload?.entry?.[0]?.id || value?.waba_id
+      const phoneId = value?.phone_number_id
+
+      let integration = null
+      if (phoneId) {
+        integration = await WhatsAppIntegration.findOne({ phoneNumberId: phoneId }).lean()
+      }
+      if (!integration && wabaId) {
+        integration = await WhatsAppIntegration.findOne({ wabaId }).lean()
+      }
+
+      if (integration) {
+        try {
+          if (
+            value?.event === 'PAYMENT_METHOD_UPDATE' ||
+            value?.event === 'PAYMENT_CONFIRMED' ||
+            value?.payment_method_status === 'VALID' ||
+            value?.payment_status === 'ACTIVE'
+          ) {
+            if (integration.status === 'PENDING_PAYMENT') {
+              await confirmPaymentMethod(integration.tenantId)
+            }
+          } else if (
+            value?.ban_info ||
+            value?.restriction_info ||
+            value?.event === 'ACCOUNT_RESTRICTION' ||
+            value?.event === 'DISABLED_UPDATE'
+          ) {
+            if (integration.status === 'ACTIVE') {
+              await handleAccountRestricted(
+                integration.tenantId,
+                JSON.stringify(value?.ban_info || value?.restriction_info || value?.event || 'restricted')
+              )
+            }
+          } else if (value?.event === 'ACCOUNT_REINSTATED' || value?.event === 'RESTRICTION_REMOVED') {
+            if (integration.status === 'SUSPENDED') {
+              await handleAccountReinstated(integration.tenantId)
+            }
+          }
+        } catch (err: any) {
+          logger.warn(`Failed to process account_update webhook event for integration ${integration._id}: ${err.message}`)
+        }
+      }
+    }
+  }
+
   const parsedMessages: ParsedInboundWhatsAppMessage[] = whatsAppProvider.parseWebhookPayload(rawPayload)
 
   if (parsedMessages.length === 0) {
@@ -416,9 +473,17 @@ export const processInboundWebhook = async (rawPayload: any): Promise<{ processe
   const phoneNumberId = rawPayload?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id
   let targetBrokerageId: mongoose.Types.ObjectId | undefined
   if (phoneNumberId) {
-    const matchedBrokerage = await Brokerage.findOne({ 'whatsappConfig.phoneNumberId': phoneNumberId }).lean()
-    if (matchedBrokerage) {
-      targetBrokerageId = matchedBrokerage._id as mongoose.Types.ObjectId
+    const activeIntegration = await WhatsAppIntegration.findOne({
+      phoneNumberId,
+      status: 'ACTIVE',
+    }).lean()
+    if (activeIntegration) {
+      targetBrokerageId = activeIntegration.tenantId as mongoose.Types.ObjectId
+    } else {
+      const matchedBrokerage = await Brokerage.findOne({ 'whatsappConfig.phoneNumberId': phoneNumberId }).lean()
+      if (matchedBrokerage) {
+        targetBrokerageId = matchedBrokerage._id as mongoose.Types.ObjectId
+      }
     }
   }
 
@@ -812,7 +877,7 @@ export const updateTenantWhatsAppConfig = async (
   return getTenantWhatsAppConfig(brokerageId)
 }
 
-// ── 9. Test Tenant WhatsApp Connection ──────────────────
+// ── 9. Test Tenant WhatsApp Connection 
 export const testTenantWhatsAppConnection = async (
   brokerageId: string | mongoose.Types.ObjectId,
   testPhone?: string
@@ -837,7 +902,7 @@ export const testTenantWhatsAppConnection = async (
           headers: { Authorization: `Bearer ${credentials.token}` },
         })
       } catch (e: any) {
-        logger.warn(`[server/src/features/communication/whatsapp.service.ts: Line 822] Failed to subscribe WABA on test: ${e?.message}`)
+        logger.warn(`[server/src/features/communication/whatsapp.service.ts: testTenantWhatsappConnection() ] Failed to subscribe WABA on test: ${e?.message}`)
       }
     }
 

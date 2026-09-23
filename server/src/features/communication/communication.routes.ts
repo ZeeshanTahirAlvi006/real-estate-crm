@@ -21,6 +21,17 @@ import {
   createWhatsAppTemplateSchema,
   createWhatsAppBroadcastSchema,
 } from './whatsapp.validators.js'
+import {
+  getIntegrationStatusHandler,
+  launchSignupHandler,
+  handleCallbackHandler,
+  handleSessionEventHandler,
+  handleCallbackTimeoutHandler,
+  handleRetryHandler,
+  handleRestartHandler,
+  handleConfirmPaymentHandler,
+  handleDisconnectHandler,
+} from '../../integrations/whatsapp/controller.js'
 
 import {
   sendUnifiedHandler,
@@ -55,6 +66,15 @@ router.get('/templates', getQuickTemplatesHandler)
 router.post('/templates', validate(createQuickTemplateSchema), createQuickTemplateHandler)
 
 // ── WhatsApp Endpoints ──────────────────────────────────
+router.get('/whatsapp/status', getIntegrationStatusHandler)
+router.post('/whatsapp/signup-launch', launchSignupHandler)
+router.post('/whatsapp/callback', handleCallbackHandler)
+router.post('/whatsapp/session-event', handleSessionEventHandler)
+router.post('/whatsapp/callback-timeout', handleCallbackTimeoutHandler)
+router.post('/whatsapp/retry', handleRetryHandler)
+router.post('/whatsapp/restart', handleRestartHandler)
+router.post('/whatsapp/confirm-payment', handleConfirmPaymentHandler)
+router.post('/whatsapp/disconnect-fsm', handleDisconnectHandler)
 router.get('/whatsapp/config', getTenantConfigHandler)
 router.patch('/whatsapp/config', updateTenantConfigHandler)
 router.post('/whatsapp/test-connection', testTenantConnectionHandler)

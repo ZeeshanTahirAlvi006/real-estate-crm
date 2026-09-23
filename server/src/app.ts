@@ -38,6 +38,7 @@ import { esignRoutes } from './features/esign/esign.routes.js'
 import { radarRoutes } from './features/seller-radar/radar.routes.js'
 import { settingsRoutes } from './features/settings/settings.routes.js'
 import { integrationRoutes } from './features/integrations/integration.routes.js'
+import { whatsAppIntegrationRoutes } from './integrations/whatsapp/routes.js'
 import { apiKeyRoutes } from './features/api-keys/apiKey.routes.js'
 import { importRoutes } from './features/import/import.routes.js'
 import { exportRoutes } from './features/export/export.routes.js'
@@ -159,6 +160,8 @@ export const createApp = (): Express => {
   app.use('/api/esign', requireFeature('esign'), esignRoutes)
   app.use('/api/seller-radar', requireFeature('seller_radar'), radarRoutes)
   app.use('/api/settings', settingsRoutes)
+  app.use('/api/integrations/whatsapp', whatsAppIntegrationRoutes)
+  app.use('/integrations/whatsapp', whatsAppIntegrationRoutes)
   app.use('/api/integrations', integrationRoutes)
   app.use('/api/api-keys', apiKeyRoutes)
   app.use('/api/import', importRoutes)

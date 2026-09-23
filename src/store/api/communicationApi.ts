@@ -11,6 +11,7 @@ import type {
   CampaignMetrics,
   SpeedToLeadMetric,
   WhatsAppTenantConfig,
+  WhatsAppIntegrationStatusDto,
   UnifiedSendPayload,
   DncCheckResponse,
 } from '@/types/communication'
@@ -243,6 +244,84 @@ export const communicationApi = baseApi.injectEndpoints({
         body,
       }),
       invalidatesTags: ['Conversations', 'Messages'],
+    }),
+
+    // ── WhatsApp Embedded Signup & State Machine (FSM) ──
+    getWhatsAppStatus: builder.query<WhatsAppIntegrationStatusDto, void>({
+      query: () => '/communication/whatsapp/status',
+      transformResponse: (res: ApiResponse<WhatsAppIntegrationStatusDto>) => res.data,
+      providesTags: ['WhatsAppConfig'],
+    }),
+
+    launchWhatsAppSignup: builder.mutation<{ status: string }, void>({
+      query: () => ({
+        url: '/communication/whatsapp/signup-launch',
+        method: 'POST',
+      }),
+      transformResponse: (res: ApiResponse<{ status: string }>) => res.data,
+      invalidatesTags: ['WhatsAppConfig'],
+    }),
+
+    callbackWhatsApp: builder.mutation<
+      { status: string; error?: string },
+      { code: string; wabaId: string; phoneNumberId: string }
+    >({
+      query: (body) => ({
+        url: '/communication/whatsapp/callback',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<{ status: string; error?: string }>) => res.data,
+      invalidatesTags: ['WhatsAppConfig'],
+    }),
+
+    sessionEventWhatsApp: builder.mutation<
+      { status: string },
+      { event: string; currentStep?: string; errorCode?: string | number; errorMessage?: string; sessionId?: string }
+    >({
+      query: (body) => ({
+        url: '/communication/whatsapp/session-event',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (res: ApiResponse<{ status: string }>) => res.data,
+      invalidatesTags: ['WhatsAppConfig'],
+    }),
+
+    retryWhatsAppStep: builder.mutation<{ status: string; error?: string }, void>({
+      query: () => ({
+        url: '/communication/whatsapp/retry',
+        method: 'POST',
+      }),
+      transformResponse: (res: ApiResponse<{ status: string; error?: string }>) => res.data,
+      invalidatesTags: ['WhatsAppConfig'],
+    }),
+
+    restartWhatsApp: builder.mutation<{ status: string }, void>({
+      query: () => ({
+        url: '/communication/whatsapp/restart',
+        method: 'POST',
+      }),
+      transformResponse: (res: ApiResponse<{ status: string }>) => res.data,
+      invalidatesTags: ['WhatsAppConfig'],
+    }),
+
+    confirmWhatsAppPayment: builder.mutation<{ status: string }, void>({
+      query: () => ({
+        url: '/communication/whatsapp/confirm-payment',
+        method: 'POST',
+      }),
+      transformResponse: (res: ApiResponse<{ status: string }>) => res.data,
+      invalidatesTags: ['WhatsAppConfig'],
+    }),
+
+    disconnectWhatsAppFsm: builder.mutation<{ status: string }, void>({
+      query: () => ({
+        url: '/communication/whatsapp/disconnect-fsm',
+        method: 'POST',
+      }),
+      transformResponse: (res: ApiResponse<{ status: string }>) => res.data,
+      invalidatesTags: ['WhatsAppConfig'],
     }),
 
     getWhatsAppConfig: builder.query<WhatsAppTenantConfig, void>({
@@ -629,6 +708,14 @@ export const {
   useGetWhatsAppBroadcastsQuery,
   useCreateWhatsAppBroadcastMutation,
   useSimulateWhatsAppInboundMutation,
+  useGetWhatsAppStatusQuery,
+  useLaunchWhatsAppSignupMutation,
+  useCallbackWhatsAppMutation,
+  useSessionEventWhatsAppMutation,
+  useRetryWhatsAppStepMutation,
+  useRestartWhatsAppMutation,
+  useConfirmWhatsAppPaymentMutation,
+  useDisconnectWhatsAppFsmMutation,
   useGetWhatsAppConfigQuery,
   useUpdateWhatsAppConfigMutation,
   useTestWhatsAppConnectionMutation,

@@ -131,7 +131,7 @@ export function LeadsOverTimeChart() {
       <div className="flex items-center justify-between px-1">
         <div className="flex items-baseline gap-2">
           <span className="text-xl font-bold text-[#273338] dark:text-white">
-            {metric === 'leads' ? totalInPeriod.toLocaleString() : `$${totalInPeriod.toLocaleString()}k`}
+            {metric === 'leads' ? totalInPeriod.toLocaleString() : `PKR ${totalInPeriod.toLocaleString()}k`}
           </span>
           <span className="text-xs text-[#4A5D54] dark:text-[#A0B2A6]">total in period</span>
         </div>
@@ -183,7 +183,7 @@ export function LeadsOverTimeChart() {
                           {metric === 'leads' ? 'Inbound Leads:' : 'Pipeline Value:'}
                         </span>
                         <span className="font-bold text-[#273338] dark:text-white">
-                          {metric === 'leads' ? `${val.toLocaleString()} leads` : `$${val.toLocaleString()}k`}
+                          {metric === 'leads' ? `${val.toLocaleString()} leads` : `PKR ${val.toLocaleString()}k`}
                         </span>
                       </div>
                     </div>

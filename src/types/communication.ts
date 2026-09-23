@@ -201,6 +201,64 @@ export interface FairHousingCheckResult {
   explanation?: string
 }
 
+export type WAState =
+  | 'NOT_CONNECTED'
+  | 'AWAITING_CALLBACK'
+  | 'EXCHANGING_TOKEN'
+  | 'TOKEN_EXCHANGE_FAILED'
+  | 'SUBSCRIBING_WEBHOOKS'
+  | 'WEBHOOK_SUBSCRIBE_FAILED'
+  | 'REGISTERING_PHONE'
+  | 'PHONE_REGISTER_FAILED'
+  | 'PENDING_PAYMENT'
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'TOKEN_REVOKED'
+  | 'DISCONNECTED'
+
+export type WAEvent =
+  | 'SIGNUP_LAUNCHED'
+  | 'CODE_RECEIVED'
+  | 'CALLBACK_TIMEOUT'
+  | 'TOKEN_EXCHANGE_SUCCESS'
+  | 'TOKEN_EXCHANGE_FAILURE'
+  | 'WEBHOOK_SUBSCRIBE_SUCCESS'
+  | 'WEBHOOK_SUBSCRIBE_FAILURE'
+  | 'PHONE_REGISTER_SUCCESS'
+  | 'PHONE_REGISTER_FAILURE'
+  | 'PAYMENT_METHOD_CONFIRMED'
+  | 'ACCOUNT_RESTRICTED'
+  | 'ACCOUNT_REINSTATED'
+  | 'TOKEN_INVALIDATED'
+  | 'MANUAL_DISCONNECT'
+  | 'RETRY'
+  | 'RESTART'
+  | 'FLOW_CANCELLED'
+  | 'FLOW_ERROR_REPORTED'
+  | 'REAUTH_LAUNCHED'
+
+export interface WhatsAppIntegrationHistoryItem {
+  state: WAState
+  event: WAEvent | string
+  at: string
+  meta?: Record<string, unknown>
+}
+
+export interface WhatsAppIntegrationStatusDto {
+  status: WAState
+  wabaId?: string
+  phoneNumberId?: string
+  displayPhoneNumber?: string
+  hasToken: boolean
+  launchedAt?: string
+  updatedAt?: string
+  isLocked?: boolean
+  legalEvents: WAEvent[]
+  history: WhatsAppIntegrationHistoryItem[]
+  appId?: string
+  configId?: string
+}
+
 export interface WhatsAppTenantConfig {
   wabaId: string
   phoneNumberId: string

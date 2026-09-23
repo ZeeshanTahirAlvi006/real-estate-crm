@@ -2,6 +2,8 @@ import mongoose from 'mongoose'
 import { env } from '../../../config/env.js'
 import { logger } from '../../../utils/logger.js'
 import { Brokerage } from '../../../models/Brokerage.js'
+import { WhatsAppIntegration } from '../../../models/WhatsAppIntegration.js'
+import { handleTokenInvalidated } from '../../../integrations/whatsapp/service.js'
 import { decrypt } from '../../../utils/cryptoHelper.js'
 
 export interface WhatsAppSendResult {
@@ -63,7 +65,28 @@ export class WhatsAppProvider implements ICommunicationProvider {
   }> {
     if (brokerageId) {
       try {
-        const brokerage = await Brokerage.findById(brokerageId).select('+whatsappConfig.accessTokenEncrypted').lean()
+        const tenantId = new mongoose.Types.ObjectId(brokerageId.toString())
+
+        // 1. Primary: Check WhatsAppIntegration strict state machine document (ACTIVE)
+        const integration = await WhatsAppIntegration.findOne({
+          tenantId,
+          status: 'ACTIVE',
+        })
+          .select('+businessTokenEncrypted')
+          .lean()
+
+        if (integration?.businessTokenEncrypted && integration?.phoneNumberId) {
+          const token = decrypt(integration.businessTokenEncrypted)
+          return {
+            token,
+            phoneNumberId: integration.phoneNumberId,
+            isLive: true,
+            isTenantConfigured: true,
+          }
+        }
+
+        // 2. Secondary fallback: Check legacy Brokerage.whatsappConfig
+        const brokerage = await Brokerage.findById(tenantId).select('+whatsappConfig.accessTokenEncrypted').lean()
         if (
           brokerage?.whatsappConfig?.status === 'connected' &&
           brokerage.whatsappConfig.phoneNumberId &&
@@ -231,6 +254,14 @@ export class WhatsAppProvider implements ICommunicationProvider {
             return this.sendTemplateMessage(cleanPhone, 'hello_world', 'en_US', [], { brokerageId: options?.brokerageId })
           }
 
+          if (data.error.code === 190 || data.error.type === 'OAuthException') {
+            if (options?.brokerageId) {
+              handleTokenInvalidated(options.brokerageId).catch((e: any) =>
+                logger.warn(`Failed to auto-invalidate token for tenant ${options.brokerageId}: ${e.message}`)
+              )
+            }
+          }
+
           logger.error('Meta WhatsApp API error on text send:', data.error)
           throw new Error(this.formatMetaError(data.error))
         }
@@ -294,6 +325,14 @@ export class WhatsAppProvider implements ICommunicationProvider {
 
         const data: any = await response.json()
         if (data.error) {
+          if (data.error.code === 190 || data.error.type === 'OAuthException') {
+            if (options?.brokerageId) {
+              handleTokenInvalidated(options.brokerageId).catch((e: any) =>
+                logger.warn(`Failed to auto-invalidate token for tenant ${options.brokerageId}: ${e.message}`)
+              )
+            }
+          }
+
           logger.error('Meta WhatsApp API error on template send:', data.error)
           throw new Error(this.formatMetaError(data.error))
         }
